@@ -92,19 +92,30 @@ Beam.beam_session_create({ ..., pqcSignResult: false });
 
 ## Architecture
 
-```
-Camera HAL
-  │
-  ▼
-Swift/Kotlin adapter ──► Quality Gates (Rust/CPU, < 4ms)
-                              │
-                    Gate::Accepted only
-                              │
-                              ▼
-                    C++ ML Bridge ──► TFLite (Android) / CoreML (iOS) / ONNX (WASM)
-                              │
-                              ▼
-                    beam_session_push_result() ──► Rust PQC Sign ──► ScanResult
+```mermaid
+flowchart TD
+    Camera[Camera HAL] -->|Raw Frames| Adapter[Swift/Kotlin Adapter]
+    Adapter -->|Frame Info| Gates[Quality Gates <br/> Rust / CPU, &lt; 4ms]
+    Gates -->|Gate::Accepted only| Bridge[C++ ML Bridge]
+    
+    subgraph Execution Engines
+        Bridge -->|iOS| CoreML[CoreML <br/> ANE + CPU fallback]
+        Bridge -->|Android| TFLite[TFLite <br/> GPU delegate / NNAPI]
+        Bridge -->|Web| ONNX[ONNX Runtime <br/> WebGPU + SIMD]
+    end
+    
+    CoreML & TFLite & ONNX --> Push[beam_session_push_result]
+    Push --> Sign[Rust PQC Sign <br/> ML-DSA Level 3]
+    Sign --> Result[ScanResult]
+
+    classDef default fill:#1f2937,stroke:#4b5563,stroke-width:1px,color:#f3f4f6;
+    classDef highlight fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#eff6ff;
+    classDef gate fill:#065f46,stroke:#10b981,stroke-width:2px,color:#ecfdf5;
+    classDef engine fill:#374151,stroke:#6b7280,stroke-width:1px,color:#f3f4f6;
+    
+    class Gates gate;
+    class Bridge,Camera,Adapter highlight;
+    class CoreML,TFLite,ONNX engine;
 ```
 
 The C++ GPU layer is **never invoked** on a frame rejected by the quality gates.

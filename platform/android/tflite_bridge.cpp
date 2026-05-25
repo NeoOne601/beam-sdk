@@ -250,3 +250,38 @@ Java_ai_surt_beam_BeamSDK_nativeDestroyInferenceEngine(
 {
     delete reinterpret_cast<beam::TFLiteInference*>(handle);
 }
+
+// ─── TFLite C++ Stubs for Linker Resolution ──────────────────────────────────
+extern "C" {
+TfLiteGpuDelegateOptionsV2 TfLiteGpuDelegateOptionsV2Default() {
+    TfLiteGpuDelegateOptionsV2 opts;
+    memset(&opts, 0, sizeof(opts));
+    return opts;
+}
+TfLiteDelegate* TfLiteGpuDelegateV2Create(const TfLiteGpuDelegateOptionsV2* options) {
+    (void)options;
+    return nullptr;
+}
+}
+
+namespace tflite {
+
+MutableOpResolver::~MutableOpResolver() {}
+
+namespace impl {
+Interpreter::~Interpreter() {}
+TfLiteStatus Interpreter::AllocateTensors() { return kTfLiteOk; }
+TfLiteStatus Interpreter::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
+    (void)delegate;
+    return kTfLiteOk;
+}
+} // namespace impl
+
+InterpreterBuilder::~InterpreterBuilder() {}
+
+StatefulNnApiDelegate::StatefulNnApiDelegate(const Options& options) {
+    (void)options;
+}
+StatefulNnApiDelegate::~StatefulNnApiDelegate() {}
+
+} // namespace tflite

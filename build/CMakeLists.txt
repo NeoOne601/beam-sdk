@@ -128,7 +128,7 @@ elseif (BEAM_TARGET STREQUAL "WASM")
          -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap'] \
          -s MODULARIZE=1 \
          -s EXPORT_NAME='BeamModule' \
-         -s USE_WEBGPU=1"
+         --use-port=emdawnwebgpu"
     )
     target_link_libraries(BeamSDK BeamRustCore)
 endif()

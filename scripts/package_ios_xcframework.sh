@@ -25,12 +25,12 @@ bash "${REPO_ROOT}/ci/ios_xcodebuild.sh"
 
 # ─── Locate built products ────────────────────────────────────────────────────
 
-DEVICE_ARCHIVE="${BUILD_IOS}/device/Release-iphoneos/${SCHEME}.framework"
-SIM_ARCHIVE="${BUILD_IOS}/simulator/Release-iphonesimulator/${SCHEME}.framework"
+DEVICE_ARCHIVE="${REPO_ROOT}/build_ios_device/Release-iphoneos/${SCHEME}.framework"
+SIM_ARCHIVE="${REPO_ROOT}/build_ios_sim/Release-iphonesimulator/${SCHEME}.framework"
 
 # Fall back to .a if framework is not present (static lib build)
-DEVICE_LIB="${BUILD_IOS}/device/Release-iphoneos/libBeamSDK.a"
-SIM_LIB="${BUILD_IOS}/simulator/Release-iphonesimulator/libBeamSDK.a"
+DEVICE_LIB="${REPO_ROOT}/build_ios_device/Release-iphoneos/libBeamSDK.a"
+SIM_LIB="${REPO_ROOT}/build_ios_sim/Release-iphonesimulator/libBeamSDK.a"
 
 # ─── Create XCFramework ───────────────────────────────────────────────────────
 

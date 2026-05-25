@@ -14,6 +14,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
+include_directories("${REPO_ROOT}/include")
 
 # ─── Platform detection ──────────────────────────────────────────────────────
 

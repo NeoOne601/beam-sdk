@@ -70,5 +70,5 @@ fi
 
 echo ""
 echo "=== iOS build complete ==="
-echo "  Device:    ${REPO_ROOT}/build_ios/device"
-echo "  Simulator: ${REPO_ROOT}/build_ios/simulator"
+echo "  Device:    ${REPO_ROOT}/build_ios_device/Release-iphoneos"
+echo "  Simulator: ${REPO_ROOT}/build_ios_sim/Release-iphonesimulator"

@@ -99,7 +99,7 @@ if (BEAM_TARGET STREQUAL "Android")
             -O3 -march=armv8-a+simd -ffast-math
             -funroll-loops
         )
-    elif (ANDROID_ABI STREQUAL "armeabi-v7a")
+    elseif (ANDROID_ABI STREQUAL "armeabi-v7a")
         target_compile_options(BeamSDK PRIVATE
             -O3 -march=armv7-a -mfpu=neon -ffast-math
             -funroll-loops

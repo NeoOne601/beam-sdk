@@ -56,7 +56,7 @@ else()
                     OUTPUT_VARIABLE RUST_TARGET OUTPUT_STRIP_TRAILING_WHITESPACE)
 endif()
 
-set(RUST_LIB_PATH "${RUST_CORE_DIR}/target/${RUST_TARGET}/release/lib${RUST_LIB_NAME}.a")
+set(RUST_LIB_PATH "${REPO_ROOT}/target/${RUST_TARGET}/release/lib${RUST_LIB_NAME}.a")
 
 if (BEAM_TARGET STREQUAL "WASM")
     set(RUST_BUILD_ENV ${CMAKE_COMMAND} -E env "CFLAGS=-fPIC" "RUSTFLAGS=-C relocation-model=pic")

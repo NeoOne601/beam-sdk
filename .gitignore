@@ -28,3 +28,9 @@ dist/
 local.properties
 .cxx/
 captureLayout/
+
+# Beam prompt/design documents to ignore
+BEAM_ANTIGRAVITY_PROMPT.md
+BEAM_ANTIGRAVITY_PROMPT_v2.md
+docs/BEAM_ANTIGRAVITY_PROMPT.md
+docs/BEAM_WHITEPAPER.md

@@ -93,11 +93,23 @@ if (BEAM_TARGET STREQUAL "Android")
         ${log-lib}
         ${android-lib}
     )
-    # Compiler flags for ARM performance
-    target_compile_options(BeamSDK PRIVATE
-        -O3 -march=armv8-a+simd -ffast-math
-        -funroll-loops
-    )
+    # Compiler flags for architecture-specific performance
+    if (ANDROID_ABI STREQUAL "arm64-v8a")
+        target_compile_options(BeamSDK PRIVATE
+            -O3 -march=armv8-a+simd -ffast-math
+            -funroll-loops
+        )
+    elif (ANDROID_ABI STREQUAL "armeabi-v7a")
+        target_compile_options(BeamSDK PRIVATE
+            -O3 -march=armv7-a -mfpu=neon -ffast-math
+            -funroll-loops
+        )
+    else()
+        target_compile_options(BeamSDK PRIVATE
+            -O3 -ffast-math
+            -funroll-loops
+        )
+    endif()
     set_target_properties(BeamSDK PROPERTIES OUTPUT_NAME "beam_sdk")
 
 elseif (BEAM_TARGET STREQUAL "iOS")

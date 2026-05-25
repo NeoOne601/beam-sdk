@@ -31,13 +31,13 @@
 
 #ifdef BEAM_HAS_ORT
 #include <onnxruntime_cxx_api.h>
+#include <vector>
+#include "../../include/beam_ffi.h"
 #endif
 
 #include <stdint.h>
 #include <cstring>
-#include <vector>
 #include <cstdio>
-#include "../../include/beam_ffi.h"
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // REAL IMPLEMENTATION — compiled only when ONNX Runtime headers are available

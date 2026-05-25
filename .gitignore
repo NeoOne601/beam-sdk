@@ -26,5 +26,4 @@ dist/
 .gradle/
 local.properties
 .cxx/
-build/
 captureLayout/

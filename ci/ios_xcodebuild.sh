@@ -10,14 +10,34 @@ SCHEME="BeamSDK"
 echo "=== Beam SDK iOS Build ==="
 echo "Repository: ${REPO_ROOT}"
 
+# ─── Generate Xcode Projects using CMake ──────────────────────────────────────
+
+echo "--- Generating Xcode project for iOS Device (arm64) ---"
+mkdir -p "${REPO_ROOT}/build_ios_device"
+cmake -G Xcode \
+  -S "${REPO_ROOT}/build" \
+  -B "${REPO_ROOT}/build_ios_device" \
+  -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=iphoneos \
+  -DBEAM_TARGET=iOS
+
+echo "--- Generating Xcode project for iOS Simulator (x86_64) ---"
+mkdir -p "${REPO_ROOT}/build_ios_sim"
+cmake -G Xcode \
+  -S "${REPO_ROOT}/build" \
+  -B "${REPO_ROOT}/build_ios_sim" \
+  -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=iphonesimulator \
+  -DBEAM_TARGET=iOS
+
 # ─── Device build (arm64) ────────────────────────────────────────────────────
 
 echo ""
 echo "--- Building for iOS device (arm64) ---"
 xcodebuild \
+  -project        "${REPO_ROOT}/build_ios_device/beam_sdk.xcodeproj" \
   -scheme         "${SCHEME}" \
   -sdk            iphoneos \
-  -arch           arm64 \
   -configuration  Release \
   build \
   ONLY_ACTIVE_ARCH=NO \
@@ -34,9 +54,9 @@ fi
 echo ""
 echo "--- Building for iOS simulator ---"
 xcodebuild \
+  -project        "${REPO_ROOT}/build_ios_sim/beam_sdk.xcodeproj" \
   -scheme         "${SCHEME}" \
   -sdk            iphonesimulator \
-  -arch           x86_64 \
   -configuration  Release \
   build \
   ONLY_ACTIVE_ARCH=NO \

@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod tests {
     use beam_core::session::{ScanSession, SessionConfig, SessionState};
-    use beam_core::result::{ScanResult, DocumentField};
+    use beam_core::result::ScanResult;
 
     fn default_result() -> ScanResult {
         ScanResult {

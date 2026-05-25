@@ -266,6 +266,11 @@ TfLiteDelegate* TfLiteGpuDelegateV2Create(const TfLiteGpuDelegateOptionsV2* opti
 
 namespace tflite {
 
+ErrorReporter* DefaultErrorReporter() {
+    static ErrorReporter reporter;
+    return &reporter;
+}
+
 const TfLiteRegistration* MutableOpResolver::FindOp(tflite::BuiltinOperator op, int version) const {
     (void)op; (void)version;
     return nullptr;
@@ -281,20 +286,50 @@ bool MutableOpResolver::MayContainUserDefinedOps() const {
 }
 
 namespace impl {
+FlatBufferModel::FlatBufferModel() {}
+FlatBufferModel::~FlatBufferModel() {}
+std::unique_ptr<FlatBufferModel> FlatBufferModel::BuildFromFile(const char* path, ErrorReporter* reporter) {
+    (void)path; (void)reporter;
+    return std::unique_ptr<FlatBufferModel>(new FlatBufferModel());
+}
+
+Interpreter::Interpreter() {}
 Interpreter::~Interpreter() {}
 TfLiteStatus Interpreter::AllocateTensors() { return kTfLiteOk; }
 TfLiteStatus Interpreter::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
     (void)delegate;
     return kTfLiteOk;
 }
+TfLiteStatus Interpreter::SetNumThreads(int num_threads) {
+    (void)num_threads;
+    return kTfLiteOk;
+}
+
+InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model, const OpResolver& resolver, const InterpreterOptions* options) {
+    (void)model; (void)resolver; (void)options;
+}
+InterpreterBuilder::~InterpreterBuilder() {}
+TfLiteStatus InterpreterBuilder::operator()(std::unique_ptr<Interpreter>* interpreter) {
+    interpreter->reset(new Interpreter());
+    return kTfLiteOk;
+}
 } // namespace impl
 
-InterpreterBuilder::~InterpreterBuilder() {}
+namespace ops {
+namespace builtin {
+BuiltinOpResolver::BuiltinOpResolver() {}
+}
+}
 
 StatefulNnApiDelegate::StatefulNnApiDelegate(Options options)
     : delegate_data_(static_cast<const NnApi*>(nullptr))
 {
     (void)options;
 }
+
+StatefulNnApiDelegate::Data::Data(const NnApi* nnapi) {
+    (void)nnapi;
+}
+StatefulNnApiDelegate::Data::~Data() {}
 
 } // namespace tflite

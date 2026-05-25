@@ -98,6 +98,7 @@ if (BEAM_TARGET STREQUAL "Android")
         -O3 -march=armv8-a+simd -ffast-math
         -funroll-loops
     )
+    set_target_properties(BeamSDK PROPERTIES OUTPUT_NAME "beam_sdk")
 
 elseif (BEAM_TARGET STREQUAL "iOS")
     add_library(BeamSDK STATIC

@@ -266,9 +266,24 @@ TfLiteDelegate* TfLiteGpuDelegateV2Create(const TfLiteGpuDelegateOptionsV2* opti
 
 namespace tflite {
 
+class StubErrorReporter : public ErrorReporter {
+public:
+    int Report(const char* format, va_list args) override {
+        (void)format; (void)args;
+        return 0;
+    }
+};
+
 ErrorReporter* DefaultErrorReporter() {
-    static ErrorReporter reporter;
+    static StubErrorReporter reporter;
     return &reporter;
+}
+
+FlatBufferModel::~FlatBufferModel() {}
+
+std::unique_ptr<FlatBufferModel> FlatBufferModel::BuildFromFile(const char* path, ErrorReporter* reporter) {
+    (void)path; (void)reporter;
+    return nullptr;
 }
 
 const TfLiteRegistration* MutableOpResolver::FindOp(tflite::BuiltinOperator op, int version) const {
@@ -286,14 +301,6 @@ bool MutableOpResolver::MayContainUserDefinedOps() const {
 }
 
 namespace impl {
-FlatBufferModel::FlatBufferModel() {}
-FlatBufferModel::~FlatBufferModel() {}
-std::unique_ptr<FlatBufferModel> FlatBufferModel::BuildFromFile(const char* path, ErrorReporter* reporter) {
-    (void)path; (void)reporter;
-    return std::unique_ptr<FlatBufferModel>(new FlatBufferModel());
-}
-
-Interpreter::Interpreter() {}
 Interpreter::~Interpreter() {}
 TfLiteStatus Interpreter::AllocateTensors() { return kTfLiteOk; }
 TfLiteStatus Interpreter::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
@@ -305,12 +312,14 @@ TfLiteStatus Interpreter::SetNumThreads(int num_threads) {
     return kTfLiteOk;
 }
 
-InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model, const OpResolver& resolver, const InterpreterOptions* options) {
-    (void)model; (void)resolver; (void)options;
+InterpreterBuilder::InterpreterBuilder(const FlatBufferModel& model, const OpResolver& resolver, const InterpreterOptions* options)
+    : op_resolver_(resolver)
+{
+    (void)model; (void)options;
 }
 InterpreterBuilder::~InterpreterBuilder() {}
 TfLiteStatus InterpreterBuilder::operator()(std::unique_ptr<Interpreter>* interpreter) {
-    interpreter->reset(new Interpreter());
+    (void)interpreter;
     return kTfLiteOk;
 }
 } // namespace impl

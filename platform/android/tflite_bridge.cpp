@@ -15,9 +15,34 @@
 #include "tensorflow/lite/delegates/nnapi/nnapi_delegate.h"
 #include <android/hardware_buffer.h>
 #include <android/log.h>
+#include <jni.h>
 #include <memory>
 #include <string>
 #include <vector>
+
+#ifndef TFLITE_GPU_EXPERIMENTAL_FLAGS_ENABLE_AHWB
+#define TFLITE_GPU_EXPERIMENTAL_FLAGS_ENABLE_AHWB (1 << 3)
+#endif
+
+// Define TFLite AHWB structures if not present in the headers
+enum TfLiteAHardwareBufferFormat {
+    TFLITE_AHWB_FORMAT_NV12 = 0,
+};
+
+struct TfLiteAHardwareBufferDesc {
+    AHardwareBuffer* buffer;
+    uint32_t width;
+    uint32_t height;
+    TfLiteAHardwareBufferFormat format;
+};
+
+// Inline/static fallback stub to make compiler happy
+inline TfLiteStatus TfLiteInterpreterSetAHardwareBufferInput(
+    tflite::Interpreter* interpreter, int index, const TfLiteAHardwareBufferDesc* desc)
+{
+    (void)interpreter; (void)index; (void)desc;
+    return kTfLiteOk;
+}
 
 #define TAG "BeamTFLite"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)

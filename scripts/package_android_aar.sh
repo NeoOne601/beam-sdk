@@ -55,19 +55,19 @@ build_abi() {
     local AR_VAR=""
     
     if [ "${ABI}" = "arm64-v8a" ]; then
-        CLANG_PREFIX="aarch64-linux-android24-clang"
+        CLANG_PREFIX="aarch64-linux-android26-clang"
         LINKER_VAR="CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"
         CC_VAR="CC_aarch64_linux_android"
         CXX_VAR="CXX_aarch64_linux_android"
         AR_VAR="AR_aarch64_linux_android"
     elif [ "${ABI}" = "armeabi-v7a" ]; then
-        CLANG_PREFIX="armv7-linux-androideabi24-clang"
+        CLANG_PREFIX="armv7-linux-androideabi26-clang"
         LINKER_VAR="CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER"
         CC_VAR="CC_armv7_linux_androideabi"
         CXX_VAR="CXX_armv7_linux_androideabi"
         AR_VAR="AR_armv7_linux_androideabi"
     elif [ "${ABI}" = "x86_64" ]; then
-        CLANG_PREFIX="x86_64-linux-android24-clang"
+        CLANG_PREFIX="x86_64-linux-android26-clang"
         LINKER_VAR="CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER"
         CC_VAR="CC_x86_64_linux_android"
         CXX_VAR="CXX_x86_64_linux_android"
@@ -102,7 +102,7 @@ build_abi() {
           -DCMAKE_TOOLCHAIN_FILE="${NDK}/build/cmake/android.toolchain.cmake" \
           -DCMAKE_MODULE_PATH="${REPO_ROOT}/build" \
           -DANDROID_ABI="${ABI}" \
-          -DANDROID_PLATFORM="android-24" \
+          -DANDROID_PLATFORM="android-26" \
           -DBEAM_TARGET=Android \
           -DCMAKE_BUILD_TYPE=Release
         cmake --build "${BUILD_DIR}" --config Release

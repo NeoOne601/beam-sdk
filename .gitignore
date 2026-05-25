@@ -1,6 +1,7 @@
 # Rust artifacts
 target/
 **/*.rs.bk
+tflite/
 
 # C/C++ artifacts
 *.o

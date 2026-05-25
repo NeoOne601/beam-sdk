@@ -35,20 +35,78 @@ build_abi() {
     local RUST_TARGET="$2"
     local BUILD_DIR="${REPO_ROOT}/build_${ABI}"
 
+    # Set up Android cross-compilation environment variables for cargo
+    local OS_NAME
+    OS_NAME="$(uname -s | tr '[:upper:]' '[:lower:]')"
+    local HOST_TAG
+    if [ "${OS_NAME}" = "darwin" ]; then
+        HOST_TAG="darwin-x86_64"
+    elif [ "${OS_NAME}" = "linux" ]; then
+        HOST_TAG="linux-x86_64"
+    else
+        HOST_TAG="windows-x86_64"
+    fi
+    local TOOLCHAIN="${NDK}/toolchains/llvm/prebuilt/${HOST_TAG}/bin"
+    
+    local CLANG_PREFIX=""
+    local LINKER_VAR=""
+    local CC_VAR=""
+    local CXX_VAR=""
+    local AR_VAR=""
+    
+    if [ "${ABI}" = "arm64-v8a" ]; then
+        CLANG_PREFIX="aarch64-linux-android24-clang"
+        LINKER_VAR="CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"
+        CC_VAR="CC_aarch64_linux_android"
+        CXX_VAR="CXX_aarch64_linux_android"
+        AR_VAR="AR_aarch64_linux_android"
+    elif [ "${ABI}" = "armeabi-v7a" ]; then
+        CLANG_PREFIX="armv7-linux-androideabi24-clang"
+        LINKER_VAR="CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER"
+        CC_VAR="CC_armv7_linux_androideabi"
+        CXX_VAR="CXX_armv7_linux_androideabi"
+        AR_VAR="AR_armv7_linux_androideabi"
+    elif [ "${ABI}" = "x86_64" ]; then
+        CLANG_PREFIX="x86_64-linux-android24-clang"
+        LINKER_VAR="CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER"
+        CC_VAR="CC_x86_64_linux_android"
+        CXX_VAR="CXX_x86_64_linux_android"
+        AR_VAR="AR_x86_64_linux_android"
+    fi
+
     echo "--- Building Rust core for ${RUST_TARGET} ---"
-    (cd "${REPO_ROOT}/core" && cargo build --release --target "${RUST_TARGET}")
+    (
+        export PATH="${TOOLCHAIN}:${PATH}"
+        if [ -n "${CLANG_PREFIX}" ]; then
+            export "${LINKER_VAR}=${CLANG_PREFIX}"
+            export "${CC_VAR}=${CLANG_PREFIX}"
+            export "${CXX_VAR}=${CLANG_PREFIX}"
+            export "${AR_VAR}=llvm-ar"
+        fi
+        cd "${REPO_ROOT}/core" && cargo build --release --target "${RUST_TARGET}"
+    )
 
     echo "--- CMake build for ${ABI} ---"
     mkdir -p "${BUILD_DIR}"
-    cmake \
-      -S "${REPO_ROOT}/build" \
-      -B "${BUILD_DIR}" \
-      -DCMAKE_TOOLCHAIN_FILE="${NDK}/build/cmake/android.toolchain.cmake" \
-      -DANDROID_ABI="${ABI}" \
-      -DANDROID_PLATFORM="android-24" \
-      -DBEAM_TARGET=Android \
-      -DCMAKE_BUILD_TYPE=Release
-    cmake --build "${BUILD_DIR}" --config Release
+    (
+        export PATH="${TOOLCHAIN}:${PATH}"
+        if [ -n "${CLANG_PREFIX}" ]; then
+            export "${LINKER_VAR}=${CLANG_PREFIX}"
+            export "${CC_VAR}=${CLANG_PREFIX}"
+            export "${CXX_VAR}=${CLANG_PREFIX}"
+            export "${AR_VAR}=llvm-ar"
+        fi
+        cmake \
+          -S "${REPO_ROOT}/build" \
+          -B "${BUILD_DIR}" \
+          -DCMAKE_TOOLCHAIN_FILE="${NDK}/build/cmake/android.toolchain.cmake" \
+          -DCMAKE_MODULE_PATH="${REPO_ROOT}/build" \
+          -DANDROID_ABI="${ABI}" \
+          -DANDROID_PLATFORM="android-24" \
+          -DBEAM_TARGET=Android \
+          -DCMAKE_BUILD_TYPE=Release
+        cmake --build "${BUILD_DIR}" --config Release
+    )
 
     local SO="${BUILD_DIR}/libbeam_sdk.so"
     if [ ! -f "${SO}" ]; then

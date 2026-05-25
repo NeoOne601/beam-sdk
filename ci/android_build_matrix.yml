@@ -20,12 +20,27 @@ jobs:
           - abi: arm64-v8a
             rust_target: aarch64-linux-android
             android_platform: android-24
+            clang_prefix: aarch64-linux-android24-clang
+            linker_var: CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER
+            cc_var: CC_aarch64_linux_android
+            cxx_var: CXX_aarch64_linux_android
+            ar_var: AR_aarch64_linux_android
           - abi: armeabi-v7a
             rust_target: armv7-linux-androideabi
             android_platform: android-24
+            clang_prefix: armv7-linux-androideabi24-clang
+            linker_var: CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER
+            cc_var: CC_armv7_linux_androideabi
+            cxx_var: CXX_armv7_linux_androideabi
+            ar_var: AR_armv7_linux_androideabi
           - abi: x86_64
             rust_target: x86_64-linux-android
             android_platform: android-24
+            clang_prefix: x86_64-linux-android24-clang
+            linker_var: CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER
+            cc_var: CC_x86_64_linux_android
+            cxx_var: CXX_x86_64_linux_android
+            ar_var: AR_x86_64_linux_android
 
     name: Android ${{ matrix.abi }}
     steps:
@@ -43,8 +58,18 @@ jobs:
       - name: Install Android NDK r26
         run: sdkmanager "ndk;26.1.10909125"
 
+      - name: Install TensorFlow Lite
+        run: bash ci/install_tflite.sh
+
       - name: Build Rust core (${{ matrix.abi }})
-        run: cargo build --release --target ${{ matrix.rust_target }}
+        run: |
+          export ANDROID_NDK="/usr/local/lib/android/sdk/ndk/26.1.10909125"
+          export PATH=$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
+          export ${{ matrix.linker_var }}=${{ matrix.clang_prefix }}
+          export ${{ matrix.cc_var }}=${{ matrix.clang_prefix }}
+          export ${{ matrix.cxx_var }}=${{ matrix.clang_prefix }}
+          export ${{ matrix.ar_var }}=llvm-ar
+          cargo build --release --target ${{ matrix.rust_target }}
         working-directory: core
 
       - name: Create build output directory
@@ -52,8 +77,15 @@ jobs:
 
       - name: CMake configure (${{ matrix.abi }})
         run: |
+          export ANDROID_NDK="/usr/local/lib/android/sdk/ndk/26.1.10909125"
+          export PATH=$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
+          export ${{ matrix.linker_var }}=${{ matrix.clang_prefix }}
+          export ${{ matrix.cc_var }}=${{ matrix.clang_prefix }}
+          export ${{ matrix.cxx_var }}=${{ matrix.clang_prefix }}
+          export ${{ matrix.ar_var }}=llvm-ar
           cmake \
             -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
+            -DCMAKE_MODULE_PATH=../build \
             -DANDROID_ABI=${{ matrix.abi }} \
             -DANDROID_PLATFORM=${{ matrix.android_platform }} \
             -DBEAM_TARGET=Android \

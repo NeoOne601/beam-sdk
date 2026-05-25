@@ -45,7 +45,7 @@ if (BEAM_TARGET STREQUAL "Android")
 elseif (BEAM_TARGET STREQUAL "iOS")
     set(RUST_TARGET "aarch64-apple-ios")
 elseif (BEAM_TARGET STREQUAL "WASM")
-    set(RUST_TARGET "wasm32-unknown-unknown")
+    set(RUST_TARGET "wasm32-unknown-emscripten")
 else()
     execute_process(COMMAND rustc --print host-triple
                     OUTPUT_VARIABLE RUST_TARGET OUTPUT_STRIP_TRAILING_WHITESPACE)

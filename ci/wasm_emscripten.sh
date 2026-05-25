@@ -13,13 +13,13 @@ echo "=== Beam SDK WASM Build ==="
 
 # ─── Rust WASM target ────────────────────────────────────────────────────────
 
-echo "--- Adding wasm32-unknown-unknown Rust target ---"
-rustup target add wasm32-unknown-unknown
+echo "--- Adding wasm32-unknown-emscripten Rust target ---"
+rustup target add wasm32-unknown-emscripten
 
 # ─── Build Rust core for WASM ────────────────────────────────────────────────
 
-echo "--- Building Rust core for wasm32-unknown-unknown ---"
-(cd "${REPO_ROOT}/core" && cargo build --release --target wasm32-unknown-unknown)
+echo "--- Building Rust core for wasm32-unknown-emscripten ---"
+(cd "${REPO_ROOT}/core" && cargo build --release --target wasm32-unknown-emscripten)
 
 # ─── CMake configure via Emscripten ──────────────────────────────────────────
 

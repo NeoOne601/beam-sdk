@@ -4,11 +4,13 @@
 find_path(TensorFlowLite_INCLUDE_DIR
     NAMES tensorflow/lite/interpreter.h
     PATHS ${CMAKE_CURRENT_SOURCE_DIR}/../tflite/include
+    NO_CMAKE_FIND_ROOT_PATH
 )
 
 find_library(TensorFlowLite_LIBRARY
     NAMES tensorflowlite tensorflowlite_jni
     PATHS ${CMAKE_CURRENT_SOURCE_DIR}/../tflite/lib/${ANDROID_ABI}
+    NO_CMAKE_FIND_ROOT_PATH
 )
 
 include(FindPackageHandleStandardArgs)

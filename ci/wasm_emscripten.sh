@@ -19,6 +19,8 @@ rustup target add wasm32-unknown-emscripten
 # ─── Build Rust core for WASM ────────────────────────────────────────────────
 
 echo "--- Building Rust core for wasm32-unknown-emscripten ---"
+export CFLAGS="-fPIC"
+export RUSTFLAGS="-C relocation-model=pic"
 (cd "${REPO_ROOT}/core" && cargo build --release --target wasm32-unknown-emscripten)
 
 # ─── CMake configure via Emscripten ──────────────────────────────────────────

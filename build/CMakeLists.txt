@@ -43,7 +43,11 @@ if (BEAM_TARGET STREQUAL "Android")
         set(RUST_TARGET "x86_64-linux-android")
     endif()
 elseif (BEAM_TARGET STREQUAL "iOS")
-    set(RUST_TARGET "aarch64-apple-ios")
+    if (CMAKE_OSX_SYSROOT MATCHES "simulator")
+        set(RUST_TARGET "aarch64-apple-ios-sim")
+    else()
+        set(RUST_TARGET "aarch64-apple-ios")
+    endif()
 elseif (BEAM_TARGET STREQUAL "WASM")
     set(RUST_TARGET "wasm32-unknown-emscripten")
 else()
@@ -53,9 +57,15 @@ endif()
 
 set(RUST_LIB_PATH "${RUST_CORE_DIR}/target/${RUST_TARGET}/release/lib${RUST_LIB_NAME}.a")
 
+if (BEAM_TARGET STREQUAL "WASM")
+    set(RUST_BUILD_ENV ${CMAKE_COMMAND} -E env "CFLAGS=-fPIC" "RUSTFLAGS=-C relocation-model=pic")
+else()
+    set(RUST_BUILD_ENV "")
+endif()
+
 add_custom_command(
     OUTPUT  "${RUST_LIB_PATH}"
-    COMMAND cargo build --release --target "${RUST_TARGET}"
+    COMMAND ${RUST_BUILD_ENV} cargo build --release --target "${RUST_TARGET}"
     WORKING_DIRECTORY "${RUST_CORE_DIR}"
     COMMENT "Building Rust core for ${RUST_TARGET}"
 )

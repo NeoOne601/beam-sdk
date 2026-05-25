@@ -28,7 +28,7 @@ jobs:
           - abi: armeabi-v7a
             rust_target: armv7-linux-androideabi
             android_platform: android-26
-            clang_prefix: armv7-linux-androideabi26-clang
+            clang_prefix: armv7a-linux-androideabi26-clang
             linker_var: CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER
             cc_var: CC_armv7_linux_androideabi
             cxx_var: CXX_armv7_linux_androideabi

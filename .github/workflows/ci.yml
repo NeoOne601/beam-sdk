@@ -7,12 +7,14 @@ env:
 jobs:
   android-arm64:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_NDK: "/usr/local/lib/android/sdk/ndk/26.1.10909125"
     steps:
       - uses: actions/checkout@v4
       - uses: android-actions/setup-android@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android
+          targets: aarch64-linux-android,armv7-linux-androideabi
       - name: Install clang (required by pqcrypto-dilithium)
         run: sudo apt-get install -y clang libclang-dev
       - name: Install Android NDK r26

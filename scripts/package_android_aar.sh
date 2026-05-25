@@ -26,7 +26,7 @@ VERSION="0.1.0"
 
 echo "=== Beam SDK Android AAR Packaging ==="
 echo "NDK: ${NDK}"
-mkdir -p "${DIST_DIR}" "${AAR_WORK}/jni/arm64-v8a" "${AAR_WORK}/jni/armeabi-v7a"
+mkdir -p "${DIST_DIR}" "${AAR_WORK}/jni/arm64-v8a" "${AAR_WORK}/jni/armeabi-v7a" "${AAR_WORK}/jni/x86_64"
 
 # ─── Build native .so for each ABI ───────────────────────────────────────────
 
@@ -34,6 +34,29 @@ build_abi() {
     local ABI="$1"
     local RUST_TARGET="$2"
     local BUILD_DIR="${REPO_ROOT}/build_${ABI}"
+
+    # Check if a prebuilt .so exists from a download-artifact step
+    local PREBUILT_SO="${REPO_ROOT}/dist_libs/libbeam_sdk-${ABI}/libbeam_sdk.so"
+    if [ -f "${PREBUILT_SO}" ]; then
+        echo "Using prebuilt .so for ${ABI} from ${PREBUILT_SO}"
+        mkdir -p "${AAR_WORK}/jni/${ABI}"
+        cp "${PREBUILT_SO}" "${AAR_WORK}/jni/${ABI}/libbeam_sdk.so"
+        echo "  ✓ ${ABI} (prebuilt): $(ls -lh ${PREBUILT_SO} | awk '{print $5}')"
+        return 0
+    fi
+
+    # Check if rustup has the target installed. If not, skip (unless we are in CI where we fail)
+    if command -v rustup &>/dev/null; then
+        if ! rustup target list --installed | grep -q "${RUST_TARGET}"; then
+            if [ "${CI:-false}" = "true" ]; then
+                echo "ERROR: Rust target ${RUST_TARGET} is required in CI but not installed."
+                exit 1
+            else
+                echo "WARNING: Rust target ${RUST_TARGET} not installed. Skipping build for ${ABI}."
+                return 0
+            fi
+        fi
+    fi
 
     # Set up Android cross-compilation environment variables for cargo
     local OS_NAME
@@ -61,7 +84,7 @@ build_abi() {
         CXX_VAR="CXX_aarch64_linux_android"
         AR_VAR="AR_aarch64_linux_android"
     elif [ "${ABI}" = "armeabi-v7a" ]; then
-        CLANG_PREFIX="armv7-linux-androideabi26-clang"
+        CLANG_PREFIX="armv7a-linux-androideabi26-clang"
         LINKER_VAR="CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER"
         CC_VAR="CC_armv7_linux_androideabi"
         CXX_VAR="CXX_armv7_linux_androideabi"
@@ -119,6 +142,7 @@ build_abi() {
 
 build_abi "arm64-v8a"   "aarch64-linux-android"
 build_abi "armeabi-v7a" "armv7-linux-androideabi"
+build_abi "x86_64"      "x86_64-linux-android"
 
 # ─── Compile BeamNativeBridge.kt → classes.jar ───────────────────────────────
 

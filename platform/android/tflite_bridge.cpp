@@ -266,7 +266,19 @@ TfLiteDelegate* TfLiteGpuDelegateV2Create(const TfLiteGpuDelegateOptionsV2* opti
 
 namespace tflite {
 
-MutableOpResolver::~MutableOpResolver() {}
+const TfLiteRegistration* MutableOpResolver::FindOp(tflite::BuiltinOperator op, int version) const {
+    (void)op; (void)version;
+    return nullptr;
+}
+
+const TfLiteRegistration* MutableOpResolver::FindOp(const char* op, int version) const {
+    (void)op; (void)version;
+    return nullptr;
+}
+
+bool MutableOpResolver::MayContainUserDefinedOps() const {
+    return false;
+}
 
 namespace impl {
 Interpreter::~Interpreter() {}
@@ -279,9 +291,10 @@ TfLiteStatus Interpreter::ModifyGraphWithDelegate(TfLiteDelegate* delegate) {
 
 InterpreterBuilder::~InterpreterBuilder() {}
 
-StatefulNnApiDelegate::StatefulNnApiDelegate(const Options& options) {
+StatefulNnApiDelegate::StatefulNnApiDelegate(Options options)
+    : delegate_data_(static_cast<const NnApi*>(nullptr))
+{
     (void)options;
 }
-StatefulNnApiDelegate::~StatefulNnApiDelegate() {}
 
 } // namespace tflite

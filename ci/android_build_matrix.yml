@@ -1,0 +1,88 @@
+name: Beam SDK Android Build Matrix
+
+# Separate matrix job for release pipelines.
+# Builds all three Android ABIs in parallel.
+# Triggered manually or from a release tag workflow.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  android-matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - abi: arm64-v8a
+            rust_target: aarch64-linux-android
+            android_platform: android-24
+          - abi: armeabi-v7a
+            rust_target: armv7-linux-androideabi
+            android_platform: android-24
+          - abi: x86_64
+            rust_target: x86_64-linux-android
+            android_platform: android-24
+
+    name: Android ${{ matrix.abi }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Install clang (required by pqcrypto-dilithium)
+        run: sudo apt-get install -y clang libclang-dev
+
+      - name: Install Android NDK r26
+        run: sdkmanager "ndk;26.1.10909125"
+
+      - name: Build Rust core (${{ matrix.abi }})
+        run: cargo build --release --target ${{ matrix.rust_target }}
+        working-directory: core
+
+      - name: Create build output directory
+        run: mkdir -p build_${{ matrix.abi }}
+
+      - name: CMake configure (${{ matrix.abi }})
+        run: |
+          cmake \
+            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=${{ matrix.abi }} \
+            -DANDROID_PLATFORM=${{ matrix.android_platform }} \
+            -DBEAM_TARGET=Android \
+            ../build
+          cmake --build . --config Release
+        working-directory: build_${{ matrix.abi }}
+
+      - name: Upload .so artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libbeam_sdk-${{ matrix.abi }}
+          path: build_${{ matrix.abi }}/libbeam_sdk.so
+
+  package-aar:
+    runs-on: ubuntu-latest
+    needs: android-matrix
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all .so artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist_libs/
+
+      - name: Package AAR
+        run: bash scripts/package_android_aar.sh
+
+      - name: Upload AAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: BeamSDK-release-aar
+          path: dist/BeamSDK-0.1.0-release.aar

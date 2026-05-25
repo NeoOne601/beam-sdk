@@ -1,0 +1,30 @@
+# Rust artifacts
+target/
+**/*.rs.bk
+
+# C/C++ artifacts
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+build_output/
+build_ios/
+build_wasm/
+dist/
+
+# IDE/OS specific
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Mobile platforms
+*.xcworkspace
+*.xcodeproj
+.gradle/
+local.properties
+.cxx/
+build/
+captureLayout/

@@ -15,10 +15,19 @@ AAR_URL="https://repo1.maven.org/maven2/org/tensorflow/tensorflow-lite/2.14.0/te
 curl -L "${AAR_URL}" -o "${TFLITE_DIR}/tflite.aar"
 unzip -o -d "${TFLITE_DIR}/aar_extract" "${TFLITE_DIR}/tflite.aar"
 
+echo "--- Downloading TFLite GPU AAR ---"
+GPU_AAR_URL="https://repo1.maven.org/maven2/org/tensorflow/tensorflow-lite-gpu/2.14.0/tensorflow-lite-gpu-2.14.0.aar"
+curl -L "${GPU_AAR_URL}" -o "${TFLITE_DIR}/tflite-gpu.aar"
+unzip -o -d "${TFLITE_DIR}/gpu_extract" "${TFLITE_DIR}/tflite-gpu.aar"
+
 echo "--- Copying prebuilt .so libraries ---"
 cp "${TFLITE_DIR}/aar_extract/jni/arm64-v8a/libtensorflowlite_jni.so"   "${TFLITE_DIR}/lib/arm64-v8a/libtensorflowlite.so"
 cp "${TFLITE_DIR}/aar_extract/jni/armeabi-v7a/libtensorflowlite_jni.so" "${TFLITE_DIR}/lib/armeabi-v7a/libtensorflowlite.so"
 cp "${TFLITE_DIR}/aar_extract/jni/x86_64/libtensorflowlite_jni.so"      "${TFLITE_DIR}/lib/x86_64/libtensorflowlite.so"
+
+cp "${TFLITE_DIR}/gpu_extract/jni/arm64-v8a/libtensorflowlite_gpu_jni.so"   "${TFLITE_DIR}/lib/arm64-v8a/libtensorflowlite_gpu.so"
+cp "${TFLITE_DIR}/gpu_extract/jni/armeabi-v7a/libtensorflowlite_gpu_jni.so" "${TFLITE_DIR}/lib/armeabi-v7a/libtensorflowlite_gpu.so"
+cp "${TFLITE_DIR}/gpu_extract/jni/x86_64/libtensorflowlite_gpu_jni.so"      "${TFLITE_DIR}/lib/x86_64/libtensorflowlite_gpu.so"
 
 # 2. Download and extract TensorFlow C++ headers (v2.14.0)
 echo "--- Downloading TensorFlow source for headers ---"
@@ -44,6 +53,7 @@ mv "${TFLITE_DIR}/abs_extract/abseil-cpp-20230802.1/absl" "${TFLITE_DIR}/include
 # Clean up temporary downloads
 echo "--- Cleaning up temporary files ---"
 rm -rf "${TFLITE_DIR}/aar_extract" "${TFLITE_DIR}/tflite.aar"
+rm -rf "${TFLITE_DIR}/gpu_extract" "${TFLITE_DIR}/tflite-gpu.aar"
 rm -rf "${TFLITE_DIR}/tf_extract" "${TFLITE_DIR}/tf.zip"
 rm -rf "${TFLITE_DIR}/fb_extract" "${TFLITE_DIR}/fb.zip"
 rm -rf "${TFLITE_DIR}/abs_extract" "${TFLITE_DIR}/abs.zip"

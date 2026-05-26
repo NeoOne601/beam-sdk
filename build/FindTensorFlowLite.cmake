@@ -13,6 +13,12 @@ find_library(TensorFlowLite_LIBRARY
     NO_CMAKE_FIND_ROOT_PATH
 )
 
+find_library(TensorFlowLite_GPU_LIBRARY
+    NAMES tensorflowlite_gpu tensorflowlite_gpu_jni
+    PATHS ${CMAKE_CURRENT_SOURCE_DIR}/../tflite/lib/${ANDROID_ABI}
+    NO_CMAKE_FIND_ROOT_PATH
+)
+
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(TensorFlowLite
     REQUIRED_VARS TensorFlowLite_LIBRARY TensorFlowLite_INCLUDE_DIR
@@ -28,5 +34,10 @@ if (TensorFlowLite_FOUND)
             IMPORTED_LOCATION "${TensorFlowLite_LIBRARY}"
             INTERFACE_INCLUDE_DIRECTORIES "${TensorFlowLite_INCLUDE_DIR}"
         )
+        if (TensorFlowLite_GPU_LIBRARY)
+            set_property(TARGET TensorFlowLite::TensorFlowLite PROPERTY
+                INTERFACE_LINK_LIBRARIES "${TensorFlowLite_GPU_LIBRARY}"
+            )
+        endif()
     endif()
 endif()

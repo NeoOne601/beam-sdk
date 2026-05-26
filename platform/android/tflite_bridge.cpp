@@ -33,10 +33,9 @@
 #include <vector>
 
 #ifdef BEAM_HAS_TFLITE
-#include "tensorflow/lite/interpreter.h"
-#include "tensorflow/lite/kernels/register.h"
+#include "tensorflow/lite/c/c_api.h"
 #include "tensorflow/lite/delegates/gpu/delegate.h"
-#include "tensorflow/lite/delegates/nnapi/nnapi_delegate.h"
+#include "tensorflow/lite/delegates/nnapi/nnapi_delegate_c_api.h"
 #endif
 
 #ifndef BEAM_HAS_TFLITE
@@ -79,7 +78,7 @@ struct TfLiteAHardwareBufferDesc {
 
 // Inline/static fallback stub to make compiler happy
 inline TfLiteStatus TfLiteInterpreterSetAHardwareBufferInput(
-    tflite::Interpreter* interpreter, int index, const TfLiteAHardwareBufferDesc* desc)
+    TfLiteInterpreter* interpreter, int index, const TfLiteAHardwareBufferDesc* desc)
 {
     (void)interpreter; (void)index; (void)desc;
     return kTfLiteOk;
@@ -100,26 +99,91 @@ public:
         : backend_(backend)
     {
         // Load flatbuffer model
-        model_ = tflite::FlatBufferModel::BuildFromFile(model_path);
+        model_ = TfLiteModelCreateFromFile(model_path);
         if (!model_) { LOGE("Failed to load model: %s", model_path); return; }
 
-        tflite::ops::builtin::BuiltinOpResolver resolver;
-        tflite::InterpreterBuilder builder(*model_, resolver);
-        builder(&interpreter_);
-        if (!interpreter_) { LOGE("Failed to build interpreter"); return; }
+        options_ = TfLiteInterpreterOptionsCreate();
+        if (!options_) { LOGE("Failed to create interpreter options"); return; }
 
         // Set thread count — on Helio G85 (4xA55 + 4xA75) use 2 threads.
         // Using all 8 causes thermal throttling that degrades throughput.
-        interpreter_->SetNumThreads(2);
+        TfLiteInterpreterOptionsSetNumThreads(options_, 2);
 
-        switch (backend_) {
-            case Backend::GpuDelegate:   apply_gpu_delegate();  break;
-            case Backend::NNAPI:         apply_nnapi_delegate(); break;
-            case Backend::CPU:           /* XNNPACK auto-applied */ break;
+        if (backend_ == Backend::GpuDelegate) {
+            TfLiteGpuDelegateOptionsV2 opts = TfLiteGpuDelegateOptionsV2Default();
+            opts.inference_preference =
+                TFLITE_GPU_INFERENCE_PREFERENCE_SUSTAINED_SPEED;
+            opts.inference_priority1 =
+                TFLITE_GPU_INFERENCE_PRIORITY_MIN_LATENCY;
+            opts.experimental_flags |=
+                TFLITE_GPU_EXPERIMENTAL_FLAGS_ENABLE_AHWB;
+            gpu_delegate_ = TfLiteGpuDelegateV2Create(&opts);
+            if (gpu_delegate_) {
+                TfLiteInterpreterOptionsAddDelegate(options_, gpu_delegate_);
+            } else {
+                LOGE("GPU delegate creation failed, falling back to CPU");
+                backend_ = Backend::CPU;
+            }
+        } else if (backend_ == Backend::NNAPI) {
+            TfLiteNnapiDelegateOptions opts = TfLiteNnapiDelegateOptionsDefault();
+            opts.execution_preference = TfLiteNnapiDelegateOptions::kSustainedSpeed;
+            opts.allow_fp16 = 1;
+            nnapi_delegate_ = TfLiteNnapiDelegateCreate(&opts);
+            if (nnapi_delegate_) {
+                TfLiteInterpreterOptionsAddDelegate(options_, nnapi_delegate_);
+            } else {
+                LOGE("NNAPI delegate creation failed, falling back to CPU");
+                backend_ = Backend::CPU;
+            }
         }
 
-        interpreter_->AllocateTensors();
+        interpreter_ = TfLiteInterpreterCreate(model_, options_);
+        if (!interpreter_ && backend_ != Backend::CPU) {
+            LOGE("Failed to build interpreter with delegate, falling back to CPU");
+            if (gpu_delegate_) {
+                TfLiteGpuDelegateV2Delete(gpu_delegate_);
+                gpu_delegate_ = nullptr;
+            }
+            if (nnapi_delegate_) {
+                TfLiteNnapiDelegateDelete(nnapi_delegate_);
+                nnapi_delegate_ = nullptr;
+            }
+            TfLiteInterpreterOptionsDelete(options_);
+
+            backend_ = Backend::CPU;
+            options_ = TfLiteInterpreterOptionsCreate();
+            TfLiteInterpreterOptionsSetNumThreads(options_, 2);
+            interpreter_ = TfLiteInterpreterCreate(model_, options_);
+        }
+
+        if (!interpreter_) {
+            LOGE("Failed to build interpreter");
+            return;
+        }
+
+        if (TfLiteInterpreterAllocateTensors(interpreter_) != kTfLiteOk) {
+            LOGE("Failed to allocate tensors");
+            return;
+        }
         LOGI("Interpreter ready. Backend: %d", (int)backend_);
+    }
+
+    ~TFLiteInference() {
+        if (interpreter_) {
+            TfLiteInterpreterDelete(interpreter_);
+        }
+        if (gpu_delegate_) {
+            TfLiteGpuDelegateV2Delete(gpu_delegate_);
+        }
+        if (nnapi_delegate_) {
+            TfLiteNnapiDelegateDelete(nnapi_delegate_);
+        }
+        if (options_) {
+            TfLiteInterpreterOptionsDelete(options_);
+        }
+        if (model_) {
+            TfLiteModelDelete(model_);
+        }
     }
 
     /// Run inference on a zero-copy AHardwareBuffer (gralloc frame from Camera2).
@@ -139,47 +203,23 @@ public:
     }
 
 private:
-    std::unique_ptr<tflite::FlatBufferModel>  model_;
-    std::unique_ptr<tflite::Interpreter>      interpreter_;
+    TfLiteModel*                              model_         = nullptr;
+    TfLiteInterpreterOptions*                 options_       = nullptr;
+    TfLiteInterpreter*                        interpreter_   = nullptr;
     TfLiteDelegate*                           gpu_delegate_  = nullptr;
     TfLiteDelegate*                           nnapi_delegate_= nullptr;
     Backend                                   backend_;
-
-    void apply_gpu_delegate() {
-        TfLiteGpuDelegateOptionsV2 opts = TfLiteGpuDelegateOptionsV2Default();
-        opts.inference_preference =
-            TFLITE_GPU_INFERENCE_PREFERENCE_SUSTAINED_SPEED;
-        opts.inference_priority1 =
-            TFLITE_GPU_INFERENCE_PRIORITY_MIN_LATENCY;
-        // Enable AHardwareBuffer import — zero-copy path.
-        opts.experimental_flags |=
-            TFLITE_GPU_EXPERIMENTAL_FLAGS_ENABLE_AHWB;
-        gpu_delegate_ = TfLiteGpuDelegateV2Create(&opts);
-        if (interpreter_->ModifyGraphWithDelegate(gpu_delegate_) != kTfLiteOk) {
-            LOGE("GPU delegate failed, falling back to CPU");
-            backend_ = Backend::CPU;
-        }
-    }
-
-    void apply_nnapi_delegate() {
-        tflite::StatefulNnApiDelegate::Options opts;
-        opts.execution_preference =
-            tflite::StatefulNnApiDelegate::Options::kSustainedSpeed;
-        opts.allow_fp16 = true; // Helio AI engine handles FP16 natively
-        nnapi_delegate_ = new tflite::StatefulNnApiDelegate(opts);
-        if (interpreter_->ModifyGraphWithDelegate(nnapi_delegate_) != kTfLiteOk) {
-            LOGE("NNAPI delegate failed, falling back to CPU");
-            backend_ = Backend::CPU;
-        }
-    }
 
     bool run_gpu_zero_copy(
         AHardwareBuffer* hw_buffer,
         BeamSessionHandle session,
         uint32_t width, uint32_t height)
     {
-        // Import AHardwareBuffer as TFLite input tensor — zero memcpy.
-        TfLiteTensor* input = interpreter_->input_tensor(0);
+        TfLiteTensor* input = TfLiteInterpreterGetInputTensor(interpreter_, 0);
+        if (!input) {
+            LOGE("Failed to get input tensor");
+            return false;
+        }
         TfLiteAHardwareBufferDesc desc;
         desc.buffer  = hw_buffer;
         desc.width   = width;
@@ -187,12 +227,12 @@ private:
         desc.format  = TfLiteAHardwareBufferFormat::TFLITE_AHWB_FORMAT_NV12;
 
         if (TfLiteInterpreterSetAHardwareBufferInput(
-                interpreter_.get(), 0, &desc) != kTfLiteOk) {
+                interpreter_, 0, &desc) != kTfLiteOk) {
             LOGE("AHardwareBuffer import failed");
             return false;
         }
 
-        if (interpreter_->Invoke() != kTfLiteOk) {
+        if (TfLiteInterpreterInvoke(interpreter_) != kTfLiteOk) {
             LOGE("Inference failed");
             return false;
         }
@@ -212,20 +252,34 @@ private:
         if (!cpu_ptr) return false;
 
         // Copy Y plane into input tensor
-        TfLiteTensor* input = interpreter_->input_tensor(0);
-        memcpy(input->data.raw, cpu_ptr, width * height);
+        TfLiteTensor* input = TfLiteInterpreterGetInputTensor(interpreter_, 0);
+        if (!input) {
+            AHardwareBuffer_unlock(hw_buffer, nullptr);
+            return false;
+        }
+        void* input_data = TfLiteTensorData(input);
+        if (!input_data) {
+            AHardwareBuffer_unlock(hw_buffer, nullptr);
+            return false;
+        }
+        memcpy(input_data, cpu_ptr, width * height);
 
         AHardwareBuffer_unlock(hw_buffer, nullptr);
 
-        if (interpreter_->Invoke() != kTfLiteOk) return false;
+        if (TfLiteInterpreterInvoke(interpreter_) != kTfLiteOk) return false;
         return push_output_to_session(session);
     }
 
     bool push_output_to_session(BeamSessionHandle session) {
         // Output tensor 0: field confidence scores [N_FIELDS]
         // Output tensor 1: field string indices → decode from vocab table
-        TfLiteTensor* scores  = interpreter_->output_tensor(0);
-        TfLiteTensor* strings = interpreter_->output_tensor(1);
+        const TfLiteTensor* scores  = TfLiteInterpreterGetOutputTensor(interpreter_, 0);
+        const TfLiteTensor* strings = TfLiteInterpreterGetOutputTensor(interpreter_, 1);
+
+        if (!scores || !strings) {
+            LOGE("Failed to get output tensors");
+            return false;
+        }
 
         // Decode extracted fields (simplified — real impl uses vocab lookup)
         // In production: parse MRZ/VIZ output from the document parsing head
@@ -247,8 +301,8 @@ private:
     }
 
     int decode_output_fields(
-        TfLiteTensor* scores,
-        TfLiteTensor* strings,
+        const TfLiteTensor* scores,
+        const TfLiteTensor* strings,
         CField*       out_fields,
         int           max_fields)
     {

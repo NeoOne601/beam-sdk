@@ -1,3 +1,19 @@
+#if defined(__has_include)
+  #if __has_include(<tensorflow/lite/interpreter.h>)
+    #define BEAM_HAS_TFLITE 1
+  #endif
+#endif
+
+// Build behaviour:
+//   WITH real TFLite headers (BEAM_HAS_TFLITE defined):
+//     - Real TFLite Interpreter, GPU delegate, NNAPI delegate are used.
+//     - Stub blocks are compiled out.
+//     - JNI functions call real beam::TFLiteInference.
+//   WITHOUT real TFLite headers (default, for IDE / syntax analysis):
+//     - Stub types provide minimal definitions for compilation.
+//     - JNI functions return 0 / no-op and log a warning.
+//     - ci/install_tflite.sh must be run before a real Android build.
+
 // platform/android/tflite_bridge.cpp
 // TFLite GPU delegate + NNAPI bridge for Android.
 // This is the C++ layer that owns the ML runtime boundary.
@@ -9,10 +25,6 @@
 //   No CPU memcpy in the hot path.
 
 #include "beam_ffi.h"         // generated from Rust FFI
-#include "tensorflow/lite/interpreter.h"
-#include "tensorflow/lite/kernels/register.h"
-#include "tensorflow/lite/delegates/gpu/delegate.h"
-#include "tensorflow/lite/delegates/nnapi/nnapi_delegate.h"
 #include <android/hardware_buffer.h>
 #include <android/log.h>
 #include <jni.h>
@@ -20,9 +32,30 @@
 #include <string>
 #include <vector>
 
+#ifdef BEAM_HAS_TFLITE
+#include "tensorflow/lite/interpreter.h"
+#include "tensorflow/lite/kernels/register.h"
+#include "tensorflow/lite/delegates/gpu/delegate.h"
+#include "tensorflow/lite/delegates/nnapi/nnapi_delegate.h"
+#endif
+
+#ifndef BEAM_HAS_TFLITE
+// --- Stub type definitions (no real TFLite headers present) ---
+
 #ifndef TFLITE_GPU_EXPERIMENTAL_FLAGS_ENABLE_AHWB
 #define TFLITE_GPU_EXPERIMENTAL_FLAGS_ENABLE_AHWB (1 << 3)
 #endif
+
+struct TfLiteGpuDelegateOptionsV2 {
+    int inference_preference;
+    int inference_priority1;
+    unsigned int experimental_flags;
+};
+#define TFLITE_GPU_INFERENCE_PREFERENCE_SUSTAINED_SPEED 1
+#define TFLITE_GPU_INFERENCE_PRIORITY_MIN_LATENCY       1
+typedef void TfLiteDelegate;
+typedef int  TfLiteStatus;
+static const TfLiteStatus kTfLiteOk = 0;
 
 // Define TFLite AHWB structures if not present in the headers
 enum TfLiteAHardwareBufferFormat {
@@ -36,6 +69,14 @@ struct TfLiteAHardwareBufferDesc {
     TfLiteAHardwareBufferFormat format;
 };
 
+#endif // !BEAM_HAS_TFLITE
+
+#define TAG "BeamTFLite"
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  TAG, __VA_ARGS__)
+
+#ifdef BEAM_HAS_TFLITE
+
 // Inline/static fallback stub to make compiler happy
 inline TfLiteStatus TfLiteInterpreterSetAHardwareBufferInput(
     tflite::Interpreter* interpreter, int index, const TfLiteAHardwareBufferDesc* desc)
@@ -43,10 +84,6 @@ inline TfLiteStatus TfLiteInterpreterSetAHardwareBufferInput(
     (void)interpreter; (void)index; (void)desc;
     return kTfLiteOk;
 }
-
-#define TAG "BeamTFLite"
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  TAG, __VA_ARGS__)
 
 namespace beam {
 
@@ -233,7 +270,11 @@ Backend probe_backend() {
 
 } // namespace beam
 
-// ─── JNI entry point ────────────────────────────────────────────────────────
+#endif // BEAM_HAS_TFLITE
+
+// ─── JNI entry points ──────────────────────────────────────────────────────
+
+#ifdef BEAM_HAS_TFLITE
 extern "C" JNIEXPORT jlong JNICALL
 Java_ai_surt_beam_BeamSDK_nativeCreateInferenceEngine(
     JNIEnv* env, jobject, jstring model_path)
@@ -250,8 +291,31 @@ Java_ai_surt_beam_BeamSDK_nativeDestroyInferenceEngine(
 {
     delete reinterpret_cast<beam::TFLiteInference*>(handle);
 }
+#endif // BEAM_HAS_TFLITE
+
+#ifndef BEAM_HAS_TFLITE
+extern "C" JNIEXPORT jlong JNICALL
+Java_ai_surt_beam_BeamSDK_nativeCreateInferenceEngine(
+    JNIEnv* env, jobject, jstring model_path)
+{
+    (void)env; (void)model_path;
+    __android_log_print(ANDROID_LOG_WARN, "BeamTFLite",
+        "nativeCreateInferenceEngine: stub mode (no TFLite headers)");
+    return 0L;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_ai_surt_beam_BeamSDK_nativeDestroyInferenceEngine(
+    JNIEnv*, jobject, jlong handle)
+{
+    (void)handle;
+}
+#endif // !BEAM_HAS_TFLITE
 
 // ─── TFLite C++ Stubs for Linker Resolution ──────────────────────────────────
+
+#ifndef BEAM_HAS_TFLITE
+// TFLite C++ Stubs for Linker Resolution (no real TFLite headers present)
 extern "C" {
 TfLiteGpuDelegateOptionsV2 TfLiteGpuDelegateOptionsV2Default() {
     TfLiteGpuDelegateOptionsV2 opts;
@@ -263,6 +327,9 @@ TfLiteDelegate* TfLiteGpuDelegateV2Create(const TfLiteGpuDelegateOptionsV2* opti
     return nullptr;
 }
 }
+#endif // !BEAM_HAS_TFLITE
+
+#ifndef BEAM_HAS_TFLITE
 
 namespace tflite {
 
@@ -342,3 +409,5 @@ StatefulNnApiDelegate::Data::Data(const NnApi* nnapi) {
 StatefulNnApiDelegate::Data::~Data() {}
 
 } // namespace tflite
+
+#endif // !BEAM_HAS_TFLITE

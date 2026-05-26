@@ -28,3 +28,15 @@ panic = "abort"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
+
+[[test]]
+name = "quality_gate_tests"
+path = "tests/quality_gate_tests.rs"
+
+[[test]]
+name = "session_state_tests"
+path = "tests/session_state_tests.rs"
+
+[[test]]
+name = "crypto_pqc_tests"
+path = "tests/crypto_pqc_tests.rs"

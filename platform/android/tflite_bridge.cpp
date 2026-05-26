@@ -42,10 +42,6 @@
 #ifndef BEAM_HAS_TFLITE
 // --- Stub type definitions (no real TFLite headers present) ---
 
-#ifndef TFLITE_GPU_EXPERIMENTAL_FLAGS_ENABLE_AHWB
-#define TFLITE_GPU_EXPERIMENTAL_FLAGS_ENABLE_AHWB (1 << 3)
-#endif
-
 struct TfLiteGpuDelegateOptionsV2 {
     int inference_preference;
     int inference_priority1;
@@ -57,7 +53,13 @@ typedef void TfLiteDelegate;
 typedef int  TfLiteStatus;
 static const TfLiteStatus kTfLiteOk = 0;
 
-// Define TFLite AHWB structures if not present in the headers
+#endif // !BEAM_HAS_TFLITE
+
+// Custom TFLite AHWB structures/flags (not present in official headers)
+#ifndef TFLITE_GPU_EXPERIMENTAL_FLAGS_ENABLE_AHWB
+#define TFLITE_GPU_EXPERIMENTAL_FLAGS_ENABLE_AHWB (1 << 3)
+#endif
+
 enum TfLiteAHardwareBufferFormat {
     TFLITE_AHWB_FORMAT_NV12 = 0,
 };
@@ -68,8 +70,6 @@ struct TfLiteAHardwareBufferDesc {
     uint32_t height;
     TfLiteAHardwareBufferFormat format;
 };
-
-#endif // !BEAM_HAS_TFLITE
 
 #define TAG "BeamTFLite"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)

@@ -1,0 +1,101 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.4",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-06-08T00:00:00Z",
+    "component": {
+      "type": "library",
+      "name": "beam-verify-sdk",
+      "version": "0.1.0",
+      "supplier": { "name": "Surt AI", "url": ["https://surt.ai"] },
+      "licenses": [{ "license": { "id": "LicenseRef-Surt-Proprietary" } }]
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "pqcrypto-dilithium",
+      "version": "0.5",
+      "purl": "pkg:cargo/pqcrypto-dilithium@0.5",
+      "licenses": [{ "license": { "id": "Apache-2.0" } }],
+      "supplier": { "name": "PQClean contributors" },
+      "description": "CRYSTALS-Dilithium PQC signature scheme (NIST FIPS 204 reference implementation)"
+    },
+    {
+      "type": "library",
+      "name": "pqcrypto-kyber",
+      "version": "0.8",
+      "purl": "pkg:cargo/pqcrypto-kyber@0.8",
+      "licenses": [{ "license": { "id": "Apache-2.0" } }],
+      "supplier": { "name": "PQClean contributors" },
+      "description": "CRYSTALS-Kyber KEM scheme (NIST FIPS 203 reference implementation)"
+    },
+    {
+      "type": "library",
+      "name": "pqcrypto-traits",
+      "version": "0.3",
+      "purl": "pkg:cargo/pqcrypto-traits@0.3",
+      "licenses": [{ "license": { "id": "Apache-2.0" } }]
+    },
+    {
+      "type": "framework",
+      "name": "tensorflow-lite",
+      "version": "2.16",
+      "purl": "pkg:generic/tensorflow-lite@2.16",
+      "licenses": [{ "license": { "id": "Apache-2.0" } }],
+      "supplier": { "name": "Google LLC" },
+      "description": "TensorFlow Lite for mobile ML inference (Android)"
+    },
+    {
+      "type": "framework",
+      "name": "coreml",
+      "version": "7.0",
+      "purl": "pkg:generic/apple-coreml@7.0",
+      "licenses": [{ "license": { "id": "LicenseRef-Apple-SDK" } }],
+      "supplier": { "name": "Apple Inc." },
+      "description": "Apple CoreML for on-device ML inference (iOS)"
+    },
+    {
+      "type": "framework",
+      "name": "onnxruntime-web",
+      "version": "1.18",
+      "purl": "pkg:npm/onnxruntime-web@1.18",
+      "licenses": [{ "license": { "id": "MIT" } }],
+      "supplier": { "name": "Microsoft Corporation" },
+      "description": "ONNX Runtime for WASM-based ML inference (Web)"
+    },
+    {
+      "type": "library",
+      "name": "axum",
+      "version": "0.7",
+      "purl": "pkg:cargo/axum@0.7",
+      "licenses": [{ "license": { "id": "MIT" } }],
+      "description": "Web application framework for the Beam Verify backend"
+    },
+    {
+      "type": "library",
+      "name": "sqlx",
+      "version": "0.7",
+      "purl": "pkg:cargo/sqlx@0.7",
+      "licenses": [{ "license": { "id": "MIT" } }],
+      "description": "PostgreSQL async driver for the Beam Verify backend"
+    },
+    {
+      "type": "library",
+      "name": "redis",
+      "version": "0.24",
+      "purl": "pkg:cargo/redis@0.24",
+      "licenses": [{ "license": { "id": "BSD-3-Clause" } }],
+      "description": "Redis client for nonce management"
+    },
+    {
+      "type": "library",
+      "name": "criterion",
+      "version": "0.5",
+      "purl": "pkg:cargo/criterion@0.5",
+      "licenses": [{ "license": { "id": "Apache-2.0" } }],
+      "description": "Rust benchmarking framework (dev-only dependency)"
+    }
+  ]
+}

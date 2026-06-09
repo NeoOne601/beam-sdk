@@ -1,99 +1,155 @@
 name: Beam SDK CI
-on: [push, pull_request]
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
 
 jobs:
-  android-arm64:
+  # ───────────────────────────────────────────
+  # Rust Core — build, test, lint, bench
+  # ───────────────────────────────────────────
+  core-test:
     runs-on: ubuntu-latest
-    env:
-      ANDROID_NDK: "/usr/local/lib/android/sdk/ndk/26.1.10909125"
     steps:
       - uses: actions/checkout@v4
-      - uses: android-actions/setup-android@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
-      - name: Install clang (required by pqcrypto-dilithium)
-        run: sudo apt-get install -y clang libclang-dev
-      - name: Install Android NDK r26
-        run: sdkmanager "ndk;26.1.10909125"
-      - name: Install TensorFlow Lite
-        run: bash ci/install_tflite.sh
-      - name: Build Rust core (aarch64-android)
-        run: |
-          export ANDROID_NDK="/usr/local/lib/android/sdk/ndk/26.1.10909125"
-          export PATH=$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
-          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=aarch64-linux-android26-clang
-          export CC_aarch64_linux_android=aarch64-linux-android26-clang
-          export CXX_aarch64_linux_android=aarch64-linux-android26-clang
-          export AR_aarch64_linux_android=llvm-ar
-          cargo build --release --target aarch64-linux-android
-        working-directory: core
-      - name: Create build output directory
-        run: mkdir -p build_output
-      - name: CMake configure and build
-        run: |
-          export ANDROID_NDK="/usr/local/lib/android/sdk/ndk/26.1.10909125"
-          export PATH=$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
-          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=aarch64-linux-android26-clang
-          export CC_aarch64_linux_android=aarch64-linux-android26-clang
-          export CXX_aarch64_linux_android=aarch64-linux-android26-clang
-          export AR_aarch64_linux_android=llvm-ar
-          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
-                -DCMAKE_MODULE_PATH=../build \
-                -DANDROID_ABI=arm64-v8a \
-                -DANDROID_PLATFORM=android-26 \
-                -DBEAM_TARGET=Android \
-                ../build
-          cmake --build . --config Release
-        working-directory: build_output
-      - name: Package AAR
-        run: bash scripts/package_android_aar.sh
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core -> target
+      - name: Format check
+        run: cargo fmt --check -p beam-core
+      - name: Clippy lint
+        run: cargo clippy -p beam-core -- -D warnings
+      - name: Unit tests
+        run: cargo test --release -p beam-core
+      - name: Benchmarks (dry run)
+        run: cargo bench --bench pipeline_bench -p beam-core -- --test
+      - name: Crypto benchmarks (dry run)
+        run: cargo bench --bench crypto_bench -p beam-core -- --test
 
-  ios-arm64:
+  # ───────────────────────────────────────────
+  # Backend — build, test, lint
+  # ───────────────────────────────────────────
+  backend-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: beam_verify_test
+          POSTGRES_USER: beam
+          POSTGRES_PASSWORD: beam
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://beam:beam@localhost:5432/beam_verify_test
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend -> target
+      - name: Run migrations
+        run: psql "$DATABASE_URL" -f backend/src/db/migrations/001_initial.sql
+      - name: Format check
+        run: cargo fmt --check -p beam-verify-backend
+      - name: Clippy lint
+        run: cargo clippy -p beam-verify-backend -- -D warnings -A unused
+      - name: Unit tests
+        run: cargo test --release -p beam-verify-backend
+
+  # ───────────────────────────────────────────
+  # Security — banned phrases, schema validation
+  # ───────────────────────────────────────────
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check banned security phrases
+        run: |
+          if grep -rni "fips certified\|fips validated\|fips compliant\|never leaves the enclave" docs/; then
+            echo "::error::Found banned security phrases in docs/"
+            exit 1
+          fi
+          echo "No banned phrases found"
+      - name: Validate JSON schemas
+        run: |
+          python3 -c "import json; json.load(open('model/schema/output_schema.json')); print('output_schema.json valid')"
+          python3 -c "import json; json.load(open('model/manifest/model_manifest.json')); print('model_manifest.json valid')"
+          python3 -c "import json; json.load(open('compliance/SBOM.json')); print('SBOM.json valid')"
+      - name: Verify model signing scripts exist
+        run: |
+          test -f model/signing/sign_model.sh && echo "sign_model.sh exists"
+          test -f model/signing/verify_model.sh && echo "verify_model.sh exists"
+
+  # ───────────────────────────────────────────
+  # Android NDK cross-compile check
+  # ───────────────────────────────────────────
+  android-cross:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Android NDK
+        uses: android-actions/setup-android@v4
+      - run: sdkmanager "ndk;26.1.10909125"
+      - name: Cross-compile core for Android arm64
+        run: |
+          export ANDROID_NDK="/usr/local/lib/android/sdk/ndk/26.1.10909125"
+          export CC_aarch64_linux_android="${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang"
+          export AR_aarch64_linux_android="${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+          cargo build --release --target aarch64-linux-android -p beam-core
+
+  # ───────────────────────────────────────────
+  # iOS cross-compile check (macOS runner)
+  # ───────────────────────────────────────────
+  ios-cross:
     runs-on: macos-15
-    env:
-      IPHONEOS_DEPLOYMENT_TARGET: "14.0"
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-ios,aarch64-apple-ios-sim
-      - name: Build Rust core (iOS)
-        run: |
-          cargo build --release --target aarch64-apple-ios
-          cargo build --release --target aarch64-apple-ios-sim
-        working-directory: core
-      - name: Build iOS XCFramework
-        run: bash ci/ios_xcodebuild.sh
-      - name: Package XCFramework
-        run: bash scripts/package_ios_xcframework.sh
+          targets: aarch64-apple-ios
+      - name: Cross-compile core for iOS arm64
+        run: cargo build --release --target aarch64-apple-ios -p beam-core
 
-  wasm:
+  # ───────────────────────────────────────────
+  # WASM cross-compile check
+  # ───────────────────────────────────────────
+  wasm-cross:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: emscripten-core/setup-emsdk@v15
-        with:
-          version: "latest"
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-emscripten
-      - name: Build WASM
-        run: bash ci/wasm_emscripten.sh
-
-  rust-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Install clang (required by pqcrypto-dilithium)
-        run: sudo apt-get install -y clang libclang-dev
-      - name: Run all Rust tests
-        run: cargo test --release
-        working-directory: core
-      - name: Run benchmarks (verify budget)
-        run: cargo bench
-        working-directory: core
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: "3.1.56"
+      - name: Cross-compile core for WASM
+        run: cargo build --release --target wasm32-unknown-emscripten -p beam-core

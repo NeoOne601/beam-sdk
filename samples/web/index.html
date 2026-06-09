@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Beam Verify Web SDK Sample — Post-quantum cryptographically signed identity verification">
+    <title>Beam Verify — Web Sample</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Landing screen -->
+        <section id="landing" class="screen active">
+            <div class="hero">
+                <div class="logo-icon">⟐</div>
+                <h1>Beam Verify</h1>
+                <p class="version">SDK v0.1.0 — Web/WASM</p>
+                <ul class="features">
+                    <li>🔒 ML-DSA (FIPS 204) result signing</li>
+                    <li>📷 Browser camera quality gates</li>
+                    <li>⚡ ONNX Runtime WASM inference</li>
+                    <li>🔑 In-memory key storage</li>
+                </ul>
+                <button id="btnStartScan" class="btn-primary">Start Document Scan</button>
+                <button id="btnSettings" class="btn-secondary">Settings</button>
+            </div>
+        </section>
+
+        <!-- Scan screen -->
+        <section id="scan" class="screen">
+            <div class="scan-container">
+                <video id="cameraPreview" autoplay playsinline muted></video>
+                <div class="scan-overlay">
+                    <div class="document-guide"></div>
+                </div>
+                <div class="gate-status">
+                    <span id="gateLabel" class="gate-label">Initialising...</span>
+                    <span id="frameCount" class="frame-count">Quality frames: 0 / 3</span>
+                    <div id="qualityBar" class="quality-bar"><div class="quality-fill"></div></div>
+                </div>
+                <button id="btnCancelScan" class="btn-cancel">Cancel</button>
+            </div>
+        </section>
+
+        <!-- Result screen -->
+        <section id="result" class="screen">
+            <div class="result-container">
+                <h2>Scan Result</h2>
+                <div class="result-header">
+                    <div>
+                        <span id="docType" class="doc-type">PASSPORT</span>
+                        <span id="country" class="country">USA</span>
+                    </div>
+                    <div id="confidenceGauge" class="confidence-gauge">
+                        <svg viewBox="0 0 36 36" class="gauge-svg">
+                            <path class="gauge-bg" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#333" stroke-width="3"/>
+                            <path id="gaugeArc" class="gauge-arc" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#03DAC6" stroke-width="3" stroke-dasharray="97, 100"/>
+                        </svg>
+                        <span id="confidenceText" class="gauge-text">97%</span>
+                    </div>
+                </div>
+                <div id="pqcStatus" class="pqc-badge pqc-signed">✓ PQC Signed (ML-DSA Level 3)</div>
+                <div id="fieldList" class="field-list"></div>
+                <button id="btnVerify" class="btn-primary">Verify with Backend</button>
+                <button id="btnNewScan" class="btn-secondary">New Scan</button>
+            </div>
+        </section>
+
+        <!-- Settings screen -->
+        <section id="settings" class="screen">
+            <div class="settings-container">
+                <h2>Settings</h2>
+                <label class="setting-label">Backend URL
+                    <input id="settingBackendUrl" type="url" value="http://localhost:8080" class="setting-input">
+                </label>
+                <label class="setting-label">
+                    <input id="settingPqc" type="checkbox" checked> PQC Signing (ML-DSA Level 3)
+                </label>
+                <label class="setting-label">
+                    <input id="settingMrz" type="checkbox"> Include Raw MRZ
+                </label>
+                <div class="about-section">
+                    <p>SDK Version: 0.1.0</p>
+                    <p>Signing: ML-DSA Level 3 (NIST-standardised)</p>
+                    <p>Inference: ONNX Runtime (WASM)</p>
+                    <p>Key Storage: In-memory (browser limitation)</p>
+                </div>
+                <button id="btnSaveSettings" class="btn-primary">Save</button>
+                <button id="btnBackFromSettings" class="btn-secondary">Back</button>
+            </div>
+        </section>
+    </div>
+    <script type="module" src="main.ts"></script>
+</body>
+</html>

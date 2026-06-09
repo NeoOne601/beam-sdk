@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- Camera preview would go here in production -->
+    <View
+        android:id="@+id/cameraPreview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#1A1A2E" />
+
+    <!-- Quality gate status overlay -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:background="#80000000">
+
+        <TextView
+            android:id="@+id/tvGateStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="18sp"
+            android:textColor="#03DAC6"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvFrameCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textColor="#AAAAAA"
+            android:layout_marginTop="4dp" />
+
+    </LinearLayout>
+
+    <!-- Scanning progress indicator -->
+    <ProgressBar
+        android:id="@+id/progressScan"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="center"
+        android:indeterminateTint="#BB86FC"
+        android:visibility="gone" />
+
+    <!-- Document alignment guide -->
+    <View
+        android:layout_width="300dp"
+        android:layout_height="200dp"
+        android:layout_gravity="center"
+        android:background="@android:color/transparent"
+        android:foreground="@drawable/scan_frame_border" />
+
+</FrameLayout>

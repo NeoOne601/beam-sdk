@@ -1,0 +1,247 @@
+:root {
+    --bg: #0d0d1a;
+    --surface: #1a1a2e;
+    --surface-hover: #252540;
+    --primary: #bb86fc;
+    --primary-dark: #9a67ea;
+    --teal: #03dac6;
+    --error: #cf6679;
+    --text: #e8e8f0;
+    --text-secondary: #888899;
+    --text-hint: #555566;
+    --border: #2a2a40;
+    --radius: 12px;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    overflow: hidden;
+}
+
+#app { width: 100%; height: 100dvh; position: relative; }
+
+.screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+.screen.active { opacity: 1; pointer-events: auto; }
+
+/* Landing */
+.hero {
+    text-align: center;
+    max-width: 420px;
+    padding: 2rem;
+}
+.logo-icon {
+    font-size: 4rem;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+}
+.hero h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--primary), var(--teal));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.25rem;
+}
+.version {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 2rem;
+}
+.features {
+    list-style: none;
+    text-align: left;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem;
+}
+.features li {
+    padding: 0.5rem 0;
+    font-size: 0.95rem;
+    color: var(--text);
+}
+
+/* Buttons */
+.btn-primary, .btn-secondary, .btn-cancel {
+    display: block;
+    width: 100%;
+    padding: 0.875rem;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 0.75rem;
+}
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: #000;
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(187, 134, 252, 0.3); }
+.btn-secondary {
+    background: var(--surface);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+.btn-secondary:hover { background: var(--surface-hover); }
+.btn-cancel {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    padding: 0.5rem 2rem;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Scan screen */
+.scan-container {
+    width: 100%; height: 100%;
+    position: relative;
+    background: #000;
+}
+#cameraPreview {
+    width: 100%; height: 100%;
+    object-fit: cover;
+}
+.scan-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+}
+.document-guide {
+    width: min(85vw, 400px);
+    height: min(55vw, 260px);
+    border: 2px dashed rgba(187, 134, 252, 0.5);
+    border-radius: 12px;
+}
+.gate-status {
+    position: absolute; top: 0; left: 0; right: 0;
+    padding: 1rem 1.25rem;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(10px);
+    display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
+}
+.gate-label { color: var(--teal); font-weight: 600; font-size: 0.95rem; }
+.frame-count { color: var(--text-secondary); font-size: 0.85rem; margin-left: auto; }
+.quality-bar {
+    width: 100%; height: 3px;
+    background: var(--border); border-radius: 2px;
+}
+.quality-fill {
+    height: 100%; width: 0;
+    background: var(--teal);
+    border-radius: 2px;
+    transition: width 0.5s ease;
+}
+
+/* Result screen */
+.result-container {
+    max-width: 480px; width: 100%;
+    padding: 2rem;
+    max-height: 100dvh;
+    overflow-y: auto;
+}
+.result-container h2 {
+    font-size: 1.5rem; margin-bottom: 1.25rem;
+    color: var(--primary);
+}
+.result-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 1rem;
+}
+.doc-type { font-size: 1.25rem; font-weight: 700; }
+.country { color: var(--text-secondary); margin-left: 0.5rem; }
+.confidence-gauge { position: relative; width: 56px; height: 56px; }
+.gauge-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.gauge-text {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700; color: var(--teal);
+}
+.pqc-badge {
+    display: inline-block;
+    padding: 0.375rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 1.25rem;
+}
+.pqc-signed { background: rgba(3, 218, 198, 0.1); color: var(--teal); }
+.pqc-unsigned { background: rgba(207, 102, 121, 0.1); color: var(--error); }
+.field-list { margin-bottom: 1.5rem; }
+.field-item {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+}
+.field-key {
+    font-size: 0.75rem; color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: 0.05em;
+}
+.field-value-row { display: flex; justify-content: space-between; align-items: baseline; }
+.field-value { font-size: 1rem; font-weight: 500; }
+.field-conf { font-size: 0.75rem; color: var(--teal); }
+
+/* Settings */
+.settings-container {
+    max-width: 480px; width: 100%;
+    padding: 2rem;
+}
+.settings-container h2 { font-size: 1.5rem; margin-bottom: 1.5rem; color: var(--primary); }
+.setting-label {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+.setting-input {
+    display: block; width: 100%;
+    padding: 0.625rem;
+    margin-top: 0.375rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 0.95rem;
+}
+.setting-input:focus { outline: none; border-color: var(--primary); }
+.setting-label input[type="checkbox"] {
+    margin-right: 0.5rem;
+    accent-color: var(--primary);
+}
+.about-section {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: var(--surface);
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.8;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .hero h1 { font-size: 2rem; }
+    .result-container, .settings-container { padding: 1.25rem; }
+}

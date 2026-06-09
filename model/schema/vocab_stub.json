@@ -1,0 +1,7 @@
+{
+  "version": "1.0.0",
+  "note": "This stub is replaced by a real vocab file when a trained model is provided.",
+  "document_type_map": {"0": "passport", "1": "driving_licence", "2": "national_id", "3": "residence_permit", "4": "unknown"},
+  "string_decode": "not_applicable_for_direct_string_outputs",
+  "country_code_map": "iso3166_alpha3_standard"
+}

@@ -127,9 +127,18 @@ void beam_coreml_process(
         return;
     }
 
-    // Decode output features.
-    // Convention: model outputs "confidence" (float) and optionally field strings.
-    // Production code would iterate output.featureNames and parse per-field confidences.
+    // Decode output features per schema/output_schema.json.
+    // Iterate model output features and extract per-field strings and confidences.
+    static const char* field_keys[] = {
+        "surname", "given_names", "date_of_birth", "document_number",
+        "expiry_date", "mrz_line1", "mrz_line2", "sex", "nationality"
+    };
+    static const int N_FIELDS = 9;
+    static const char* conf_keys[] = {
+        "surname_conf", "given_names_conf", "dob_conf", "doc_num_conf",
+        "expiry_conf", "mrz1_conf", "mrz2_conf", "sex_conf", "nat_conf"
+    };
+
     MLFeatureValue* confValue = [output featureValueForName:@"confidence"];
     float overall_conf = confValue ? (float)[confValue doubleValue] : 0.92f;
 
@@ -139,9 +148,33 @@ void beam_coreml_process(
     const char* doc_type = docTypeFeature ? [[docTypeFeature stringValue] UTF8String] : "passport";
     const char* country  = countryFeature ? [[countryFeature stringValue] UTF8String] : "UNK";
 
+    CField fields[N_FIELDS];
+    int field_count = 0;
+
+    for (int i = 0; i < N_FIELDS; ++i) {
+        NSString* key = [NSString stringWithUTF8String:field_keys[i]];
+        MLFeatureValue* fv = [output featureValueForName:key];
+        if (!fv || ![fv stringValue] || [[fv stringValue] length] == 0) {
+            continue;
+        }
+        const char* val = [[fv stringValue] UTF8String];
+
+        // Read per-field confidence if available
+        NSString* confKey = [NSString stringWithUTF8String:conf_keys[i]];
+        MLFeatureValue* confFv = [output featureValueForName:confKey];
+        float field_conf = confFv ? (float)[confFv doubleValue] : overall_conf;
+
+        fields[field_count].key        = (const uint8_t*)field_keys[i];
+        fields[field_count].key_len    = strlen(field_keys[i]);
+        fields[field_count].value      = (const uint8_t*)val;
+        fields[field_count].value_len  = strlen(val);
+        fields[field_count].confidence = field_conf;
+        ++field_count;
+    }
+
     beam_session_push_result(
         rust_session,
-        /*fields=*/ NULL, /*field_count=*/ 0,
+        fields, (size_t)field_count,
         (const uint8_t*)doc_type, doc_type ? strlen(doc_type) : 0,
         (const uint8_t*)country,  country  ? strlen(country)  : 0,
         overall_conf,

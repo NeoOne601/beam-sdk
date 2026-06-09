@@ -21,6 +21,7 @@ pub mod result;
 pub mod pipeline;
 pub mod crypto;
 pub mod ffi;
+pub mod field_parser;
 
 // ─── Public API surface re-exports ───────────────────────────────────────────
 
@@ -30,6 +31,7 @@ pub use session::{ScanSession, SessionConfig, SessionState};
 pub use result::{ScanResult, DocumentField};
 pub use pipeline::{FramePipeline, PipelineResult};
 pub use crypto::{PqcSigner, MlDsaLevel, MlKemSession, CryptoError};
+pub use field_parser::{FieldParser, ParsedDocument, ParseError};
 pub use ffi::{
     BeamSessionHandle, BeamGateHandle, CField,
     beam_session_create, beam_session_destroy, beam_session_start,

@@ -143,15 +143,15 @@ void beam_wasm_process_frame(
         input_tensor.data(), input_tensor.size(),
         input_shape.data(), input_shape.size());
 
-    // Input/output names — must match the ONNX model's node names
+    // Input/output names — must match the ONNX model's node names per output_schema.json
     const char* input_names[]  = { "image" };
-    const char* output_names[] = { "confidence" };
+    const char* output_names[] = { "confidence", "field_strings", "field_confidences" };
 
     try {
         auto outputs = s->session.Run(
             Ort::RunOptions{nullptr},
             input_names,  &input_ort, 1,
-            output_names, 1);
+            output_names, 3);
 
         float confidence = 0.0f;
         if (!outputs.empty()) {
@@ -159,11 +159,53 @@ void beam_wasm_process_frame(
             confidence = data ? data[0] : 0.0f;
         }
 
+        // Parse field strings and confidences from output tensors
+        static const char* field_keys[] = {
+            "surname", "given_names", "date_of_birth", "document_number",
+            "expiry_date", "mrz_line1", "mrz_line2", "sex", "nationality"
+        };
+        static const int N_FIELDS = 9;
+
+        CField fields[N_FIELDS];
+        int field_count = 0;
+
+        // Output tensor 1: field_strings — packed null-terminated UTF-8 strings
+        // Output tensor 2: field_confidences — float32 [N]
+        if (outputs.size() >= 3) {
+            auto str_info = outputs[1].GetTensorTypeAndShapeInfo();
+            size_t str_total = str_info.GetElementCount();
+            const char* str_data = reinterpret_cast<const char*>(outputs[1].GetTensorData<uint8_t>());
+
+            const float* confs = outputs[2].GetTensorData<float>();
+            auto conf_info = outputs[2].GetTensorTypeAndShapeInfo();
+            int n_confs = static_cast<int>(conf_info.GetElementCount());
+
+            size_t offset = 0;
+            for (int i = 0; i < N_FIELDS && field_count < N_FIELDS && offset < str_total; ++i) {
+                const char* field_val = str_data + offset;
+                size_t field_len = strnlen(field_val, str_total - offset);
+
+                if (field_len == 0) {
+                    offset += 1;
+                    continue;
+                }
+
+                fields[field_count].key        = reinterpret_cast<const uint8_t*>(field_keys[i]);
+                fields[field_count].key_len    = strlen(field_keys[i]);
+                fields[field_count].value      = reinterpret_cast<const uint8_t*>(field_val);
+                fields[field_count].value_len  = field_len;
+                fields[field_count].confidence = (i < n_confs) ? confs[i] : 0.5f;
+
+                offset += field_len + 1;
+                ++field_count;
+            }
+        }
+
         const char doc_type[] = "passport";
         const char country[]  = "UNK";
         beam_session_push_result(
             rust_session,
-            /*fields=*/ nullptr, /*field_count=*/ 0,
+            fields, static_cast<size_t>(field_count),
             (const uint8_t*)doc_type, strlen(doc_type),
             (const uint8_t*)country,  strlen(country),
             confidence,

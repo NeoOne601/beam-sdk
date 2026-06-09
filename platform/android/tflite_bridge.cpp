@@ -306,10 +306,57 @@ private:
         CField*       out_fields,
         int           max_fields)
     {
-        // Stub: production code maps output tensor indices to field keys
-        // using a document schema loaded at session init.
-        (void)scores; (void)strings; (void)out_fields; (void)max_fields;
-        return 0;
+        // Output tensor layout per schema/output_schema.json:
+        // Tensor 0: confidence (float32 [1])
+        // Tensor 1: document_type (int32 [1])
+        // Tensor 2: field_strings — N null-terminated UTF-8 strings packed sequentially
+        // Tensor 3: field_confidences — float32 [N] parallel to field_strings
+        //
+        // This implementation expects a model following the Beam canonical schema.
+        // Substitute your own parsing logic if your model uses a different output layout.
+
+        if (!scores || !strings) return 0;
+
+        static const char* field_keys[] = {
+            "surname", "given_names", "date_of_birth", "document_number",
+            "expiry_date", "mrz_line1", "mrz_line2", "sex", "nationality"
+        };
+        static const int N_FIELDS = 9;
+        if (max_fields < N_FIELDS) return 0;
+
+        // Parse field confidences from scores tensor
+        const float* confs = reinterpret_cast<const float*>(TfLiteTensorData(scores));
+        int n_confs = TfLiteTensorByteSize(scores) / sizeof(float);
+
+        // Parse field strings from strings tensor
+        // Strings are packed: [str1\0str2\0str3\0...]
+        const char* str_data = reinterpret_cast<const char*>(TfLiteTensorData(strings));
+        size_t str_total = TfLiteTensorByteSize(strings);
+
+        int field_count = 0;
+        size_t offset = 0;
+
+        for (int i = 0; i < N_FIELDS && field_count < max_fields && offset < str_total; ++i) {
+            const char* field_val = str_data + offset;
+            size_t field_len = strnlen(field_val, str_total - offset);
+
+            // Skip empty fields (model did not detect this field)
+            if (field_len == 0) {
+                offset += 1; // skip null terminator
+                continue;
+            }
+
+            out_fields[field_count].key        = reinterpret_cast<const uint8_t*>(field_keys[i]);
+            out_fields[field_count].key_len    = strlen(field_keys[i]);
+            out_fields[field_count].value      = reinterpret_cast<const uint8_t*>(field_val);
+            out_fields[field_count].value_len  = field_len;
+            out_fields[field_count].confidence = (i < n_confs) ? confs[i] : 0.5f;
+
+            offset += field_len + 1; // advance past null terminator
+            ++field_count;
+        }
+
+        return field_count;
     }
 };
 

@@ -1,0 +1,51 @@
+{
+  "manifest_version": "1.0.0",
+  "description": "Beam Verify model pack manifest. This file describes the model artifacts that must be present for a complete Beam Verify deployment.",
+  "beam_sdk_version": "0.1.0",
+  "models": [
+    {
+      "platform": "android",
+      "filename": "beam_idv_v1.tflite",
+      "sha256": "REPLACE_WHEN_MODEL_IS_PROVIDED",
+      "size_bytes": 0,
+      "input_name": "image",
+      "output_names": ["confidence", "document_type", "issuing_country", "field_strings", "field_confidences", "fraud_signals"],
+      "opset": 17,
+      "quantised": true,
+      "quantisation": "int8",
+      "target_devices": ["arm64-v8a", "armeabi-v7a"],
+      "tested_devices": ["PLACEHOLDER_fill_before_release"]
+    },
+    {
+      "platform": "ios",
+      "filename": "beam_idv_v1.mlpackage",
+      "sha256": "REPLACE_WHEN_MODEL_IS_PROVIDED",
+      "size_bytes": 0,
+      "input_name": "image",
+      "compute_units": "all",
+      "coreml_spec_version": 7,
+      "supports_ane": true
+    },
+    {
+      "platform": "wasm",
+      "filename": "beam_idv_v1.onnx",
+      "sha256": "REPLACE_WHEN_MODEL_IS_PROVIDED",
+      "size_bytes": 0,
+      "input_name": "image",
+      "opset": 17,
+      "webgpu_compatible": true
+    }
+  ],
+  "vocab": {
+    "filename": "vocab.json",
+    "sha256": "REPLACE_WHEN_MODEL_IS_PROVIDED"
+  },
+  "schema": {
+    "filename": "output_schema.json",
+    "sha256": "COMPUTE_WITH_sha256sum_output_schema.json"
+  },
+  "release_date": "REPLACE_BEFORE_RELEASE",
+  "minimum_confidence_threshold": 0.85,
+  "supported_document_types": ["passport", "driving_licence", "national_id"],
+  "supported_countries": "See docs/supported_countries.md (to be created with model)"
+}

@@ -1,0 +1,69 @@
+name: Beam SDK Publish
+on:
+  push:
+    tags: ['v*']
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  publish-android:
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_NDK: "/usr/local/lib/android/sdk/ndk/26.1.10909125"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+      - name: Install clang
+        run: sudo apt-get install -y clang libclang-dev
+      - name: Install Android NDK r26
+        run: sdkmanager "ndk;26.1.10909125"
+      - name: Build and package AAR
+        run: |
+          export ANDROID_NDK="/usr/local/lib/android/sdk/ndk/26.1.10909125"
+          export PATH=$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
+          bash scripts/package_android_aar.sh
+      - name: Publish to Maven
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash publishing/publish_android_maven.sh ${GITHUB_REF_NAME#v}
+
+  publish-ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim
+      - name: Build XCFramework
+        run: |
+          cargo build --release --target aarch64-apple-ios -p beam-core
+          cargo build --release --target aarch64-apple-ios-sim -p beam-core
+          bash scripts/package_ios_xcframework.sh
+        working-directory: .
+      - name: Generate SPM package
+        run: bash publishing/publish_ios_spm.sh ${GITHUB_REF_NAME#v}
+      - name: Upload XCFramework to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build_output/spm/BeamVerify-*.xcframework.zip
+
+  publish-npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: emscripten-core/setup-emsdk@v15
+        with:
+          version: "latest"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-emscripten
+      - name: Build WASM
+        run: bash ci/wasm_emscripten.sh
+      - name: Publish to npm
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: bash publishing/publish_npm.sh ${GITHUB_REF_NAME#v}

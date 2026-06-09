@@ -40,3 +40,12 @@ path = "tests/session_state_tests.rs"
 [[test]]
 name = "crypto_pqc_tests"
 path = "tests/crypto_pqc_tests.rs"
+
+[[bench]]
+name = "pipeline_bench"
+harness = false
+
+[[bench]]
+name = "crypto_bench"
+harness = false
+

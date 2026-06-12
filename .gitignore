@@ -1,8 +1,18 @@
-```
 # Rust/Cargo specific ignores
 target/
-Cargo.lock
 **/*.rs.bk
+tflite/
+
+# C/C++ artifacts
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+build_output/
+build_ios/
+build_wasm/
+dist/
 
 # Dependencies
 vendor/
@@ -16,15 +26,21 @@ vendor/
 .env.local
 *.env.*
 
-# Editors
+# IDE/OS specific
+.DS_Store
+Thumbs.db
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# OS generated files
-.DS_Store
-Thumbs.db
+# Mobile platforms
+*.xcworkspace
+*.xcodeproj
+.gradle/
+local.properties
+.cxx/
+captureLayout/
 
 # Coverage reports
 coverage/
@@ -32,9 +48,13 @@ htmlcov/
 *.coverage
 
 # Build artifacts
-dist/
 build/
-*.o
 *.obj
 *.out
-```
+
+# Beam prompt/design documents to ignore
+BEAM_ANTIGRAVITY_PROMPT.md
+BEAM_ANTIGRAVITY_PROMPT_v2.md
+BEAM_VERIFY_PRODUCT_PROMPT.md
+docs/BEAM_ANTIGRAVITY_PROMPT.md
+docs/BEAM_WHITEPAPER.md

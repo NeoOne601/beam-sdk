@@ -13,8 +13,9 @@
 use libfuzzer_sys::fuzz_target;
 use beam_core::ffi::{
     beam_session_create, beam_session_start, beam_session_push_result, 
-    beam_session_destroy, CField, SessionConfig
+    beam_session_destroy, CField,
 };
+use beam_core::session::SessionConfig;
 
 fuzz_target!(|data: &[u8]| {
     // Need minimum data to construct meaningful inputs
@@ -31,7 +32,7 @@ fuzz_target!(|data: &[u8]| {
         include_raw_mrz: false,
     };
     
-    let session = unsafe { beam_session_create(config) };
+    let session = beam_session_create(config);
     if session.is_null() {
         return;
     }
@@ -78,11 +79,11 @@ fuzz_target!(|data: &[u8]| {
     }
 
     // Use remaining data for doc_type and country strings
-    let doc_type_ptr = data.get(offset).map(|_| data.as_ptr().add(offset)).unwrap_or(std::ptr::null());
+    let doc_type_ptr = data.get(offset).map(|_| unsafe { data.as_ptr().add(offset) }).unwrap_or(std::ptr::null());
     let doc_type_len = data.get(offset).map(|_| data.len().saturating_sub(offset).min(32)).unwrap_or(0);
     
     let country_offset = offset.saturating_add(doc_type_len);
-    let country_ptr = data.get(country_offset).map(|_| data.as_ptr().add(country_offset)).unwrap_or(std::ptr::null());
+    let country_ptr = data.get(country_offset).map(|_| unsafe { data.as_ptr().add(country_offset) }).unwrap_or(std::ptr::null());
     let country_len = data.get(country_offset).map(|_| data.len().saturating_sub(country_offset).min(16)).unwrap_or(0);
 
     unsafe {

@@ -29,13 +29,8 @@ jobs:
         run: cargo clippy -p beam-core -- -D warnings
       - name: Unit tests
         run: cargo test --release -p beam-core
-      - name: Benchmarks (enforce <4ms budget)
-        run: |
-          echo "Running benchmarks to verify quality gate performance budget..."
-          cargo bench --bench pipeline_bench -p beam-core -- --save-baseline main
-          # In production CI, add benchmark regression detection here:
-          # cargo bench --bench pipeline_bench -p beam-core -- --baseline-ref main
-          # Fail if blur_gate_1080p exceeds 4ms (4_000_000 ns)
+      - name: Benchmarks (dry run)
+        run: cargo bench --bench pipeline_bench -p beam-core -- --test
       - name: Crypto benchmarks (dry run)
         run: cargo bench --bench crypto_bench -p beam-core -- --test
 

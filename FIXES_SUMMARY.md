@@ -219,7 +219,7 @@ libc = { version = "0.2", optional = true }
 
 **After:**
 ```toml
-pqcrypto-dilithium = "0.5.2"
+pqcrypto-dilithium = "0.5.0"
 pqcrypto-kyber = "0.8.1"
 pqcrypto-traits = "0.3.4"
 libc = { version = "0.2.155", optional = true }

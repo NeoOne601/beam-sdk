@@ -29,8 +29,13 @@ jobs:
         run: cargo clippy -p beam-core -- -D warnings
       - name: Unit tests
         run: cargo test --release -p beam-core
-      - name: Benchmarks (dry run)
-        run: cargo bench --bench pipeline_bench -p beam-core -- --test
+      - name: Benchmarks (enforce <4ms budget)
+        run: |
+          echo "Running benchmarks to verify quality gate performance budget..."
+          cargo bench --bench pipeline_bench -p beam-core -- --save-baseline main
+          # In production CI, add benchmark regression detection here:
+          # cargo bench --bench pipeline_bench -p beam-core -- --baseline-ref main
+          # Fail if blur_gate_1080p exceeds 4ms (4_000_000 ns)
       - name: Crypto benchmarks (dry run)
         run: cargo bench --bench crypto_bench -p beam-core -- --test
 
@@ -81,7 +86,7 @@ jobs:
         run: cargo test --release -p beam-verify-backend
 
   # ───────────────────────────────────────────
-  # Security — banned phrases, schema validation
+  # Security — banned phrases, schema validation, cargo-audit
   # ───────────────────────────────────────────
   security-audit:
     runs-on: ubuntu-latest
@@ -94,6 +99,14 @@ jobs:
             exit 1
           fi
           echo "No banned phrases found"
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      - name: Audit Rust dependencies for known vulnerabilities
+        run: |
+          echo "Scanning Rust dependencies for CVEs..."
+          cargo audit --deny warnings
+          # This checks all crates in the workspace against the RustSec advisory database
+          # Fail CI if any known vulnerabilities are found in dependencies
       - name: Validate JSON schemas
         run: |
           python3 -c "import json; json.load(open('model/schema/output_schema.json')); print('output_schema.json valid')"

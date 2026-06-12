@@ -1,0 +1,19 @@
+[package]
+name = "beam-core-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4.7"
+beam-core = { path = "..", features = ["mlock"] }
+
+[[bin]]
+name = "fuzz_push_result"
+path = "fuzz_targets/fuzz_push_result.rs"
+test = false
+doc = false
+bench = false

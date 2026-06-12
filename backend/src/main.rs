@@ -3,7 +3,7 @@
 // Provides nonce-protected ML-DSA signature verification,
 // audit logging, webhook delivery, and health checks.
 
-use axum::{middleware, Router};
+use axum::Router;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;

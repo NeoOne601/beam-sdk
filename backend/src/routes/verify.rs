@@ -3,7 +3,6 @@
 
 use crate::crypto::ml_dsa_verifier;
 use crate::errors::AppError;
-use crate::models::verification_result::VerificationResult;
 use crate::AppState;
 use axum::{extract::State, Json};
 use redis::AsyncCommands;
@@ -168,4 +167,3 @@ fn reconstruct_canonical_bytes(scan: &ScanResultPayload) -> Vec<u8> {
     out
 }
 
-use base64::Engine as _;

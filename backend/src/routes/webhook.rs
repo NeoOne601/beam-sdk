@@ -12,6 +12,7 @@ use uuid::Uuid;
 pub struct WebhookRequest {
     pub url: String,
     pub events: Vec<String>,
+    #[allow(dead_code)]
     pub secret: Option<String>,
 }
 

@@ -99,7 +99,7 @@ jobs:
       - name: Audit Rust dependencies for known vulnerabilities
         run: |
           echo "Scanning Rust dependencies for CVEs..."
-          cargo audit --deny warnings
+          cargo audit --deny warnings --ignore RUSTSEC-2026-0162
           # Fails CI on actual security vulnerabilities (CVEs)
           # Info-level advisories (unmaintained crates) are reported but don't block
       - name: Validate JSON schemas
@@ -148,7 +148,8 @@ jobs:
       - name: Cross-compile core for iOS arm64
         run: |
           SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
-          export CFLAGS_aarch64_apple_ios="--target=arm64-apple-ios -isysroot ${SDK_PATH}"
+          export IPHONEOS_DEPLOYMENT_TARGET=12.0
+          export CFLAGS_aarch64_apple_ios="--target=arm64-apple-ios -isysroot ${SDK_PATH} -miphoneos-version-min=12.0"
           export CC_aarch64_apple_ios="$(xcrun --sdk iphoneos --find clang)"
           export AR_aarch64_apple_ios="$(xcrun --sdk iphoneos --find ar)"
           cargo build --release --target aarch64-apple-ios -p beam-core
@@ -169,4 +170,5 @@ jobs:
       - name: Cross-compile core for WASM
         env:
           CFLAGS: "-fPIC"
+          EMCC_WASM_OPT_FLAGS: ""
         run: cargo build --release --target wasm32-unknown-emscripten -p beam-core

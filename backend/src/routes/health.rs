@@ -3,7 +3,6 @@
 
 use crate::AppState;
 use axum::{extract::State, Json};
-use redis::AsyncCommands;
 use serde::Serialize;
 use std::sync::Arc;
 

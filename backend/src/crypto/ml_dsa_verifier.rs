@@ -55,7 +55,7 @@ pub fn verify_dilithium3(public_key: &[u8], message: &[u8], signature: &[u8]) ->
 mod tests {
     use super::*;
     use pqcrypto_dilithium::dilithium3;
-    use pqcrypto_traits::sign::{DetachedSignature as _, PublicKey as _, SecretKey as _};
+    use pqcrypto_traits::sign::DetachedSignature;
 
     #[test]
     fn test_verify_valid_signature() {

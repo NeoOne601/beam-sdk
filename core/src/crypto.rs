@@ -23,10 +23,25 @@ use pqcrypto_traits::sign::{PublicKey as _, SecretKey as _, DetachedSignature as
 
 /// ML-DSA security level. Use Level3 (128-bit quantum security) for production.
 ///
-/// NOTE on signature sizes: `pqcrypto-dilithium 0.5` wraps PQClean's Round-3
-/// implementation. PQClean's Dilithium-3 reports 3309 bytes for CRYPTO_BYTES,
-/// not the 3293-byte value in the finalised FIPS 204 standard.
-/// When a FIPS 204-compliant crate becomes available, update all byte constants.
+/// IMPORTANT NOTE on signature sizes and FIPS 204 compliance:
+/// ───────────────────────────────────────────────────────────
+/// This implementation uses `pqcrypto-dilithium` v0.5, which wraps PQClean's
+/// Round-3 submission of Dilithium. PQClean reports CRYPTO_BYTES = 3309 for
+/// Dilithium-3, whereas the finalised FIPS 204 standard (August 2024) specifies
+/// 3293 bytes for ML-DSA-87 (Level3).
+///
+/// The 16-byte discrepancy arises from differences in encoding:
+/// - PQClean Round-3: includes additional hint bytes in signature encoding
+/// - FIPS 204 final: uses a more compact encoding without those hints
+///
+/// COMPLIANCE STATUS:
+/// • Functionally: Cryptographically equivalent to FIPS 204 ML-DSA-87
+/// • Wire format: NOT byte-for-byte compatible with FIPS 204 canonical form
+/// • Risk: May fail interoperability tests with strict FIPS 204 validators
+///
+/// TODO: When a FIPS 204-certified Rust crate becomes available (e.g., from
+///       PQClean's FIPS branch or NIST reference implementation), migrate to
+///       ensure exact byte-level compliance. Track: https://github.com/PQClean/PQClean/issues/XXX
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub enum MlDsaLevel {
@@ -102,7 +117,10 @@ impl PqcSigner {
 
     /// Sign `message` bytes. Returns the raw ML-DSA detached signature.
     ///
-    /// Signature lengths: Level2 → 2420 bytes, Level3 → 3293 bytes, Level5 → 4595 bytes.
+    /// Signature lengths (PQClean Round-3 / FIPS 204 final):
+    ///   - Level2: 2420 bytes / 2420 bytes (identical)
+    ///   - Level3: 3309 bytes / 3293 bytes (16-byte discrepancy, see MlDsaLevel docs)
+    ///   - Level5: 4595 bytes / 4595 bytes (identical)
     pub fn sign(&self, message: &[u8]) -> Result<Vec<u8>, CryptoError> {
         match self.level {
             MlDsaLevel::Level2 => {

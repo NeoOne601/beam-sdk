@@ -1,13 +1,13 @@
 // backend/src/routes/nonce.rs
 // POST /v1/nonce — Generate a single-use nonce for replay prevention.
 
+use crate::errors::AppError;
+use crate::AppState;
 use axum::{extract::State, Json};
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use std::sync::Arc;
-use crate::AppState;
-use crate::errors::AppError;
+use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct NonceRequest {
@@ -33,7 +33,8 @@ pub async fn create_nonce(
     // Store in Redis with TTL
     let redis_key = format!("beam:nonce:{}", req.session_id);
     let mut conn = state.redis.get_multiplexed_async_connection().await?;
-    conn.set_ex::<_, _, ()>(&redis_key, &nonce_hex, state.config.nonce_ttl_seconds).await?;
+    conn.set_ex::<_, _, ()>(&redis_key, &nonce_hex, state.config.nonce_ttl_seconds)
+        .await?;
 
     // Compute expiry timestamp
     let expires_at = time::OffsetDateTime::now_utc()

@@ -1,12 +1,12 @@
 // backend/src/routes/webhook.rs
 // POST /v1/webhooks — Register webhook URLs for event delivery.
 
+use crate::errors::AppError;
+use crate::AppState;
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use std::sync::Arc;
-use crate::AppState;
-use crate::errors::AppError;
+use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct WebhookRequest {
@@ -36,9 +36,10 @@ pub async fn register_webhook(
     let valid_events = ["verification.complete", "verification.failed"];
     for event in &req.events {
         if !valid_events.contains(&event.as_str()) {
-            return Err(AppError::BadRequest(
-                format!("Invalid event type: '{}'. Valid: {:?}", event, valid_events)
-            ));
+            return Err(AppError::BadRequest(format!(
+                "Invalid event type: '{}'. Valid: {:?}",
+                event, valid_events
+            )));
         }
     }
 
@@ -129,6 +130,12 @@ pub async fn deliver_webhook(
     }
 
     // Dead letter: log failure
-    tracing::error!(url = url, "Webhook delivery failed after all retries — dead lettered");
-    Err(anyhow::anyhow!("Webhook delivery failed after {} attempts", backoff_delays.len()))
+    tracing::error!(
+        url = url,
+        "Webhook delivery failed after all retries — dead lettered"
+    );
+    Err(anyhow::anyhow!(
+        "Webhook delivery failed after {} attempts",
+        backoff_delays.len()
+    ))
 }

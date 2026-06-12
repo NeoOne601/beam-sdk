@@ -63,12 +63,12 @@ impl FieldParser {
         let mut mrz_line2: Option<String> = None;
 
         for field in fields {
-            let key = String::from_utf8_lossy(
-                core::slice::from_raw_parts(field.key, field.key_len)
-            ).into_owned();
-            let value = String::from_utf8_lossy(
-                core::slice::from_raw_parts(field.value, field.value_len)
-            ).into_owned();
+            let key =
+                String::from_utf8_lossy(core::slice::from_raw_parts(field.key, field.key_len))
+                    .into_owned();
+            let value =
+                String::from_utf8_lossy(core::slice::from_raw_parts(field.value, field.value_len))
+                    .into_owned();
 
             // Validate specific field types
             match key.as_str() {
@@ -85,7 +85,10 @@ impl FieldParser {
                 "sex" => {
                     if !value.is_empty() && !matches!(value.as_str(), "M" | "F" | "X") {
                         return Err(ParseError {
-                            reason: format!("Invalid sex value: '{}'. Expected M, F, X, or empty.", value),
+                            reason: format!(
+                                "Invalid sex value: '{}'. Expected M, F, X, or empty.",
+                                value
+                            ),
                         });
                     }
                 }
@@ -113,7 +116,8 @@ impl FieldParser {
                 return Err(ParseError {
                     reason: format!(
                         "Invalid issuing_country length: {} (expected 2 or 3 chars, got '{}')",
-                        issuing_country.len(), issuing_country
+                        issuing_country.len(),
+                        issuing_country
                     ),
                 });
             }
@@ -162,10 +166,14 @@ impl FieldParser {
 ///   check_digit = sum(char_value × weight) mod 10
 pub fn mrz_check_digit(s: &str) -> u8 {
     let weights = [7u32, 3, 1];
-    let sum: u32 = s.chars().enumerate().map(|(i, c)| {
-        let val = mrz_char_value(c);
-        val * weights[i % 3]
-    }).sum();
+    let sum: u32 = s
+        .chars()
+        .enumerate()
+        .map(|(i, c)| {
+            let val = mrz_char_value(c);
+            val * weights[i % 3]
+        })
+        .sum();
     (sum % 10) as u8
 }
 
@@ -303,7 +311,8 @@ pub fn validate_mrz_line2(line: &str) -> Result<(), ParseError> {
         }
 
         // Composite check digit at position 43 over [0..10]+[13..20]+[21..28]+[28..43]
-        let composite_str: String = chars[0..10].iter()
+        let composite_str: String = chars[0..10]
+            .iter()
             .chain(chars[13..20].iter())
             .chain(chars[21..28].iter())
             .chain(chars[28..43].iter())
@@ -329,7 +338,10 @@ pub fn validate_mrz_line2(line: &str) -> Result<(), ParseError> {
 fn validate_date_format(date: &str) -> Result<(), ParseError> {
     if date.len() != 10 {
         return Err(ParseError {
-            reason: format!("Invalid date length: {} (expected 10, YYYY-MM-DD)", date.len()),
+            reason: format!(
+                "Invalid date length: {} (expected 10, YYYY-MM-DD)",
+                date.len()
+            ),
         });
     }
     let parts: Vec<&str> = date.split('-').collect();
@@ -514,9 +526,7 @@ mod tests {
             confidence: 0.95,
         }];
 
-        let result = unsafe {
-            FieldParser::parse(&fields, "passport", "GBR", 0.92)
-        };
+        let result = unsafe { FieldParser::parse(&fields, "passport", "GBR", 0.92) };
         assert!(result.is_ok());
         let doc = result.unwrap();
         assert_eq!(doc.fields.len(), 1);
@@ -538,9 +548,7 @@ mod tests {
             confidence: 0.9,
         }];
 
-        let result = unsafe {
-            FieldParser::parse(&fields, "passport", "USA", 0.85)
-        };
+        let result = unsafe { FieldParser::parse(&fields, "passport", "USA", 0.85) };
         assert!(result.is_err());
     }
 
@@ -556,9 +564,7 @@ mod tests {
             confidence: 0.9,
         }];
 
-        let result = unsafe {
-            FieldParser::parse(&fields, "passport", "USA", 0.85)
-        };
+        let result = unsafe { FieldParser::parse(&fields, "passport", "USA", 0.85) };
         assert!(result.is_err());
     }
 

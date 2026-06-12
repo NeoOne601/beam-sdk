@@ -7,9 +7,9 @@
 //   - canonical_bytes: < 100µs with 9 fields
 //   - ml_kem_encapsulate: < 3ms per encapsulation
 
+use beam_core::result::{DocumentField, ScanResult};
+use beam_core::{MlDsaLevel, MlKemSession, PqcSigner};
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
-use beam_core::{PqcSigner, MlDsaLevel, MlKemSession};
-use beam_core::result::{ScanResult, DocumentField};
 use std::time::Duration;
 
 pub fn bench_ml_dsa_keygen(c: &mut Criterion) {
@@ -17,9 +17,7 @@ pub fn bench_ml_dsa_keygen(c: &mut Criterion) {
     group.throughput(Throughput::Elements(1));
     group.measurement_time(Duration::from_secs(5));
     group.bench_function("ml_dsa_keygen_level3", |b| {
-        b.iter(|| {
-            PqcSigner::generate(MlDsaLevel::Level3).expect("keygen failed")
-        })
+        b.iter(|| PqcSigner::generate(MlDsaLevel::Level3).expect("keygen failed"))
     });
     group.finish();
 }
@@ -32,9 +30,7 @@ pub fn bench_ml_dsa_sign(c: &mut Criterion) {
     group.throughput(Throughput::Elements(1));
     group.measurement_time(Duration::from_secs(5));
     group.bench_function("ml_dsa_sign_256b", |b| {
-        b.iter(|| {
-            signer.sign(&message).expect("sign failed")
-        })
+        b.iter(|| signer.sign(&message).expect("sign failed"))
     });
     group.finish();
 }
@@ -60,15 +56,51 @@ pub fn bench_ml_dsa_verify(c: &mut Criterion) {
 pub fn bench_canonical_bytes(c: &mut Criterion) {
     let result = ScanResult {
         fields: vec![
-            DocumentField { key: "surname".into(), value: "ERIKSSON".into(), confidence: 0.97 },
-            DocumentField { key: "given_names".into(), value: "ANNA MARIA".into(), confidence: 0.96 },
-            DocumentField { key: "date_of_birth".into(), value: "1974-08-12".into(), confidence: 0.99 },
-            DocumentField { key: "document_number".into(), value: "L898902C3".into(), confidence: 0.98 },
-            DocumentField { key: "expiry_date".into(), value: "2012-04-15".into(), confidence: 0.95 },
-            DocumentField { key: "mrz_line1".into(), value: "P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<".into(), confidence: 0.99 },
-            DocumentField { key: "mrz_line2".into(), value: "L898902C36UTO7408122F1204159ZE184226B<<<<<10".into(), confidence: 0.99 },
-            DocumentField { key: "sex".into(), value: "F".into(), confidence: 0.99 },
-            DocumentField { key: "nationality".into(), value: "UTO".into(), confidence: 0.98 },
+            DocumentField {
+                key: "surname".into(),
+                value: "ERIKSSON".into(),
+                confidence: 0.97,
+            },
+            DocumentField {
+                key: "given_names".into(),
+                value: "ANNA MARIA".into(),
+                confidence: 0.96,
+            },
+            DocumentField {
+                key: "date_of_birth".into(),
+                value: "1974-08-12".into(),
+                confidence: 0.99,
+            },
+            DocumentField {
+                key: "document_number".into(),
+                value: "L898902C3".into(),
+                confidence: 0.98,
+            },
+            DocumentField {
+                key: "expiry_date".into(),
+                value: "2012-04-15".into(),
+                confidence: 0.95,
+            },
+            DocumentField {
+                key: "mrz_line1".into(),
+                value: "P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<".into(),
+                confidence: 0.99,
+            },
+            DocumentField {
+                key: "mrz_line2".into(),
+                value: "L898902C36UTO7408122F1204159ZE184226B<<<<<10".into(),
+                confidence: 0.99,
+            },
+            DocumentField {
+                key: "sex".into(),
+                value: "F".into(),
+                confidence: 0.99,
+            },
+            DocumentField {
+                key: "nationality".into(),
+                value: "UTO".into(),
+                confidence: 0.98,
+            },
         ],
         raw_mrz: None,
         document_type: "passport".into(),
@@ -82,9 +114,7 @@ pub fn bench_canonical_bytes(c: &mut Criterion) {
     group.throughput(Throughput::Elements(1));
     group.measurement_time(Duration::from_secs(3));
     group.bench_function("canonical_bytes_9_fields", |b| {
-        b.iter(|| {
-            result.canonical_bytes()
-        })
+        b.iter(|| result.canonical_bytes())
     });
     group.finish();
 }
@@ -100,9 +130,7 @@ pub fn bench_ml_kem_encapsulate(c: &mut Criterion) {
     group.throughput(Throughput::Elements(1));
     group.measurement_time(Duration::from_secs(5));
     group.bench_function("ml_kem_encapsulate", |b| {
-        b.iter(|| {
-            MlKemSession::encapsulate(&pk_bytes).expect("encapsulate failed")
-        })
+        b.iter(|| MlKemSession::encapsulate(&pk_bytes).expect("encapsulate failed"))
     });
     group.finish();
 }

@@ -11,58 +11,58 @@ use crate::frame::RawFrame;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Gate {
     /// Frame arrived. Always passes. Entry point.
-    Received       = 0,
+    Received = 0,
     /// Reject frames with motion blur above threshold.
     /// Uses Laplacian variance on a 64x64 centre crop of the Y plane.
-    BlurCheck      = 1,
+    BlurCheck = 1,
     /// Reject underexposed or overexposed frames.
     /// Mean and 95th-percentile luminance check on Y plane histogram.
-    ExposureCheck  = 2,
+    ExposureCheck = 2,
     /// Reject frames where inter-frame motion is too high (camera shake).
     /// Compares 8x8 block SAD against previous accepted frame.
-    MotionCheck    = 3,
+    MotionCheck = 3,
     /// Document boundary must be detectable (fast edge density heuristic,
     /// NOT the ML model — model is only called after all gates pass).
-    BoundaryCheck  = 4,
+    BoundaryCheck = 4,
     /// All gates passed. Frame is forwarded to ML inference.
-    Accepted       = 5,
+    Accepted = 5,
 }
 
 #[derive(Debug, Clone)]
 pub struct QualityReport {
-    pub gate_reached:    Gate,
+    pub gate_reached: Gate,
     /// Laplacian variance (higher = sharper). Threshold: 80.0
-    pub blur_score:      f32,
+    pub blur_score: f32,
     /// Mean luminance 0–255. Accept range: 40–220.
-    pub mean_luma:       f32,
+    pub mean_luma: f32,
     /// 95th-percentile luminance. Reject if > 245 (overexposed).
-    pub p95_luma:        f32,
+    pub p95_luma: f32,
     /// Inter-frame SAD normalised 0–1. Reject if > 0.12.
-    pub motion_score:    f32,
+    pub motion_score: f32,
     /// Edge density 0–1. Reject if < 0.08 (no document visible).
-    pub edge_density:    f32,
+    pub edge_density: f32,
 }
 
 pub struct QualityGate {
-    pub blur_threshold:    f32,   // default 80.0
-    pub min_luma:          f32,   // default 40.0
-    pub max_luma:          f32,   // default 220.0
-    pub p95_luma_max:      f32,   // default 245.0
-    pub motion_threshold:  f32,   // default 0.12
-    pub edge_min:          f32,   // default 0.08
-    prev_y_crop:           [u8; 64 * 64],
+    pub blur_threshold: f32,   // default 80.0
+    pub min_luma: f32,         // default 40.0
+    pub max_luma: f32,         // default 220.0
+    pub p95_luma_max: f32,     // default 245.0
+    pub motion_threshold: f32, // default 0.12
+    pub edge_min: f32,         // default 0.08
+    prev_y_crop: [u8; 64 * 64],
 }
 
 impl Default for QualityGate {
     fn default() -> Self {
         Self {
-            blur_threshold:   80.0,
-            min_luma:         40.0,
-            max_luma:         220.0,
-            p95_luma_max:     245.0,
+            blur_threshold: 80.0,
+            min_luma: 40.0,
+            max_luma: 220.0,
+            p95_luma_max: 245.0,
             motion_threshold: 0.12,
-            edge_min:         0.08,
-            prev_y_crop:      [128u8; 64 * 64],
+            edge_min: 0.08,
+            prev_y_crop: [128u8; 64 * 64],
         }
     }
 }
@@ -76,9 +76,9 @@ impl QualityGate {
     pub unsafe fn evaluate(&mut self, frame: &RawFrame) -> QualityReport {
         let mut report = QualityReport {
             gate_reached: Gate::Received,
-            blur_score:   0.0,
-            mean_luma:    0.0,
-            p95_luma:     0.0,
+            blur_score: 0.0,
+            mean_luma: 0.0,
+            p95_luma: 0.0,
             motion_score: 0.0,
             edge_density: 0.0,
         };
@@ -94,7 +94,7 @@ impl QualityGate {
         // --- Gate 2: Exposure (histogram on full Y plane) ---
         let (mean, p95) = luma_stats(frame);
         report.mean_luma = mean;
-        report.p95_luma  = p95;
+        report.p95_luma = p95;
         if mean < self.min_luma || mean > self.max_luma || p95 > self.p95_luma_max {
             report.gate_reached = Gate::ExposureCheck;
             return report; // SHORT-CIRCUIT: motion/edge scores stay 0.0
@@ -121,7 +121,7 @@ impl QualityGate {
 
     unsafe fn extract_centre_crop_64(&self, frame: &RawFrame) -> [u8; 64 * 64] {
         let mut crop = [0u8; 64 * 64];
-        let x0 = (frame.width  / 2).saturating_sub(32) as usize;
+        let x0 = (frame.width / 2).saturating_sub(32) as usize;
         let y0 = (frame.height / 2).saturating_sub(32) as usize;
         for row in 0..64usize {
             let src_offset = (y0 + row) * frame.y_stride as usize + x0;
@@ -148,10 +148,10 @@ fn laplacian_variance(crop: &[u8; 64 * 64]) -> f32 {
             let lap = -(4i16 * crop[idx] as i16)
                 + crop[idx - 64] as i16
                 + crop[idx + 64] as i16
-                + crop[idx - 1]  as i16
-                + crop[idx + 1]  as i16;
+                + crop[idx - 1] as i16
+                + crop[idx + 1] as i16;
             let lf = lap as f64;
-            sum    += lf;
+            sum += lf;
             sum_sq += lf * lf;
         }
     }
@@ -183,7 +183,9 @@ unsafe fn luma_stats(frame: &RawFrame) -> (f32, f32) {
 
 /// Normalised sum of absolute differences between two 64x64 luma crops.
 fn block_sad_normalised(a: &[u8; 64 * 64], b: &[u8; 64 * 64]) -> f32 {
-    let sad: u32 = a.iter().zip(b.iter())
+    let sad: u32 = a
+        .iter()
+        .zip(b.iter())
         .map(|(&x, &y)| (x as i16 - y as i16).unsigned_abs() as u32)
         .sum();
     sad as f32 / (64.0 * 64.0 * 255.0)
@@ -201,23 +203,27 @@ unsafe fn sobel_edge_density(frame: &RawFrame) -> f32 {
     let step = 4; // subsample 4x for budget device compliance
     for y in (1..h - 1).step_by(step) {
         for x in (1..w - 1).step_by(step) {
-            let gx = y_plane[(y-1)*stride + (x+1)] as i16
-                   - y_plane[(y-1)*stride + (x-1)] as i16
-                   + 2 * y_plane[y*stride + (x+1)] as i16
-                   - 2 * y_plane[y*stride + (x-1)] as i16
-                   + y_plane[(y+1)*stride + (x+1)] as i16
-                   - y_plane[(y+1)*stride + (x-1)] as i16;
-            let gy = y_plane[(y-1)*stride + (x-1)] as i16
-                   + 2 * y_plane[(y-1)*stride + x] as i16
-                   + y_plane[(y-1)*stride + (x+1)] as i16
-                   - y_plane[(y+1)*stride + (x-1)] as i16
-                   - 2 * y_plane[(y+1)*stride + x] as i16
-                   - y_plane[(y+1)*stride + (x+1)] as i16;
+            let gx = y_plane[(y - 1) * stride + (x + 1)] as i16
+                - y_plane[(y - 1) * stride + (x - 1)] as i16
+                + 2 * y_plane[y * stride + (x + 1)] as i16
+                - 2 * y_plane[y * stride + (x - 1)] as i16
+                + y_plane[(y + 1) * stride + (x + 1)] as i16
+                - y_plane[(y + 1) * stride + (x - 1)] as i16;
+            let gy = y_plane[(y - 1) * stride + (x - 1)] as i16
+                + 2 * y_plane[(y - 1) * stride + x] as i16
+                + y_plane[(y - 1) * stride + (x + 1)] as i16
+                - y_plane[(y + 1) * stride + (x - 1)] as i16
+                - 2 * y_plane[(y + 1) * stride + x] as i16
+                - y_plane[(y + 1) * stride + (x + 1)] as i16;
             let mag = gx.abs().saturating_add(gy.abs());
-            if mag > threshold { edge_count += 1; }
+            if mag > threshold {
+                edge_count += 1;
+            }
             total += 1;
         }
     }
-    if total == 0 { return 0.0; }
+    if total == 0 {
+        return 0.0;
+    }
     edge_count as f32 / total as f32
 }

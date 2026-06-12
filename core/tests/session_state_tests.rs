@@ -4,18 +4,18 @@
 
 #[cfg(test)]
 mod tests {
-    use beam_core::session::{ScanSession, SessionConfig, SessionState};
     use beam_core::result::ScanResult;
+    use beam_core::session::{ScanSession, SessionConfig, SessionState};
 
     fn default_result() -> ScanResult {
         ScanResult {
-            fields:          vec![],
-            raw_mrz:         None,
-            document_type:   "passport".into(),
+            fields: vec![],
+            raw_mrz: None,
+            document_type: "passport".into(),
             issuing_country: "USA".into(),
-            confidence:      0.99,
-            pqc_signature:   vec![],
-            pqc_public_key:  vec![],
+            confidence: 0.99,
+            pqc_signature: vec![],
+            pqc_public_key: vec![],
         }
     }
 
@@ -45,9 +45,18 @@ mod tests {
             ..SessionConfig::default()
         });
         session.start(0);
-        assert!(!session.record_quality_frame(), "1st frame should not trigger");
-        assert!(!session.record_quality_frame(), "2nd frame should not trigger");
-        assert!( session.record_quality_frame(), "3rd frame must trigger inference");
+        assert!(
+            !session.record_quality_frame(),
+            "1st frame should not trigger"
+        );
+        assert!(
+            !session.record_quality_frame(),
+            "2nd frame should not trigger"
+        );
+        assert!(
+            session.record_quality_frame(),
+            "3rd frame must trigger inference"
+        );
         assert_eq!(session.state, SessionState::Inferring);
     }
 
@@ -63,7 +72,8 @@ mod tests {
         for i in 1..60 {
             assert!(
                 !session.record_gate_fail(),
-                "fail #{} must not trigger relaxation", i
+                "fail #{} must not trigger relaxation",
+                i
             );
         }
         assert!(
@@ -133,9 +143,13 @@ mod tests {
         assert_eq!(session.state, SessionState::Complete);
         // This must not panic, must not change state, must return false
         let changed = session.record_quality_frame();
-        assert!(!changed, "record_quality_frame on Complete must return false");
+        assert!(
+            !changed,
+            "record_quality_frame on Complete must return false"
+        );
         assert_eq!(
-            session.state, SessionState::Complete,
+            session.state,
+            SessionState::Complete,
             "state must remain Complete after no-op"
         );
     }

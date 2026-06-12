@@ -10,15 +10,15 @@ use crate::result::ScanResult;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SessionState {
     /// Initial state. No scan in progress.
-    Idle       = 0,
+    Idle = 0,
     /// Camera running, quality gates evaluating frames.
-    Scanning   = 1,
+    Scanning = 1,
     /// Sufficient quality frames accumulated. C++ inference in progress.
-    Inferring  = 2,
+    Inferring = 2,
     /// Inference complete. ScanResult available.
-    Complete   = 3,
+    Complete = 3,
     /// Session ended in failure (timeout, repeated gate failure, inference error).
-    Failed     = 4,
+    Failed = 4,
 }
 
 /// Session configuration. Mirrors BeamScanConfig on iOS/Android.
@@ -26,43 +26,43 @@ pub enum SessionState {
 #[derive(Debug, Clone)]
 pub struct SessionConfig {
     /// Number of quality-passing frames required before inference is triggered.
-    pub min_quality_frames:   u32,
+    pub min_quality_frames: u32,
     /// Session timeout in milliseconds. Default: 30000 (30 seconds).
-    pub timeout_ms:           u64,
+    pub timeout_ms: u64,
     /// Consecutive gate failures that trigger adaptive relaxation.
     /// Default: 60 (≈ 2.4 seconds at 25fps).
-    pub adaptive_gate_limit:  u32,
+    pub adaptive_gate_limit: u32,
     /// Whether to PQC-sign the result with ML-DSA Level3.
     /// Set to false in dev builds to reduce overhead.
-    pub pqc_sign_result:      bool,
+    pub pqc_sign_result: bool,
     /// Whether to include the raw MRZ string in ScanResult.
-    pub include_raw_mrz:      bool,
+    pub include_raw_mrz: bool,
 }
 
 impl Default for SessionConfig {
     fn default() -> Self {
         Self {
-            min_quality_frames:  3,
-            timeout_ms:          30_000,
+            min_quality_frames: 3,
+            timeout_ms: 30_000,
             adaptive_gate_limit: 60,
-            pqc_sign_result:     true,
-            include_raw_mrz:     false,
+            pqc_sign_result: true,
+            include_raw_mrz: false,
         }
     }
 }
 
 /// The scan session state machine.
 pub struct ScanSession {
-    pub config:                  SessionConfig,
-    pub state:                   SessionState,
+    pub config: SessionConfig,
+    pub state: SessionState,
     /// Number of frames that passed all quality gates this session.
-    pub quality_frame_count:     u32,
+    pub quality_frame_count: u32,
     /// Consecutive frames that failed any quality gate.
-    pub consecutive_gate_fails:  u32,
+    pub consecutive_gate_fails: u32,
     /// Monotonic timestamp (µs) when start() was called.
-    pub start_timestamp_us:      u64,
+    pub start_timestamp_us: u64,
     /// Final scan result, populated by complete().
-    pub result:                  Option<ScanResult>,
+    pub result: Option<ScanResult>,
 }
 
 impl ScanSession {
@@ -70,17 +70,17 @@ impl ScanSession {
     pub fn new(config: SessionConfig) -> Self {
         Self {
             config,
-            state:                  SessionState::Idle,
-            quality_frame_count:    0,
+            state: SessionState::Idle,
+            quality_frame_count: 0,
             consecutive_gate_fails: 0,
-            start_timestamp_us:     0,
-            result:                 None,
+            start_timestamp_us: 0,
+            result: None,
         }
     }
 
     /// Transition to Scanning state and record the start timestamp.
     pub fn start(&mut self, timestamp_us: u64) {
-        self.state             = SessionState::Scanning;
+        self.state = SessionState::Scanning;
         self.start_timestamp_us = timestamp_us;
     }
 
@@ -94,7 +94,7 @@ impl ScanSession {
             return false;
         }
         self.consecutive_gate_fails = 0;
-        self.quality_frame_count    += 1;
+        self.quality_frame_count += 1;
         if self.quality_frame_count >= self.config.min_quality_frames {
             self.state = SessionState::Inferring;
             return true;
@@ -130,7 +130,7 @@ impl ScanSession {
     /// Mark the session complete with the given ScanResult.
     pub fn complete(&mut self, result: ScanResult) {
         self.result = Some(result);
-        self.state  = SessionState::Complete;
+        self.state = SessionState::Complete;
     }
 
     /// Mark the session as failed with an optional reason string.

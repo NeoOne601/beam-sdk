@@ -1,16 +1,16 @@
 // backend/src/routes/verify.rs
 // POST /v1/verify — Verify an ML-DSA signed scan result.
 
+use crate::crypto::ml_dsa_verifier;
+use crate::errors::AppError;
+use crate::models::verification_result::VerificationResult;
+use crate::AppState;
 use axum::{extract::State, Json};
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use uuid::Uuid;
 use std::sync::Arc;
-use crate::AppState;
-use crate::errors::AppError;
-use crate::crypto::ml_dsa_verifier;
-use crate::models::verification_result::VerificationResult;
+use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct VerifyRequest {
@@ -74,12 +74,14 @@ pub async fn verify_result(
     let signature = base64::Engine::decode(
         &base64::engine::general_purpose::STANDARD,
         &req.scan_result.pqc_signature,
-    ).map_err(|e| AppError::BadRequest(format!("Invalid base64 signature: {}", e)))?;
+    )
+    .map_err(|e| AppError::BadRequest(format!("Invalid base64 signature: {}", e)))?;
 
     let public_key = base64::Engine::decode(
         &base64::engine::general_purpose::STANDARD,
         &req.scan_result.pqc_public_key,
-    ).map_err(|e| AppError::BadRequest(format!("Invalid base64 public key: {}", e)))?;
+    )
+    .map_err(|e| AppError::BadRequest(format!("Invalid base64 public key: {}", e)))?;
 
     // 6. Verify ML-DSA signature
     let verified = ml_dsa_verifier::verify_dilithium3(&public_key, &canonical, &signature);
@@ -117,7 +119,7 @@ pub async fn verify_result(
 
     if !verified {
         return Err(AppError::SignatureInvalid(
-            "ML-DSA signature verification failed".into()
+            "ML-DSA signature verification failed".into(),
         ));
     }
 
@@ -138,7 +140,8 @@ pub async fn verify_result(
 ///   4-byte LE key length + key bytes + 4-byte LE value length + value bytes
 /// NUL delimiter between fields.
 fn reconstruct_canonical_bytes(scan: &ScanResultPayload) -> Vec<u8> {
-    let mut entries: Vec<(&str, &str)> = scan.fields
+    let mut entries: Vec<(&str, &str)> = scan
+        .fields
         .iter()
         .map(|f| (f.key.as_str(), f.value.as_str()))
         .collect();

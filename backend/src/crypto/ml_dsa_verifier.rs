@@ -7,7 +7,7 @@
 // Product-level FIPS validation is on the Phase 3 roadmap.
 
 use pqcrypto_dilithium::dilithium3;
-use pqcrypto_traits::sign::{PublicKey as _, DetachedSignature as _};
+use pqcrypto_traits::sign::{DetachedSignature as _, PublicKey as _};
 
 /// Verify a Dilithium-3 (ML-DSA Level 3) detached signature.
 ///
@@ -22,15 +22,14 @@ use pqcrypto_traits::sign::{PublicKey as _, DetachedSignature as _};
 ///   pqcrypto-dilithium 0.5 (PQClean Round-3): 3,309 bytes
 ///   FIPS 204 ML-DSA-65 final standard: 3,293 bytes
 ///   These differ because pqcrypto-dilithium uses the pre-final PQClean reference.
-pub fn verify_dilithium3(
-    public_key: &[u8],
-    message: &[u8],
-    signature: &[u8],
-) -> bool {
+pub fn verify_dilithium3(public_key: &[u8], message: &[u8], signature: &[u8]) -> bool {
     let pk = match dilithium3::PublicKey::from_bytes(public_key) {
         Ok(pk) => pk,
         Err(_) => {
-            tracing::warn!("Invalid Dilithium-3 public key ({} bytes)", public_key.len());
+            tracing::warn!(
+                "Invalid Dilithium-3 public key ({} bytes)",
+                public_key.len()
+            );
             return false;
         }
     };
@@ -56,7 +55,7 @@ pub fn verify_dilithium3(
 mod tests {
     use super::*;
     use pqcrypto_dilithium::dilithium3;
-    use pqcrypto_traits::sign::{PublicKey as _, SecretKey as _, DetachedSignature as _};
+    use pqcrypto_traits::sign::{DetachedSignature as _, PublicKey as _, SecretKey as _};
 
     #[test]
     fn test_verify_valid_signature() {
@@ -64,11 +63,7 @@ mod tests {
         let message = b"test canonical bytes for verification";
         let sig = dilithium3::detached_sign(message, &sk);
 
-        assert!(verify_dilithium3(
-            pk.as_bytes(),
-            message,
-            sig.as_bytes()
-        ));
+        assert!(verify_dilithium3(pk.as_bytes(), message, sig.as_bytes()));
     }
 
     #[test]
@@ -93,10 +88,6 @@ mod tests {
         let sig = dilithium3::detached_sign(message, &sk1);
 
         // Verify with wrong public key
-        assert!(!verify_dilithium3(
-            pk2.as_bytes(),
-            message,
-            sig.as_bytes()
-        ));
+        assert!(!verify_dilithium3(pk2.as_bytes(), message, sig.as_bytes()));
     }
 }

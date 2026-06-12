@@ -1,11 +1,11 @@
 // backend/src/routes/health.rs
 // GET /health — Service health check.
 
+use crate::AppState;
 use axum::{extract::State, Json};
 use redis::AsyncCommands;
 use serde::Serialize;
 use std::sync::Arc;
-use crate::AppState;
 
 #[derive(Serialize)]
 pub struct HealthResponse {
@@ -15,9 +15,7 @@ pub struct HealthResponse {
     pub version: String,
 }
 
-pub async fn health_check(
-    State(state): State<Arc<AppState>>,
-) -> Json<HealthResponse> {
+pub async fn health_check(State(state): State<Arc<AppState>>) -> Json<HealthResponse> {
     // Check PostgreSQL
     let db_status = match sqlx::query("SELECT 1").execute(&state.db_pool).await {
         Ok(_) => "ok".to_string(),
@@ -27,9 +25,7 @@ pub async fn health_check(
     // Check Redis
     let redis_status = match state.redis.get_multiplexed_async_connection().await {
         Ok(mut conn) => {
-            let ping_result: Result<String, _> = redis::cmd("PING")
-                .query_async(&mut conn)
-                .await;
+            let ping_result: Result<String, _> = redis::cmd("PING").query_async(&mut conn).await;
             match ping_result {
                 Ok(_) => "ok".to_string(),
                 Err(_) => "degraded".to_string(),
@@ -38,7 +34,11 @@ pub async fn health_check(
         Err(_) => "degraded".to_string(),
     };
 
-    let overall = if db_status == "ok" && redis_status == "ok" { "ok" } else { "degraded" };
+    let overall = if db_status == "ok" && redis_status == "ok" {
+        "ok"
+    } else {
+        "degraded"
+    };
 
     Json(HealthResponse {
         status: overall.to_string(),

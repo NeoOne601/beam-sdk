@@ -27,7 +27,7 @@ pub enum PipelineResult {
 
 /// Top-level frame processing pipeline.
 pub struct FramePipeline {
-    gate:    QualityGate,
+    gate: QualityGate,
     session: ScanSession,
 }
 
@@ -37,7 +37,7 @@ impl FramePipeline {
         let mut session = ScanSession::new(config);
         session.start(0); // Start immediately — caller provides real timestamps via process_frame
         Self {
-            gate:    QualityGate::default(),
+            gate: QualityGate::default(),
             session,
         }
     }
@@ -56,11 +56,7 @@ impl FramePipeline {
     ///
     /// # Safety
     /// `frame.y_plane` must be valid for `frame.width * frame.height` bytes.
-    pub unsafe fn process_frame(
-        &mut self,
-        frame:  &RawFrame,
-        now_us: u64,
-    ) -> PipelineResult {
+    pub unsafe fn process_frame(&mut self, frame: &RawFrame, now_us: u64) -> PipelineResult {
         // If already complete, return the stored result
         if let crate::session::SessionState::Complete = self.session.state {
             if let Some(result) = self.session.result.clone() {
@@ -73,9 +69,9 @@ impl FramePipeline {
             self.session.fail(Some("timeout"));
             let report = QualityReport {
                 gate_reached: Gate::Received,
-                blur_score:   0.0,
-                mean_luma:    0.0,
-                p95_luma:     0.0,
+                blur_score: 0.0,
+                mean_luma: 0.0,
+                p95_luma: 0.0,
                 motion_score: 0.0,
                 edge_density: 0.0,
             };
@@ -113,10 +109,10 @@ impl FramePipeline {
     ///   - p95_luma_max     ← × 1.15
     ///   - motion_threshold ← × 1.15  (accept more camera shake)
     fn apply_adaptive_relaxation(&mut self) {
-        self.gate.blur_threshold   *= 0.85;
-        self.gate.min_luma         *= 0.85;
-        self.gate.max_luma         *= 1.15;
-        self.gate.p95_luma_max     *= 1.15;
+        self.gate.blur_threshold *= 0.85;
+        self.gate.min_luma *= 0.85;
+        self.gate.max_luma *= 1.15;
+        self.gate.p95_luma_max *= 1.15;
         self.gate.motion_threshold *= 1.15;
         // edge_min is not relaxed — a document must always be present
     }

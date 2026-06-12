@@ -3,18 +3,18 @@
 // Provides nonce-protected ML-DSA signature verification,
 // audit logging, webhook delivery, and health checks.
 
-use axum::{Router, middleware};
+use axum::{middleware, Router};
+use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use std::sync::Arc;
 
 mod config;
-mod errors;
-mod routes;
-mod models;
 mod crypto;
 mod db;
+mod errors;
+mod models;
+mod routes;
 
 use config::AppConfig;
 
@@ -32,8 +32,10 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialise tracing
     tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| "beam_verify_backend=info,tower_http=info".into()))
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "beam_verify_backend=info,tower_http=info".into()),
+        )
         .with(tracing_subscriber::fmt::layer())
         .init();
 

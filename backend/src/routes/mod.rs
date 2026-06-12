@@ -1,15 +1,18 @@
 // backend/src/routes/mod.rs
 // Route registry for the Beam Verify backend.
 
-use axum::{Router, routing::{get, post}};
-use std::sync::Arc;
 use crate::AppState;
+use axum::{
+    routing::{get, post},
+    Router,
+};
+use std::sync::Arc;
 
+pub mod audit;
+pub mod health;
 pub mod nonce;
 pub mod verify;
-pub mod audit;
 pub mod webhook;
-pub mod health;
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()

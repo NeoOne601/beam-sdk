@@ -8,8 +8,8 @@
 
 #[cfg(test)]
 mod tests {
+    use beam_core::frame::{PixelFormat, RawFrame};
     use beam_core::quality::{Gate, QualityGate};
-    use beam_core::frame::{RawFrame, PixelFormat};
 
     // ─── Helper: create a synthetic RawFrame from a Vec<u8> Y plane ──────────
 
@@ -18,13 +18,13 @@ mod tests {
         let y = y_data.to_vec();
         let uv = vec![128u8; (width * height / 2) as usize]; // neutral UV
         let frame = RawFrame {
-            y_plane:      y.as_ptr(),
-            uv_plane:     uv.as_ptr(),
+            y_plane: y.as_ptr(),
+            uv_plane: uv.as_ptr(),
             width,
             height,
-            y_stride:     width,
-            uv_stride:    width,
-            format:       PixelFormat::Nv12,
+            y_stride: width,
+            uv_stride: width,
+            format: PixelFormat::Nv12,
             timestamp_us: 0,
         };
         (y, uv, frame) // return vecs so they stay alive
@@ -35,13 +35,17 @@ mod tests {
     #[test]
     fn sharp_frame_passes_blur_gate() {
         // Checkerboard pattern → very high Laplacian variance
-        let width  = 200u32;
+        let width = 200u32;
         let height = 200u32;
         let y_data: Vec<u8> = (0..(width * height) as usize)
             .map(|i| {
                 let row = i / width as usize;
                 let col = i % width as usize;
-                if (row + col) % 2 == 0 { 240 } else { 10 }
+                if (row + col) % 2 == 0 {
+                    240
+                } else {
+                    10
+                }
             })
             .collect();
 
@@ -62,7 +66,7 @@ mod tests {
 
     #[test]
     fn blurred_frame_fails_blur_gate() {
-        let width  = 200u32;
+        let width = 200u32;
         let height = 200u32;
         // Constant Y = 128 → Laplacian = 0 everywhere → variance ≈ 0
         let y_data = vec![128u8; (width * height) as usize];
@@ -93,7 +97,11 @@ mod tests {
             .map(|i| {
                 let row = i / width as usize;
                 let col = i % width as usize;
-                if (row + col) % 2 == 0 { 30 } else { 10 } // mean ≈ 20
+                if (row + col) % 2 == 0 {
+                    30
+                } else {
+                    10
+                } // mean ≈ 20
             })
             .collect();
 
@@ -105,7 +113,8 @@ mod tests {
 
         println!("mean_luma = {}", report.mean_luma);
         assert_eq!(
-            report.gate_reached, Gate::ExposureCheck,
+            report.gate_reached,
+            Gate::ExposureCheck,
             "dark frame (mean≈20) must fail exposure gate"
         );
         assert!(report.mean_luma < 40.0);
@@ -119,7 +128,13 @@ mod tests {
         let height = 200u32;
         // P95 luma > 248 → fails p95_luma_max = 245
         let y_data: Vec<u8> = (0..(width * height) as usize)
-            .map(|i| if i < (width * height * 96 / 100) as usize { 250 } else { 100 })
+            .map(|i| {
+                if i < (width * height * 96 / 100) as usize {
+                    250
+                } else {
+                    100
+                }
+            })
             .collect();
 
         let (y, uv, frame) = make_frame(&y_data, width, height);
@@ -130,7 +145,8 @@ mod tests {
 
         println!("p95_luma = {}", report.p95_luma);
         assert_eq!(
-            report.gate_reached, Gate::ExposureCheck,
+            report.gate_reached,
+            Gate::ExposureCheck,
             "overexposed frame must fail exposure gate"
         );
     }
@@ -145,13 +161,17 @@ mod tests {
             .map(|i| {
                 let row = i / width as usize;
                 let col = i % width as usize;
-                if (row + col) % 2 == 0 { 200 } else { 50 }
+                if (row + col) % 2 == 0 {
+                    200
+                } else {
+                    50
+                }
             })
             .collect();
 
         let mut gate = QualityGate::default();
         gate.blur_threshold = -1.0;
-        gate.min_luma       = 1.0;
+        gate.min_luma = 1.0;
         gate.motion_threshold = 1.0;
 
         // First frame: initialise prev_y_crop
@@ -186,7 +206,7 @@ mod tests {
 
         let mut gate = QualityGate::default();
         gate.blur_threshold = -1.0;
-        gate.min_luma       = 1.0;
+        gate.min_luma = 1.0;
 
         let (y_buf, uv_buf, frame) = make_frame(&y1, width, height);
         let _ = unsafe { gate.evaluate(&frame) };
@@ -215,8 +235,8 @@ mod tests {
         let y_data = vec![128u8; (width * height) as usize];
 
         let mut gate = QualityGate::default();
-        gate.blur_threshold   = -1.0;
-        gate.min_luma         = 1.0;
+        gate.blur_threshold = -1.0;
+        gate.min_luma = 1.0;
         gate.motion_threshold = 1.0;
 
         let (y, uv, frame) = make_frame(&y_data, width, height);
@@ -247,8 +267,8 @@ mod tests {
         }
 
         let mut gate = QualityGate::default();
-        gate.blur_threshold   = -1.0;
-        gate.min_luma         = 1.0;
+        gate.blur_threshold = -1.0;
+        gate.min_luma = 1.0;
         gate.motion_threshold = 1.0;
 
         let (y, uv, frame) = make_frame(&y_data, width, height);
@@ -267,7 +287,7 @@ mod tests {
 
     #[test]
     fn blur_rejection_zeros_downstream_scores() {
-        let width  = 200u32;
+        let width = 200u32;
         let height = 200u32;
         // Constant Y = 128 → guaranteed blur rejection
         let y_data = vec![128u8; (width * height) as usize];
@@ -278,7 +298,8 @@ mod tests {
         drop((y, uv));
 
         assert_eq!(
-            report.gate_reached, Gate::BlurCheck,
+            report.gate_reached,
+            Gate::BlurCheck,
             "constant frame must fail at BlurCheck"
         );
         // CRITICAL: short-circuit means these must ALL be exactly 0.0

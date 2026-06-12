@@ -1,12 +1,15 @@
 // backend/src/routes/audit.rs
 // GET /v1/audit — Paginated audit log retrieval.
 
-use axum::{extract::{State, Query}, Json};
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use std::sync::Arc;
-use crate::AppState;
 use crate::errors::AppError;
+use crate::AppState;
+use axum::{
+    extract::{Query, State},
+    Json,
+};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct AuditQuery {

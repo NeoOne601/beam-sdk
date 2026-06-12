@@ -18,8 +18,8 @@
 // Private key bytes are mlock()-protected on non-WASM targets to prevent
 // them from being swapped to disk.
 
+use pqcrypto_traits::sign::{DetachedSignature as _, PublicKey as _, SecretKey as _};
 use std::vec::Vec;
-use pqcrypto_traits::sign::{PublicKey as _, SecretKey as _, DetachedSignature as _};
 
 /// ML-DSA security level. Use Level3 (128-bit quantum security) for production.
 ///
@@ -45,15 +45,15 @@ use pqcrypto_traits::sign::{PublicKey as _, SecretKey as _, DetachedSignature as
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub enum MlDsaLevel {
-    Level2,  // 128-bit classical, 64-bit quantum  — fastest
-    Level3,  // 192-bit classical, 96-bit quantum  — recommended (Dilithium-3)
-    Level5,  // 256-bit classical, 128-bit quantum — highest assurance
+    Level2, // 128-bit classical, 64-bit quantum  — fastest
+    Level3, // 192-bit classical, 96-bit quantum  — recommended (Dilithium-3)
+    Level5, // 256-bit classical, 128-bit quantum — highest assurance
 }
 
 pub struct PqcSigner {
-    level:       MlDsaLevel,
+    level: MlDsaLevel,
     private_key: Vec<u8>,
-    public_key:  Vec<u8>,
+    public_key: Vec<u8>,
 }
 
 #[derive(Debug)]
@@ -76,25 +76,37 @@ impl PqcSigner {
                 use pqcrypto_dilithium::dilithium2;
                 let (pk, sk) = dilithium2::keypair();
                 let mut private_key = sk.as_bytes().to_vec();
-                let public_key  = pk.as_bytes().to_vec();
+                let public_key = pk.as_bytes().to_vec();
                 Self::mlock_key(&mut private_key);
-                Ok(Self { level, private_key, public_key })
+                Ok(Self {
+                    level,
+                    private_key,
+                    public_key,
+                })
             }
             MlDsaLevel::Level3 => {
                 use pqcrypto_dilithium::dilithium3;
                 let (pk, sk) = dilithium3::keypair();
                 let mut private_key = sk.as_bytes().to_vec();
-                let public_key  = pk.as_bytes().to_vec();
+                let public_key = pk.as_bytes().to_vec();
                 Self::mlock_key(&mut private_key);
-                Ok(Self { level, private_key, public_key })
+                Ok(Self {
+                    level,
+                    private_key,
+                    public_key,
+                })
             }
             MlDsaLevel::Level5 => {
                 use pqcrypto_dilithium::dilithium5;
                 let (pk, sk) = dilithium5::keypair();
                 let mut private_key = sk.as_bytes().to_vec();
-                let public_key  = pk.as_bytes().to_vec();
+                let public_key = pk.as_bytes().to_vec();
                 Self::mlock_key(&mut private_key);
-                Ok(Self { level, private_key, public_key })
+                Ok(Self {
+                    level,
+                    private_key,
+                    public_key,
+                })
             }
         }
     }
@@ -149,28 +161,37 @@ impl PqcSigner {
 
     /// Verify a detached signature against a message and public key bytes.
     pub fn verify(
-        level:      MlDsaLevel,
+        level: MlDsaLevel,
         public_key: &[u8],
-        message:    &[u8],
-        signature:  &[u8],
+        message: &[u8],
+        signature: &[u8],
     ) -> Result<bool, CryptoError> {
         match level {
             MlDsaLevel::Level2 => {
-                use pqcrypto_dilithium::dilithium2::{verify_detached_signature, PublicKey, DetachedSignature};
-                let pk  = PublicKey::from_bytes(public_key).map_err(|_| CryptoError::InvalidKey)?;
-                let sig = DetachedSignature::from_bytes(signature).map_err(|_| CryptoError::InvalidKey)?;
+                use pqcrypto_dilithium::dilithium2::{
+                    verify_detached_signature, DetachedSignature, PublicKey,
+                };
+                let pk = PublicKey::from_bytes(public_key).map_err(|_| CryptoError::InvalidKey)?;
+                let sig = DetachedSignature::from_bytes(signature)
+                    .map_err(|_| CryptoError::InvalidKey)?;
                 Ok(verify_detached_signature(&sig, message, &pk).is_ok())
             }
             MlDsaLevel::Level3 => {
-                use pqcrypto_dilithium::dilithium3::{verify_detached_signature, PublicKey, DetachedSignature};
-                let pk  = PublicKey::from_bytes(public_key).map_err(|_| CryptoError::InvalidKey)?;
-                let sig = DetachedSignature::from_bytes(signature).map_err(|_| CryptoError::InvalidKey)?;
+                use pqcrypto_dilithium::dilithium3::{
+                    verify_detached_signature, DetachedSignature, PublicKey,
+                };
+                let pk = PublicKey::from_bytes(public_key).map_err(|_| CryptoError::InvalidKey)?;
+                let sig = DetachedSignature::from_bytes(signature)
+                    .map_err(|_| CryptoError::InvalidKey)?;
                 Ok(verify_detached_signature(&sig, message, &pk).is_ok())
             }
             MlDsaLevel::Level5 => {
-                use pqcrypto_dilithium::dilithium5::{verify_detached_signature, PublicKey, DetachedSignature};
-                let pk  = PublicKey::from_bytes(public_key).map_err(|_| CryptoError::InvalidKey)?;
-                let sig = DetachedSignature::from_bytes(signature).map_err(|_| CryptoError::InvalidKey)?;
+                use pqcrypto_dilithium::dilithium5::{
+                    verify_detached_signature, DetachedSignature, PublicKey,
+                };
+                let pk = PublicKey::from_bytes(public_key).map_err(|_| CryptoError::InvalidKey)?;
+                let sig = DetachedSignature::from_bytes(signature)
+                    .map_err(|_| CryptoError::InvalidKey)?;
                 Ok(verify_detached_signature(&sig, message, &pk).is_ok())
             }
         }
@@ -191,7 +212,10 @@ impl Drop for PqcSigner {
         }
         #[cfg(all(feature = "mlock", not(target_arch = "wasm32")))]
         unsafe {
-            libc::munlock(self.private_key.as_ptr() as *const _, self.private_key.len());
+            libc::munlock(
+                self.private_key.as_ptr() as *const _,
+                self.private_key.len(),
+            );
         }
     }
 }
@@ -201,7 +225,7 @@ impl Drop for PqcSigner {
 /// Provides quantum-safe key exchange for the session key.
 pub struct MlKemSession {
     /// Ciphertext sent to the server. Length: Kyber-1024 → 1568 bytes.
-    pub ciphertext:    Vec<u8>,
+    pub ciphertext: Vec<u8>,
     /// Shared secret used to derive AES-256-GCM key. Length: 32 bytes.
     pub shared_secret: Vec<u8>,
 }
@@ -213,12 +237,11 @@ impl MlKemSession {
     /// Shared secret length: 32 bytes.
     pub fn encapsulate(server_public_key: &[u8]) -> Result<Self, CryptoError> {
         use pqcrypto_kyber::kyber1024::{encapsulate, PublicKey};
-        use pqcrypto_traits::kem::{PublicKey as _, Ciphertext as _, SharedSecret as _};
-        let pk = PublicKey::from_bytes(server_public_key)
-            .map_err(|_| CryptoError::InvalidKey)?;
+        use pqcrypto_traits::kem::{Ciphertext as _, PublicKey as _, SharedSecret as _};
+        let pk = PublicKey::from_bytes(server_public_key).map_err(|_| CryptoError::InvalidKey)?;
         let (ss, ct) = encapsulate(&pk);
         Ok(Self {
-            ciphertext:    ct.as_bytes().to_vec(),
+            ciphertext: ct.as_bytes().to_vec(),
             shared_secret: ss.as_bytes().to_vec(),
         })
     }

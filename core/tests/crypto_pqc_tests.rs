@@ -5,18 +5,19 @@
 
 #[cfg(test)]
 mod tests {
-    use beam_core::crypto::{PqcSigner, MlDsaLevel, MlKemSession};
-    use beam_core::result::{ScanResult, DocumentField};
+    use beam_core::crypto::{MlDsaLevel, MlKemSession, PqcSigner};
+    use beam_core::result::{DocumentField, ScanResult};
 
     // ─── Key generation — public key length check (Level3) ───────────────────
 
     #[test]
     fn generate_level3_public_key_length() {
-        let signer = PqcSigner::generate(MlDsaLevel::Level3)
-            .expect("keypair generation must succeed");
+        let signer =
+            PqcSigner::generate(MlDsaLevel::Level3).expect("keypair generation must succeed");
         // Dilithium-3 public key: 1952 bytes (FIPS 204 Table 2)
         assert_eq!(
-            signer.public_key_bytes().len(), 1952,
+            signer.public_key_bytes().len(),
+            1952,
             "Dilithium-3 public key must be 1952 bytes"
         );
     }
@@ -25,8 +26,8 @@ mod tests {
 
     #[test]
     fn sign_level3_signature_length() {
-        let signer = PqcSigner::generate(MlDsaLevel::Level3)
-            .expect("keypair generation must succeed");
+        let signer =
+            PqcSigner::generate(MlDsaLevel::Level3).expect("keypair generation must succeed");
         let message = b"beam_sdk_test_message";
         let sig = signer.sign(message).expect("signing must succeed");
         // pqcrypto-dilithium 0.5 wraps PQClean's NIST Round-3 implementation.
@@ -35,7 +36,8 @@ mod tests {
         // When pqcrypto-dilithium is upgraded to a FIPS 204-compliant build,
         // update this constant to 3293.
         assert_eq!(
-            sig.len(), 3309,
+            sig.len(),
+            3309,
             "pqcrypto-dilithium 0.5 Dilithium-3 signature must be 3309 bytes, got {}",
             sig.len()
         );
@@ -45,17 +47,13 @@ mod tests {
 
     #[test]
     fn sign_verify_round_trip() {
-        let signer = PqcSigner::generate(MlDsaLevel::Level3)
-            .expect("keypair generation must succeed");
+        let signer =
+            PqcSigner::generate(MlDsaLevel::Level3).expect("keypair generation must succeed");
         let message = b"scan result canonical bytes go here";
         let sig = signer.sign(message).expect("signing must succeed");
 
-        let ok = PqcSigner::verify(
-            MlDsaLevel::Level3,
-            signer.public_key_bytes(),
-            message,
-            &sig,
-        ).expect("verify must not return error on valid input");
+        let ok = PqcSigner::verify(MlDsaLevel::Level3, signer.public_key_bytes(), message, &sig)
+            .expect("verify must not return error on valid input");
 
         assert!(ok, "sign→verify round-trip must return true");
     }
@@ -64,9 +62,9 @@ mod tests {
 
     #[test]
     fn verify_tampered_message_returns_false_or_err() {
-        let signer = PqcSigner::generate(MlDsaLevel::Level3)
-            .expect("keypair generation must succeed");
-        let message  = b"hello";
+        let signer =
+            PqcSigner::generate(MlDsaLevel::Level3).expect("keypair generation must succeed");
+        let message = b"hello";
         let tampered = b"hello!";
         let sig = signer.sign(message).expect("signing must succeed");
 
@@ -92,15 +90,23 @@ mod tests {
     fn canonical_bytes_deterministic() {
         let result = ScanResult {
             fields: vec![
-                DocumentField { key: "surname".into(),     value: "SMITH".into(),   confidence: 0.99 },
-                DocumentField { key: "given_names".into(), value: "JOHN".into(),    confidence: 0.98 },
+                DocumentField {
+                    key: "surname".into(),
+                    value: "SMITH".into(),
+                    confidence: 0.99,
+                },
+                DocumentField {
+                    key: "given_names".into(),
+                    value: "JOHN".into(),
+                    confidence: 0.98,
+                },
             ],
-            raw_mrz:         None,
-            document_type:   "passport".into(),
+            raw_mrz: None,
+            document_type: "passport".into(),
             issuing_country: "USA".into(),
-            confidence:      0.99,
-            pqc_signature:   vec![],
-            pqc_public_key:  vec![],
+            confidence: 0.99,
+            pqc_signature: vec![],
+            pqc_public_key: vec![],
         };
         let bytes1 = result.canonical_bytes();
         let bytes2 = result.canonical_bytes();
@@ -113,30 +119,47 @@ mod tests {
     fn canonical_bytes_order_independent() {
         let result_a = ScanResult {
             fields: vec![
-                DocumentField { key: "given_names".into(), value: "JOHN".into(),  confidence: 0.98 },
-                DocumentField { key: "surname".into(),     value: "SMITH".into(), confidence: 0.99 },
+                DocumentField {
+                    key: "given_names".into(),
+                    value: "JOHN".into(),
+                    confidence: 0.98,
+                },
+                DocumentField {
+                    key: "surname".into(),
+                    value: "SMITH".into(),
+                    confidence: 0.99,
+                },
             ],
-            raw_mrz:         None,
-            document_type:   "passport".into(),
+            raw_mrz: None,
+            document_type: "passport".into(),
             issuing_country: "USA".into(),
-            confidence:      0.99,
-            pqc_signature:   vec![],
-            pqc_public_key:  vec![],
+            confidence: 0.99,
+            pqc_signature: vec![],
+            pqc_public_key: vec![],
         };
         let result_b = ScanResult {
             fields: vec![
-                DocumentField { key: "surname".into(),     value: "SMITH".into(), confidence: 0.99 },
-                DocumentField { key: "given_names".into(), value: "JOHN".into(),  confidence: 0.98 },
+                DocumentField {
+                    key: "surname".into(),
+                    value: "SMITH".into(),
+                    confidence: 0.99,
+                },
+                DocumentField {
+                    key: "given_names".into(),
+                    value: "JOHN".into(),
+                    confidence: 0.98,
+                },
             ],
-            raw_mrz:         None,
-            document_type:   "passport".into(),
+            raw_mrz: None,
+            document_type: "passport".into(),
             issuing_country: "USA".into(),
-            confidence:      0.99,
-            pqc_signature:   vec![],
-            pqc_public_key:  vec![],
+            confidence: 0.99,
+            pqc_signature: vec![],
+            pqc_public_key: vec![],
         };
         assert_eq!(
-            result_a.canonical_bytes(), result_b.canonical_bytes(),
+            result_a.canonical_bytes(),
+            result_b.canonical_bytes(),
             "canonical_bytes() must be identical regardless of field insertion order"
         );
     }
@@ -150,10 +173,10 @@ mod tests {
         use pqcrypto_kyber::kyber1024;
         use pqcrypto_traits::kem::PublicKey as _;
         let (pk, _sk) = kyber1024::keypair();
-        let session = MlKemSession::encapsulate(pk.as_bytes())
-            .expect("encapsulation must succeed");
+        let session = MlKemSession::encapsulate(pk.as_bytes()).expect("encapsulation must succeed");
         assert_eq!(
-            session.ciphertext.len(), 1568,
+            session.ciphertext.len(),
+            1568,
             "Kyber-1024 ciphertext must be 1568 bytes, got {}",
             session.ciphertext.len()
         );
@@ -163,8 +186,8 @@ mod tests {
 
     #[test]
     fn private_key_not_in_signature_output() {
-        let signer = PqcSigner::generate(MlDsaLevel::Level3)
-            .expect("keypair generation must succeed");
+        let signer =
+            PqcSigner::generate(MlDsaLevel::Level3).expect("keypair generation must succeed");
         let message = b"security test message";
         let sig = signer.sign(message).expect("signing must succeed");
 
@@ -176,7 +199,7 @@ mod tests {
         // We only search for the first 32 bytes of the SK as a fingerprint.
         // If those 32 bytes appear in the signature, the implementation is broken.
         let sk_bytes = signer.public_key_bytes(); // we can only inspect the public key externally
-        // Verify the public key fingerprint (first 16 bytes) does NOT appear contiguously in sig
+                                                  // Verify the public key fingerprint (first 16 bytes) does NOT appear contiguously in sig
         let fingerprint = &sk_bytes[0..16.min(sk_bytes.len())];
         let found = sig.windows(fingerprint.len()).any(|w| w == fingerprint);
         // NOTE: The public key CAN legitimately appear in some signature schemes.
@@ -187,12 +210,16 @@ mod tests {
         // pqcrypto-dilithium 0.5 produces 3309 bytes (PQClean Round-3 params).
         // See sign_level3_signature_length test for a full explanation.
         assert_eq!(
-            sig.len(), 3309,
+            sig.len(),
+            3309,
             "Signature length must be 3309 (real pqcrypto-dilithium 0.5 Dilithium-3, not a stub)"
         );
         // Additionally verify the sig is not all zeros (stub detection)
         let all_zero = sig.iter().all(|&b| b == 0);
-        assert!(!all_zero, "Signature must not be all-zeros (stub detection)");
+        assert!(
+            !all_zero,
+            "Signature must not be all-zeros (stub detection)"
+        );
         let _ = found; // public key search result is informational only
     }
 }

@@ -4,10 +4,10 @@
 // to push inference results into the Rust session and retrieve the signed output.
 // All pointers crossing this boundary are explicitly documented for lifetime.
 
-use crate::session::{ScanSession, SessionConfig};
-use crate::result::{ScanResult, DocumentField};
-use crate::quality::QualityGate;
 use crate::frame::RawFrame;
+use crate::quality::QualityGate;
+use crate::result::{DocumentField, ScanResult};
+use crate::session::{ScanSession, SessionConfig};
 use std::{boxed::Box, string::String, vec::Vec};
 
 /// Opaque handle to a ScanSession. Returned to C++ as a raw pointer.
@@ -74,11 +74,8 @@ pub extern "C" fn beam_gate_create() -> BeamGateHandle {
 /// - `frame` must be a valid pointer to a RawFrame whose y_plane is valid for
 ///   frame.width * frame.height bytes.
 #[no_mangle]
-pub unsafe extern "C" fn beam_gate_evaluate(
-    gate:  BeamGateHandle,
-    frame: *const RawFrame,
-) -> u32 {
-    let gate  = &mut *gate;
+pub unsafe extern "C" fn beam_gate_evaluate(gate: BeamGateHandle, frame: *const RawFrame) -> u32 {
+    let gate = &mut *gate;
     let frame = &*frame;
     let report = gate.evaluate(frame);
     report.gate_reached as u32
@@ -103,11 +100,11 @@ pub unsafe extern "C" fn beam_gate_destroy(handle: BeamGateHandle) {
 #[repr(C)]
 pub struct CField {
     /// UTF-8 key bytes. NOT null-terminated; length given by key_len.
-    pub key:        *const u8,
-    pub key_len:    usize,
+    pub key: *const u8,
+    pub key_len: usize,
     /// UTF-8 value bytes. NOT null-terminated; length given by value_len.
-    pub value:      *const u8,
-    pub value_len:  usize,
+    pub value: *const u8,
+    pub value_len: usize,
     pub confidence: f32,
 }
 
@@ -123,14 +120,14 @@ pub struct CField {
 /// - None of the above pointers need to remain valid after this function returns.
 #[no_mangle]
 pub unsafe extern "C" fn beam_session_push_result(
-    handle:          BeamSessionHandle,
-    fields:          *const CField,
-    field_count:     usize,
-    doc_type_ptr:    *const u8,
-    doc_type_len:    usize,
-    country_ptr:     *const u8,
-    country_len:     usize,
-    overall_conf:    f32,
+    handle: BeamSessionHandle,
+    fields: *const CField,
+    field_count: usize,
+    doc_type_ptr: *const u8,
+    doc_type_len: usize,
+    country_ptr: *const u8,
+    country_len: usize,
+    overall_conf: f32,
     include_pqc_sig: bool,
 ) {
     let session = &mut *handle;
@@ -138,41 +135,35 @@ pub unsafe extern "C" fn beam_session_push_result(
     let rust_fields: Vec<DocumentField> = core::slice::from_raw_parts(fields, field_count)
         .iter()
         .map(|f| DocumentField {
-            key:        String::from_utf8_lossy(
-                            core::slice::from_raw_parts(f.key, f.key_len)
-                        ).into_owned(),
-            value:      String::from_utf8_lossy(
-                            core::slice::from_raw_parts(f.value, f.value_len)
-                        ).into_owned(),
+            key: String::from_utf8_lossy(core::slice::from_raw_parts(f.key, f.key_len))
+                .into_owned(),
+            value: String::from_utf8_lossy(core::slice::from_raw_parts(f.value, f.value_len))
+                .into_owned(),
             confidence: f.confidence,
         })
         .collect();
 
-    let doc_type = String::from_utf8_lossy(
-        core::slice::from_raw_parts(doc_type_ptr, doc_type_len)
-    ).into_owned();
+    let doc_type = String::from_utf8_lossy(core::slice::from_raw_parts(doc_type_ptr, doc_type_len))
+        .into_owned();
 
-    let country = String::from_utf8_lossy(
-        core::slice::from_raw_parts(country_ptr, country_len)
-    ).into_owned();
+    let country =
+        String::from_utf8_lossy(core::slice::from_raw_parts(country_ptr, country_len)).into_owned();
 
     let mut result = ScanResult {
-        fields:          rust_fields,
-        raw_mrz:         None,
-        document_type:   doc_type,
+        fields: rust_fields,
+        raw_mrz: None,
+        document_type: doc_type,
         issuing_country: country,
-        confidence:      overall_conf,
-        pqc_signature:   Vec::new(),
-        pqc_public_key:  Vec::new(),
+        confidence: overall_conf,
+        pqc_signature: Vec::new(),
+        pqc_public_key: Vec::new(),
     };
 
     if include_pqc_sig && session.config.pqc_sign_result {
-        if let Ok(signer) = crate::crypto::PqcSigner::generate(
-            crate::crypto::MlDsaLevel::Level3
-        ) {
+        if let Ok(signer) = crate::crypto::PqcSigner::generate(crate::crypto::MlDsaLevel::Level3) {
             let canonical = result.canonical_bytes();
             if let Ok(sig) = signer.sign(&canonical) {
-                result.pqc_signature  = sig;
+                result.pqc_signature = sig;
                 result.pqc_public_key = signer.public_key_bytes().to_vec();
             }
         }

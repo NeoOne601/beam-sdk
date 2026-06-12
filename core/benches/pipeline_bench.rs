@@ -6,16 +6,22 @@
 //   - pipeline_rejected_at_blur: < 500µs (short-circuit)
 //   - session_state_machine: < 100µs per lifecycle
 
+use beam_core::result::{DocumentField, ScanResult};
+use beam_core::{PixelFormat, QualityGate, RawFrame, ScanSession, SessionConfig, SessionState};
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
-use beam_core::{QualityGate, RawFrame, PixelFormat, ScanSession, SessionConfig, SessionState};
-use beam_core::result::{ScanResult, DocumentField};
 use std::time::Duration;
 
 /// Create a checkerboard Y-plane pattern for realistic variance.
 /// Alternating 220/30 values prevent blur gate from rejecting (high Laplacian variance).
 fn make_checkerboard_frame(w: u32, h: u32) -> (Vec<u8>, Vec<u8>) {
     let y: Vec<u8> = (0..(w * h) as usize)
-        .map(|i| if (i / w as usize + i % w as usize) % 2 == 0 { 220 } else { 30 })
+        .map(|i| {
+            if (i / w as usize + i % w as usize) % 2 == 0 {
+                220
+            } else {
+                30
+            }
+        })
         .collect();
     let uv = vec![128u8; (w * h / 2) as usize];
     (y, uv)
@@ -64,7 +70,9 @@ pub fn bench_full_gate_pipeline_1080p(c: &mut Criterion) {
     };
     let mut gate = QualityGate::default();
     // Pre-warm the gate with one frame so motion gate has a reference
-    unsafe { gate.evaluate(&frame); }
+    unsafe {
+        gate.evaluate(&frame);
+    }
 
     let mut group = c.benchmark_group("quality_gates");
     group.throughput(Throughput::Elements(1));
@@ -112,9 +120,11 @@ pub fn bench_session_state_machine(c: &mut Criterion) {
             session.record_quality_frame(); // triggers Inferring
             assert_eq!(session.state, SessionState::Inferring);
             let result = ScanResult {
-                fields: vec![
-                    DocumentField { key: "surname".into(), value: "TEST".into(), confidence: 0.95 },
-                ],
+                fields: vec![DocumentField {
+                    key: "surname".into(),
+                    value: "TEST".into(),
+                    confidence: 0.95,
+                }],
                 raw_mrz: None,
                 document_type: "passport".into(),
                 issuing_country: "USA".into(),

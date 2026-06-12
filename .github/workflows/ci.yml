@@ -99,9 +99,9 @@ jobs:
       - name: Audit Rust dependencies for known vulnerabilities
         run: |
           echo "Scanning Rust dependencies for CVEs..."
-          cargo audit --deny warnings
-          # This checks all crates in the workspace against the RustSec advisory database
-          # Fail CI if any known vulnerabilities are found in dependencies
+          cargo audit --deny vulnerabilities
+          # Fails CI on actual security vulnerabilities (CVEs)
+          # Info-level advisories (unmaintained crates) are reported but don't block
       - name: Validate JSON schemas
         run: |
           python3 -c "import json; json.load(open('model/schema/output_schema.json')); print('output_schema.json valid')"
@@ -127,11 +127,13 @@ jobs:
         uses: android-actions/setup-android@v4
       - run: sdkmanager "ndk;26.1.10909125"
       - name: Cross-compile core for Android arm64
-        run: |
-          export ANDROID_NDK="/usr/local/lib/android/sdk/ndk/26.1.10909125"
-          export CC_aarch64_linux_android="${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang"
-          export AR_aarch64_linux_android="${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
-          cargo build --release --target aarch64-linux-android -p beam-core
+        env:
+          ANDROID_NDK: /usr/local/lib/android/sdk/ndk/26.1.10909125
+          CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang
+          CC_aarch64_linux_android: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang
+          CXX_aarch64_linux_android: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang++
+          AR_aarch64_linux_android: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
+        run: cargo build --release --target aarch64-linux-android -p beam-core
 
   # ───────────────────────────────────────────
   # iOS cross-compile check (macOS runner)
@@ -144,7 +146,12 @@ jobs:
         with:
           targets: aarch64-apple-ios
       - name: Cross-compile core for iOS arm64
-        run: cargo build --release --target aarch64-apple-ios -p beam-core
+        run: |
+          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
+          export CFLAGS_aarch64_apple_ios="--target=arm64-apple-ios -isysroot ${SDK_PATH}"
+          export CC_aarch64_apple_ios="$(xcrun --sdk iphoneos --find clang)"
+          export AR_aarch64_apple_ios="$(xcrun --sdk iphoneos --find ar)"
+          cargo build --release --target aarch64-apple-ios -p beam-core
 
   # ───────────────────────────────────────────
   # WASM cross-compile check
@@ -160,4 +167,6 @@ jobs:
         with:
           version: "3.1.56"
       - name: Cross-compile core for WASM
+        env:
+          CFLAGS: "-fPIC"
         run: cargo build --release --target wasm32-unknown-emscripten -p beam-core

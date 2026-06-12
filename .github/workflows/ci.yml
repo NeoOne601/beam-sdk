@@ -99,7 +99,7 @@ jobs:
       - name: Audit Rust dependencies for known vulnerabilities
         run: |
           echo "Scanning Rust dependencies for CVEs..."
-          cargo audit --deny vulnerabilities
+          cargo audit --deny warnings
           # Fails CI on actual security vulnerabilities (CVEs)
           # Info-level advisories (unmaintained crates) are reported but don't block
       - name: Validate JSON schemas
@@ -165,7 +165,7 @@ jobs:
           targets: wasm32-unknown-emscripten
       - uses: mymindstorm/setup-emsdk@v14
         with:
-          version: "3.1.56"
+          version: "3.1.60"
       - name: Cross-compile core for WASM
         env:
           CFLAGS: "-fPIC"

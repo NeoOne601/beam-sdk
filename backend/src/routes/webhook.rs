@@ -68,6 +68,7 @@ pub async fn register_webhook(
 /// Deliver a webhook payload to a registered URL.
 /// Signs with HMAC-SHA256 using the tenant's secret.
 /// Retries on failure: 3 attempts with exponential backoff (1s, 5s, 25s).
+#[allow(dead_code)]
 pub async fn deliver_webhook(
     url: &str,
     payload: &serde_json::Value,

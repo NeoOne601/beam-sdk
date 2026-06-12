@@ -113,7 +113,7 @@ impl PqcSigner {
 
     /// Lock private key memory pages to prevent swap (non-WASM only).
     #[cfg(all(feature = "mlock", not(target_arch = "wasm32")))]
-    fn mlock_key(key: &mut Vec<u8>) {
+    fn mlock_key(key: &mut [u8]) {
         // Safety: key.as_ptr() is valid for key.len() bytes.
         // mlock prevents the OS from swapping these pages to disk,
         // protecting the private key from cold-boot or swap analysis attacks.
@@ -123,7 +123,7 @@ impl PqcSigner {
     }
 
     #[cfg(not(all(feature = "mlock", not(target_arch = "wasm32"))))]
-    fn mlock_key(_key: &mut Vec<u8>) {
+    fn mlock_key(_key: &mut [u8]) {
         // no-op on WASM — document: private key is in-memory only on WASM targets
     }
 

@@ -166,4 +166,3 @@ fn reconstruct_canonical_bytes(scan: &ScanResultPayload) -> Vec<u8> {
     }
     out
 }
-

@@ -166,10 +166,9 @@ jobs:
           targets: wasm32-unknown-emscripten
       - uses: mymindstorm/setup-emsdk@v14
         with:
-          version: "3.1.50"
+          version: "3.1.60"
       - name: Cross-compile core for WASM
         env:
           CFLAGS: "-fPIC"
-          EMCC_WASM_OPT_FLAGS: ""
-          WASM_OPT: "0"
+          RUSTFLAGS: "-C link-arg=--no-entry"
         run: cargo build --release --target wasm32-unknown-emscripten -p beam-core

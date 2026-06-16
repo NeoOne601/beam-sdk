@@ -112,13 +112,27 @@ impl PqcSigner {
     }
 
     /// Lock private key memory pages to prevent swap (non-WASM only).
+    ///
+    /// VR-6 (Security): mlock return value is now checked.
+    /// If mlock fails the key is still used — signing remains correct — but a
+    /// warning is emitted so operators can fix the RLIMIT_MEMLOCK limit.
+    /// See README.md §VR-6 for full rationale on Option B (warn, continue).
     #[cfg(all(feature = "mlock", not(target_arch = "wasm32")))]
     fn mlock_key(key: &mut [u8]) {
         // Safety: key.as_ptr() is valid for key.len() bytes.
-        // mlock prevents the OS from swapping these pages to disk,
-        // protecting the private key from cold-boot or swap analysis attacks.
-        unsafe {
-            libc::mlock(key.as_ptr() as *const _, key.len());
+        let rc = unsafe { libc::mlock(key.as_ptr() as *const _, key.len()) };
+        if rc != 0 {
+            // mlock failed — key may be swappable to disk.
+            // Common causes: RLIMIT_MEMLOCK quota, container without CAP_IPC_LOCK,
+            // or platform sandbox restriction. Signing continues; this is defense-in-depth.
+            // Operator action: raise RLIMIT_MEMLOCK or add --cap-add IPC_LOCK.
+            eprintln!(
+                "[beam-core] WARNING: mlock failed for private key ({} bytes). \
+                 Key may be swappable to disk. Raise RLIMIT_MEMLOCK to suppress. \
+                 Error code: {}",
+                key.len(),
+                rc
+            );
         }
     }
 
@@ -212,10 +226,19 @@ impl Drop for PqcSigner {
         }
         #[cfg(all(feature = "mlock", not(target_arch = "wasm32")))]
         unsafe {
-            libc::munlock(
+            // VR-6: Check munlock return value and warn on failure.
+            let rc = libc::munlock(
                 self.private_key.as_ptr() as *const _,
                 self.private_key.len(),
             );
+            if rc != 0 {
+                eprintln!(
+                    "[beam-core] WARNING: munlock failed for private key ({} bytes). \
+                     Error code: {}",
+                    self.private_key.len(),
+                    rc
+                );
+            }
         }
     }
 }

@@ -1,6 +1,11 @@
 // core/src/result.rs
 // ScanResult and DocumentField — the output of the Beam pipeline.
 // canonical_bytes() produces a deterministic byte sequence suitable for PQC signing.
+//
+// VR-1 (Security): nonce, session_id, and timestamp_iso are now optional fields
+// that, when present, are included in canonical_bytes() as reserved entries.
+// This binds the signature to a specific session and prevents replay attacks.
+// See README.md §VR-1 for full rationale.
 
 use std::{string::String, vec::Vec};
 
@@ -35,6 +40,22 @@ pub struct ScanResult {
     pub pqc_signature: Vec<u8>,
     /// Matching ML-DSA public key bytes. Empty if pqc_sign_result=false.
     pub pqc_public_key: Vec<u8>,
+
+    // ── VR-1: Session-binding fields ────────────────────────────────────────
+    // When these are Some, they are included in canonical_bytes() as reserved
+    // entries (keys "__nonce", "__session_id", "__timestamp"), binding the
+    // signature to a specific backend session and preventing replay.
+    //
+    // When None (SDK-only use, no backend), they are omitted from canonical_bytes()
+    // for backward compatibility with callers that do not use the backend.
+
+    /// Single-use nonce issued by the backend for this verification session.
+    pub nonce: Option<String>,
+    /// Backend session UUID string — ties this result to exactly one nonce.
+    pub session_id: Option<String>,
+    /// UTC signing timestamp (Unix seconds as decimal string).
+    /// Backend validates this is within an acceptable freshness window.
+    pub timestamp_iso: Option<String>,
 }
 
 impl ScanResult {
@@ -47,6 +68,13 @@ impl ScanResult {
     ///   - document_type and issuing_country appended as final two fields with keys
     ///     "__document_type" and "__issuing_country" (double-underscore avoids collisions).
     ///
+    /// VR-1 extension: when present, the following reserved fields are also included
+    /// and sorted in-place with all other fields (they sort after "__issuing_country"
+    /// and "__document_type" alphabetically):
+    ///   "__nonce"      → nonce value
+    ///   "__session_id" → session UUID string
+    ///   "__timestamp"  → UTC signing timestamp string
+    ///
     /// This encoding is deterministic regardless of field insertion order.
     /// Two ScanResults with identical field sets always produce identical canonical_bytes().
     pub fn canonical_bytes(&self) -> Vec<u8> {
@@ -56,13 +84,22 @@ impl ScanResult {
             .map(|f| (f.key.as_str(), f.value.as_str()))
             .collect();
 
-        // Add synthetic metadata fields with reserved key prefix
-        let doc_type_key = "__document_type";
-        let country_key = "__issuing_country";
-        entries.push((doc_type_key, self.document_type.as_str()));
-        entries.push((country_key, self.issuing_country.as_str()));
+        // Add synthetic metadata fields with reserved key prefix.
+        entries.push(("__document_type", self.document_type.as_str()));
+        entries.push(("__issuing_country", self.issuing_country.as_str()));
 
-        // Sort by key — deterministic regardless of insertion order
+        // VR-1: Include session-binding fields when present.
+        if let Some(ref n) = self.nonce {
+            entries.push(("__nonce", n.as_str()));
+        }
+        if let Some(ref s) = self.session_id {
+            entries.push(("__session_id", s.as_str()));
+        }
+        if let Some(ref t) = self.timestamp_iso {
+            entries.push(("__timestamp", t.as_str()));
+        }
+
+        // Sort by key — deterministic regardless of insertion order.
         entries.sort_by_key(|(k, _)| *k);
 
         let mut out = Vec::new();

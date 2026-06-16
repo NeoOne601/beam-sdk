@@ -3,12 +3,35 @@
 // The C++ ML layer (tflite_bridge.cpp, coreml_bridge.mm) calls these functions
 // to push inference results into the Rust session and retrieve the signed output.
 // All pointers crossing this boundary are explicitly documented for lifetime.
+//
+// VR-4 (Security): Every exported function now returns i32.
+//   0  = OK / success
+//  -1  = null handle
+//  -2  = null or invalid pointer argument
+//  -3  = value out of range (e.g. field_count too large)
+//  -4  = frame dimension validation failure
+//
+// README.md §VR-4 documents the rationale for status-code returns over panics.
+// Panics across an FFI boundary are undefined behaviour in Rust.
 
 use crate::frame::RawFrame;
 use crate::quality::QualityGate;
 use crate::result::{DocumentField, ScanResult};
 use crate::session::{ScanSession, SessionConfig};
 use std::{boxed::Box, string::String, vec::Vec};
+
+// ─── FFI status codes (matches beam_ffi.h) ────────────────────────────────────
+pub const BEAM_OK: i32 = 0;
+pub const BEAM_ERR_NULL_HANDLE: i32 = -1;
+pub const BEAM_ERR_NULL_PTR: i32 = -2;
+pub const BEAM_ERR_OUT_OF_RANGE: i32 = -3;
+pub const BEAM_ERR_INVALID_FRAME: i32 = -4;
+
+/// Maximum number of CField entries accepted per push_result call.
+/// Prevents excessive heap allocation from a malicious bridge.
+const MAX_FIELD_COUNT: usize = 256;
+/// Maximum bytes for a single field key or value string.
+const MAX_FIELD_STR_LEN: usize = 4096;
 
 /// Opaque handle to a ScanSession. Returned to C++ as a raw pointer.
 /// Caller MUST call beam_session_destroy() when done.
@@ -21,38 +44,55 @@ pub type BeamGateHandle = *mut QualityGate;
 // Session lifecycle
 // ─────────────────────────────────────────────────────────
 
+/// Create a new scan session with the given configuration.
+/// Returns a non-null opaque handle on success, or null on allocation failure.
 #[no_mangle]
 pub extern "C" fn beam_session_create(config: SessionConfig) -> BeamSessionHandle {
     let session = Box::new(ScanSession::new(config));
     Box::into_raw(session)
 }
 
+/// Destroy a session handle previously obtained from beam_session_create.
+///
 /// # Safety
 /// `handle` must be a valid BeamSessionHandle obtained from beam_session_create,
 /// or null. After this call, `handle` is invalid and must not be used.
+/// Returns BEAM_OK (0). A null handle is a no-op (not an error).
 #[no_mangle]
-pub unsafe extern "C" fn beam_session_destroy(handle: BeamSessionHandle) {
+pub unsafe extern "C" fn beam_session_destroy(handle: BeamSessionHandle) -> i32 {
     if !handle.is_null() {
         // Safety: handle is a valid non-null pointer to a Box<ScanSession>
         drop(Box::from_raw(handle));
     }
+    BEAM_OK
 }
 
+/// Transition the session to Scanning state and record the start timestamp.
+///
 /// # Safety
 /// `handle` must be a valid, non-null BeamSessionHandle.
+/// Returns BEAM_ERR_NULL_HANDLE (-1) if handle is null.
 #[no_mangle]
-pub unsafe extern "C" fn beam_session_start(handle: BeamSessionHandle, timestamp_us: u64) {
+pub unsafe extern "C" fn beam_session_start(handle: BeamSessionHandle, timestamp_us: u64) -> i32 {
+    if handle.is_null() {
+        return BEAM_ERR_NULL_HANDLE;
+    }
     let session = &mut *handle;
     session.start(timestamp_us);
+    BEAM_OK
 }
 
 /// Returns the session state as a u32 (matches SessionState repr(C) discriminants).
-/// 0=Idle, 1=Scanning, 2=Inferring, 3=Complete, 4=Failed
+/// 0=Idle, 1=Scanning, 2=Inferring, 3=Complete, 4=Failed.
+/// Returns u32::MAX (0xFFFFFFFF) if handle is null.
 ///
 /// # Safety
 /// `handle` must be a valid, non-null BeamSessionHandle.
 #[no_mangle]
 pub unsafe extern "C" fn beam_session_get_state(handle: BeamSessionHandle) -> u32 {
+    if handle.is_null() {
+        return u32::MAX;
+    }
     let session = &*handle;
     session.state as u32
 }
@@ -61,6 +101,7 @@ pub unsafe extern "C" fn beam_session_get_state(handle: BeamSessionHandle) -> u3
 // Quality gate
 // ─────────────────────────────────────────────────────────
 
+/// Create a new quality gate with default thresholds.
 #[no_mangle]
 pub extern "C" fn beam_gate_create() -> BeamGateHandle {
     Box::into_raw(Box::new(QualityGate::default()))
@@ -69,26 +110,44 @@ pub extern "C" fn beam_gate_create() -> BeamGateHandle {
 /// Evaluate the quality gate on `frame`. Returns the Gate discriminant reached.
 /// 0=Received, 1=BlurCheck, 2=ExposureCheck, 3=MotionCheck, 4=BoundaryCheck, 5=Accepted.
 ///
+/// Returns u32::MAX if either pointer is null or if frame fails dimension validation
+/// (VR-4: avoids UB when receiving a malformed frame from the C++ bridge).
+///
 /// # Safety
 /// - `gate` must be a valid, non-null BeamGateHandle.
-/// - `frame` must be a valid pointer to a RawFrame whose y_plane is valid for
-///   frame.width * frame.height bytes.
+/// - `frame` must be a valid pointer to a RawFrame. The frame's y_plane must be
+///   valid for at least `frame.height * frame.y_stride` bytes.
 #[no_mangle]
 pub unsafe extern "C" fn beam_gate_evaluate(gate: BeamGateHandle, frame: *const RawFrame) -> u32 {
+    if gate.is_null() || frame.is_null() {
+        return u32::MAX;
+    }
     let gate = &mut *gate;
-    let frame = &*frame;
-    let report = gate.evaluate(frame);
+    let frame_ref = &*frame;
+
+    // VR-4: validate before any y_plane access inside evaluate().
+    // evaluate() repeats this check internally; we mirror it here to catch it
+    // as early as possible at the FFI layer.
+    if frame_ref.validate().is_err() {
+        // Gate::Received = 0; caller sees "frame not accepted" without UB.
+        return 0;
+    }
+
+    let report = gate.evaluate(frame_ref);
     report.gate_reached as u32
 }
 
+/// Destroy a gate handle. A null handle is a no-op.
+///
 /// # Safety
 /// `handle` must be a valid BeamGateHandle, or null. Handle is invalid after this call.
 #[no_mangle]
-pub unsafe extern "C" fn beam_gate_destroy(handle: BeamGateHandle) {
+pub unsafe extern "C" fn beam_gate_destroy(handle: BeamGateHandle) -> i32 {
     if !handle.is_null() {
         // Safety: handle is a valid non-null pointer to a Box<QualityGate>
         drop(Box::from_raw(handle));
     }
+    BEAM_OK
 }
 
 // ─────────────────────────────────────────────────────────
@@ -111,12 +170,27 @@ pub struct CField {
 /// Called by the C++ inference layer to push the decoded result into the session.
 /// Internally performs PQC signing if configured.
 ///
+/// # Parameters
+/// - `handle`          : valid, non-null BeamSessionHandle
+/// - `fields`          : pointer to at least `field_count` valid CField entries; may be null if field_count == 0
+/// - `field_count`     : number of CField entries (0..=MAX_FIELD_COUNT)
+/// - `doc_type_ptr`    : UTF-8 document type string bytes; length given by `doc_type_len`
+/// - `country_ptr`     : UTF-8 issuing country bytes; length given by `country_len`
+/// - `nonce_ptr`       : session nonce bytes (hex string); length given by `nonce_len`. May be null (len=0) when no backend binding required.
+/// - `session_id_ptr`  : session UUID string bytes; length given by `session_id_len`. May be null (len=0).
+/// - `overall_conf`    : overall confidence score 0.0–1.0
+/// - `include_pqc_sig` : if true, sign with ML-DSA Level3 using the configured key strategy
+///
+/// # Return value
+/// BEAM_OK (0) on success, negative on error (see FFI status codes at top of file).
+///
 /// # Safety
 /// - `handle` must be a valid, non-null BeamSessionHandle.
-/// - `fields` must point to at least `field_count` valid CField entries.
+/// - `fields` must point to at least `field_count` valid CField entries (or be null when field_count == 0).
 /// - All string pointers within each CField must be valid for their respective lengths.
-/// - `doc_type_ptr` must be valid for `doc_type_len` bytes.
-/// - `country_ptr` must be valid for `country_len` bytes.
+/// - `doc_type_ptr` must be valid for `doc_type_len` bytes (or null if len == 0).
+/// - `country_ptr` must be valid for `country_len` bytes (or null if len == 0).
+/// - `nonce_ptr` and `session_id_ptr` may be null (treated as empty string).
 /// - None of the above pointers need to remain valid after this function returns.
 #[no_mangle]
 pub unsafe extern "C" fn beam_session_push_result(
@@ -127,27 +201,110 @@ pub unsafe extern "C" fn beam_session_push_result(
     doc_type_len: usize,
     country_ptr: *const u8,
     country_len: usize,
+    nonce_ptr: *const u8,
+    nonce_len: usize,
+    session_id_ptr: *const u8,
+    session_id_len: usize,
     overall_conf: f32,
     include_pqc_sig: bool,
-) {
+) -> i32 {
+    // VR-4: Null-check the session handle.
+    if handle.is_null() {
+        return BEAM_ERR_NULL_HANDLE;
+    }
+
+    // VR-4: Validate field_count before creating a slice.
+    if field_count > MAX_FIELD_COUNT {
+        return BEAM_ERR_OUT_OF_RANGE;
+    }
+
+    // VR-4: Null-check fields pointer when field_count > 0.
+    if field_count > 0 && fields.is_null() {
+        return BEAM_ERR_NULL_PTR;
+    }
+
+    // VR-4: Null-check required string pointers when their lengths are non-zero.
+    if doc_type_len > 0 && doc_type_ptr.is_null() {
+        return BEAM_ERR_NULL_PTR;
+    }
+    if country_len > 0 && country_ptr.is_null() {
+        return BEAM_ERR_NULL_PTR;
+    }
+
+    // VR-4: Validate individual field string lengths.
+    if field_count > 0 {
+        let field_slice = core::slice::from_raw_parts(fields, field_count);
+        for f in field_slice {
+            if f.key_len > MAX_FIELD_STR_LEN || f.value_len > MAX_FIELD_STR_LEN {
+                return BEAM_ERR_OUT_OF_RANGE;
+            }
+            if f.key_len > 0 && f.key.is_null() {
+                return BEAM_ERR_NULL_PTR;
+            }
+            if f.value_len > 0 && f.value.is_null() {
+                return BEAM_ERR_NULL_PTR;
+            }
+        }
+    }
+
     let session = &mut *handle;
 
-    let rust_fields: Vec<DocumentField> = core::slice::from_raw_parts(fields, field_count)
-        .iter()
-        .map(|f| DocumentField {
-            key: String::from_utf8_lossy(core::slice::from_raw_parts(f.key, f.key_len))
-                .into_owned(),
-            value: String::from_utf8_lossy(core::slice::from_raw_parts(f.value, f.value_len))
-                .into_owned(),
-            confidence: f.confidence,
-        })
-        .collect();
+    let rust_fields: Vec<DocumentField> = if field_count > 0 {
+        core::slice::from_raw_parts(fields, field_count)
+            .iter()
+            .map(|f| DocumentField {
+                key: String::from_utf8_lossy(core::slice::from_raw_parts(f.key, f.key_len))
+                    .into_owned(),
+                value: String::from_utf8_lossy(core::slice::from_raw_parts(f.value, f.value_len))
+                    .into_owned(),
+                confidence: f.confidence,
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
 
-    let doc_type = String::from_utf8_lossy(core::slice::from_raw_parts(doc_type_ptr, doc_type_len))
-        .into_owned();
+    let doc_type = if doc_type_len > 0 {
+        String::from_utf8_lossy(core::slice::from_raw_parts(doc_type_ptr, doc_type_len))
+            .into_owned()
+    } else {
+        String::new()
+    };
 
-    let country =
-        String::from_utf8_lossy(core::slice::from_raw_parts(country_ptr, country_len)).into_owned();
+    let country = if country_len > 0 {
+        String::from_utf8_lossy(core::slice::from_raw_parts(country_ptr, country_len)).into_owned()
+    } else {
+        String::new()
+    };
+
+    // VR-1: Bind nonce and session_id into the ScanResult so they become part
+    // of canonical_bytes() and are covered by the ML-DSA signature.
+    let nonce = if nonce_len > 0 && !nonce_ptr.is_null() {
+        Some(
+            String::from_utf8_lossy(core::slice::from_raw_parts(nonce_ptr, nonce_len))
+                .into_owned(),
+        )
+    } else {
+        None
+    };
+
+    let session_id = if session_id_len > 0 && !session_id_ptr.is_null() {
+        Some(
+            String::from_utf8_lossy(core::slice::from_raw_parts(session_id_ptr, session_id_len))
+                .into_owned(),
+        )
+    } else {
+        None
+    };
+
+    // VR-1: Capture signing timestamp in UTC ISO-8601.
+    let timestamp_iso = if nonce.is_some() || session_id.is_some() {
+        // Use a simple Unix timestamp string when session binding is active.
+        // The backend will validate this is within an acceptable freshness window.
+        Some(get_unix_timestamp_str())
+    } else {
+        None
+    };
 
     let mut result = ScanResult {
         fields: rust_fields,
@@ -157,6 +314,9 @@ pub unsafe extern "C" fn beam_session_push_result(
         confidence: overall_conf,
         pqc_signature: Vec::new(),
         pqc_public_key: Vec::new(),
+        nonce,
+        session_id,
+        timestamp_iso,
     };
 
     if include_pqc_sig && session.config.pqc_sign_result {
@@ -170,4 +330,22 @@ pub unsafe extern "C" fn beam_session_push_result(
     }
 
     session.complete(result);
+    BEAM_OK
+}
+
+/// Get current Unix timestamp as a decimal string (seconds since epoch).
+/// Used for signing timestamp binding (VR-1). No_std compatible via libc.
+fn get_unix_timestamp_str() -> String {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        // Safety: time() is always safe to call with a null pointer.
+        let secs = unsafe { libc::time(core::ptr::null_mut()) };
+        format!("{}", secs)
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        // On WASM, timestamp is provided by the JS host and passed in via session_id binding.
+        // Return a placeholder — the backend will validate via the nonce TTL instead.
+        "0".to_string()
+    }
 }

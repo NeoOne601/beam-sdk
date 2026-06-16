@@ -8,8 +8,28 @@
 //            Unlock immediately after pipeline tick returns.
 //   Android: AHardwareBuffer imported or locked — never held across frames.
 //   WASM:    OwnedFrame mandatory copy from ImageData; documented as expected cost.
+//
+// VR-4 (Security): RawFrame::validate() must be called at every FFI entry point
+// before any unsafe memory access to prevent OOB reads from a narrow/null frame.
 
 use std::vec::Vec;
+
+/// Reasons a RawFrame can fail pre-flight validation.
+/// Returned by RawFrame::validate() before any unsafe Y-plane access.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FrameError {
+    /// y_plane pointer is null.
+    NullYPlane,
+    /// width or height is zero.
+    ZeroDimension,
+    /// y_stride is smaller than width — rows would overlap.
+    StrideTooNarrow,
+    /// width or height exceeds the maximum supported resolution (8192).
+    /// Prevents u32 overflow in offset arithmetic (stride × height).
+    DimensionTooLarge,
+    /// Frame is smaller than the 64×64 minimum needed for quality gate crops.
+    FrameTooSmallForCrop,
+}
 
 /// Pixel format of the frame delivered by the camera HAL.
 #[repr(C)]
@@ -54,6 +74,39 @@ pub struct RawFrame {
     pub format: PixelFormat,
     /// Frame capture timestamp in microseconds (monotonic clock).
     pub timestamp_us: u64,
+}
+
+impl RawFrame {
+    /// Validate all fields before any unsafe memory access.
+    ///
+    /// Call this at every FFI entry point that receives a `*const RawFrame`.
+    /// If this returns `Err`, do NOT dereference y_plane or uv_plane.
+    ///
+    /// # Safety
+    /// The pointer fields themselves are not dereferenced by this function.
+    /// Only the scalar metadata (`width`, `height`, `y_stride`, `y_plane` nullity)
+    /// are inspected.
+    pub fn validate(&self) -> Result<(), FrameError> {
+        if self.y_plane.is_null() {
+            return Err(FrameError::NullYPlane);
+        }
+        if self.width == 0 || self.height == 0 {
+            return Err(FrameError::ZeroDimension);
+        }
+        // Cap at 8192 to prevent u32 overflow in stride*height offset arithmetic.
+        const MAX_DIM: u32 = 8192;
+        if self.width > MAX_DIM || self.height > MAX_DIM {
+            return Err(FrameError::DimensionTooLarge);
+        }
+        if self.y_stride < self.width {
+            return Err(FrameError::StrideTooNarrow);
+        }
+        // Quality gates extract a 64x64 centre crop — frame must be at least that size.
+        if self.width < 64 || self.height < 64 {
+            return Err(FrameError::FrameTooSmallForCrop);
+        }
+        Ok(())
+    }
 }
 
 /// Heap-allocated copy of a camera frame. Used on WASM where zero-copy is not possible.

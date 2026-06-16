@@ -107,6 +107,9 @@ mod tests {
             confidence: 0.99,
             pqc_signature: vec![],
             pqc_public_key: vec![],
+            nonce: None,
+            session_id: None,
+            timestamp_iso: None,
         };
         let bytes1 = result.canonical_bytes();
         let bytes2 = result.canonical_bytes();
@@ -119,23 +122,18 @@ mod tests {
     fn canonical_bytes_order_independent() {
         let result_a = ScanResult {
             fields: vec![
-                DocumentField {
-                    key: "given_names".into(),
-                    value: "JOHN".into(),
-                    confidence: 0.98,
-                },
-                DocumentField {
-                    key: "surname".into(),
-                    value: "SMITH".into(),
-                    confidence: 0.99,
-                },
+                DocumentField { key: "surname".into(), value: "SMITH".into(), confidence: 0.99 },
+                DocumentField { key: "given_names".into(), value: "JOHN".into(), confidence: 0.98 },
             ],
             raw_mrz: None,
             document_type: "passport".into(),
             issuing_country: "USA".into(),
-            confidence: 0.99,
-            pqc_signature: vec![],
-            pqc_public_key: vec![],
+            confidence: 0.98,
+            pqc_signature: Vec::new(),
+            pqc_public_key: Vec::new(),
+            nonce: None,
+            session_id: None,
+            timestamp_iso: None,
         };
         let result_b = ScanResult {
             fields: vec![
@@ -156,6 +154,9 @@ mod tests {
             confidence: 0.99,
             pqc_signature: vec![],
             pqc_public_key: vec![],
+            nonce: None,
+            session_id: None,
+            timestamp_iso: None,
         };
         assert_eq!(
             result_a.canonical_bytes(),

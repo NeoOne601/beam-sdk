@@ -91,23 +91,18 @@ pub fn bench_canonical_bytes(c: &mut Criterion) {
                 value: "L898902C36UTO7408122F1204159ZE184226B<<<<<10".into(),
                 confidence: 0.99,
             },
-            DocumentField {
-                key: "sex".into(),
-                value: "F".into(),
-                confidence: 0.99,
-            },
-            DocumentField {
-                key: "nationality".into(),
-                value: "UTO".into(),
-                confidence: 0.98,
-            },
+            DocumentField { key: "surname".into(), value: "SMITH".into(), confidence: 0.99 },
+            DocumentField { key: "given_names".into(), value: "JOHN DOE".into(), confidence: 0.98 },
         ],
         raw_mrz: None,
         document_type: "passport".into(),
-        issuing_country: "UTO".into(),
-        confidence: 0.97,
+        issuing_country: "USA".into(),
+        confidence: 0.99,
         pqc_signature: Vec::new(),
         pqc_public_key: Vec::new(),
+        nonce: None,
+        session_id: None,
+        timestamp_iso: None,
     };
 
     let mut group = c.benchmark_group("pqc_crypto");

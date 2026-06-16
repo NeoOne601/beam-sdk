@@ -81,11 +81,11 @@ static bool test_gate_create_returns_non_null() {
 static bool test_session_start_transitions_to_scanning() {
     BeamSessionHandle h = beam_session_create(default_config());
     if (!h) return false;
-    beam_session_start(h, 0);
+    int32_t start_res = beam_session_start(h, 0);
     uint32_t state = beam_session_get_state(h);
     beam_session_destroy(h);
     // State 1 = Scanning
-    return (state == 1);
+    return (start_res == 0) && (state == 1);
 }
 
 static bool test_push_result_transitions_to_complete() {
@@ -114,11 +114,13 @@ static bool test_push_result_transitions_to_complete() {
     fields[1].value_len  = strlen(val2);
     fields[1].confidence = 0.98f;
 
-    beam_session_push_result(
+    int32_t push_res = beam_session_push_result(
         h,
         fields, 2,
         (const uint8_t*)dtype,   strlen(dtype),
         (const uint8_t*)country, strlen(country),
+        nullptr, 0, // nonce
+        nullptr, 0, // session_id
         0.99f,
         false
     );
@@ -126,23 +128,23 @@ static bool test_push_result_transitions_to_complete() {
     uint32_t state = beam_session_get_state(h);
     beam_session_destroy(h);
     // State 3 = Complete
-    return (state == 3);
+    return (push_res == 0) && (state == 3);
 }
 
 static bool test_session_destroy_no_crash() {
     BeamSessionHandle h = beam_session_create(default_config());
-    beam_session_destroy(h); // must not crash
-    return true;
+    int32_t res = beam_session_destroy(h); // must not crash
+    return res == 0;
 }
 
 static bool test_session_destroy_null_no_crash() {
-    beam_session_destroy(nullptr); // null guard must prevent crash
-    return true;
+    int32_t res = beam_session_destroy(nullptr); // null guard must prevent crash
+    return res == 0;
 }
 
 static bool test_gate_destroy_null_no_crash() {
-    beam_gate_destroy(nullptr); // null guard must prevent crash
-    return true;
+    int32_t res = beam_gate_destroy(nullptr); // null guard must prevent crash
+    return res == 0;
 }
 
 // ─── Gate timing benchmark (must complete < 4ms on budget hardware) ───────────

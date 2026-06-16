@@ -74,9 +74,10 @@ typedef struct {
 /* ─── Session lifecycle ─────────────────────────────────────────────────── */
 
 BeamSessionHandle beam_session_create(BeamSessionConfig config);
-/** Null-safe. After this call, handle is invalid and must not be reused. */
-void              beam_session_destroy(BeamSessionHandle handle);
-void              beam_session_start(BeamSessionHandle handle, uint64_t timestamp_us);
+/** Null-safe. Returns 0 on success. */
+int32_t           beam_session_destroy(BeamSessionHandle handle);
+/** Returns 0 on success, negative on error. */
+int32_t           beam_session_start(BeamSessionHandle handle, uint64_t timestamp_us);
 /** Returns SessionState discriminant: 0=Idle, 1=Scanning, 2=Inferring, 3=Complete, 4=Failed. */
 uint32_t          beam_session_get_state(BeamSessionHandle handle);
 
@@ -85,8 +86,8 @@ uint32_t          beam_session_get_state(BeamSessionHandle handle);
 BeamGateHandle beam_gate_create(void);
 /** Returns Gate discriminant: 0=Received, 1=BlurCheck, 2=ExposureCheck, 3=MotionCheck, 4=BoundaryCheck, 5=Accepted. */
 uint32_t       beam_gate_evaluate(BeamGateHandle gate, const BeamRawFrame* frame);
-/** Null-safe. */
-void           beam_gate_destroy(BeamGateHandle handle);
+/** Null-safe. Returns 0 on success. */
+int32_t        beam_gate_destroy(BeamGateHandle handle);
 
 /* ─── Result ingestion (called by C++ ML bridge after inference) ────────── */
 
@@ -100,13 +101,15 @@ void           beam_gate_destroy(BeamGateHandle handle);
  * @param doc_type_len   Length of doc_type_ptr in bytes.
  * @param country_ptr    UTF-8 country code string (not null-terminated).
  * @param country_len    Length of country_ptr in bytes.
+ * @param nonce_ptr      UTF-8 session nonce (optional binding).
+ * @param nonce_len      Length of nonce_ptr.
+ * @param session_id_ptr UTF-8 session ID (optional binding).
+ * @param session_id_len Length of session_id_ptr.
  * @param overall_conf   Overall confidence score, 0.0–1.0.
  * @param include_pqc_sig  If true AND session config has pqc_sign_result, signs the result.
- *
- * All pointer arguments (except handle) may be invalidated by the caller
- * immediately after this function returns.
+ * @return 0 on success, negative on error.
  */
-void beam_session_push_result(
+int32_t beam_session_push_result(
     BeamSessionHandle handle,
     const CField*     fields,
     size_t            field_count,
@@ -114,6 +117,10 @@ void beam_session_push_result(
     size_t            doc_type_len,
     const uint8_t*    country_ptr,
     size_t            country_len,
+    const uint8_t*    nonce_ptr,
+    size_t            nonce_len,
+    const uint8_t*    session_id_ptr,
+    size_t            session_id_len,
     float             overall_conf,
     bool              include_pqc_sig
 );

@@ -112,6 +112,10 @@ fuzz_target!(|data: &[u8]| {
             doc_type_len,
             country_ptr,
             country_len,
+            std::ptr::null(), // nonce
+            0,
+            std::ptr::null(), // session_id
+            0,
             0.5,   // overall_conf
             false, // include_pqc_sig - disabled for fuzzing speed
         );

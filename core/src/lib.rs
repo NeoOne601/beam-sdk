@@ -30,9 +30,10 @@ pub use ffi::{
     beam_gate_create, beam_gate_destroy, beam_gate_evaluate, beam_session_create,
     beam_session_destroy, beam_session_get_state, beam_session_push_result, beam_session_start,
     BeamGateHandle, BeamSessionHandle, CField,
+    BEAM_OK, BEAM_ERR_NULL_HANDLE, BEAM_ERR_NULL_PTR, BEAM_ERR_OUT_OF_RANGE, BEAM_ERR_INVALID_FRAME,
 };
 pub use field_parser::{FieldParser, ParseError, ParsedDocument};
-pub use frame::{OwnedFrame, PixelFormat, RawFrame};
+pub use frame::{FrameError, OwnedFrame, PixelFormat, RawFrame};
 pub use pipeline::{FramePipeline, PipelineResult};
 pub use quality::{Gate, QualityGate, QualityReport};
 pub use result::{DocumentField, ScanResult};

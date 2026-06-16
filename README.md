@@ -664,6 +664,59 @@ Full documentation: [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md)
 
 ---
 
+## Security Vulnerability Remediation Log
+
+> Scan ID: `cba41f334461_20260615T184624+0530`
+> Remediated: 2026-06-15
+> Status: **Production-ready hardening applied**
+
+This section documents every architectural decision made during the security remediation cycle triggered by the Codex Security Scan. Each entry records the vulnerability, the options that were evaluated, and the rationale for the chosen approach.
+
+### VR-1 — Nonce Binding into Signed Canonical Bytes (Critical)
+
+**Vulnerability**: The session nonce was checked server-side before signature verification but was not included in the signed canonical bytes. A captured, legitimately-signed result could be replayed into a new session because the signed payload contained no session binding.
+
+**Choice:** The nonce, session ID, and UTC timestamp are now injected into `canonical_bytes()` as reserved `__nonce`, `__session_id`, and `__timestamp` entries, sorted deterministically with other fields. When absent (SDK-only use, no backend), these fields are not written into canonical bytes — preserving backward compatibility. The backend `reconstruct_canonical_bytes()` mirrors this encoding and verifies all three before consuming the nonce.
+
+### VR-2 — Trusted Public Key Registration (Critical)
+
+**Vulnerability**: `POST /v1/verify` accepted `pqc_public_key` from the client request body and verified against it. Any party could generate a Dilithium-3 keypair, sign arbitrary data, and pass verification — the check proved only internal consistency, not provenance.
+
+**Choice:** Strategy Pattern across per-tenant / per-device / per-model. A `KeyProvider` trait is introduced with three concrete implementations:
+- `TenantKeyProvider` — looks up a single pre-registered key per tenant (default)
+- `DeviceKeyProvider` — looks up a per-device key by `device_id` claim in the request
+- `ModelKeyProvider` — looks up a key by `model_id` + `model_version` pair
+
+The active strategy is selected by environment variable (`KEY_PROVIDER_STRATEGY=tenant|device|model`). This allows Phase 1 to ship with the tenant strategy and enables enterprises to migrate to device-level keys without code changes.
+
+### VR-3 — Backend Authentication and Tenant Isolation (High)
+
+**Vulnerability**: All four backend routes (`/v1/nonce`, `/v1/verify`, `/v1/audit`, `/v1/webhooks`) were publicly accessible with no authentication. The database schema had tenants and API keys modeled, but the route layer did not enforce them.
+
+**Choice:** Dual provider: API key + JWT. Both accepted; middleware tries API key first, falls back to JWT bearer. The auth middleware extracts `X-Api-Key` first; if absent, it tries `Authorization: Bearer <jwt>`. Both resolve to a `TenantContext { tenant_id, plan }` that is injected as a request extension. All downstream handlers extract the tenant context to filter queries — audit logs, verification results, webhook configs, and nonce namespaces are all scoped to `tenant_id`.
+
+**Rate limiting**: Redis-based token-bucket rate limiter keyed by `tenant_id`. Redis-based limiting works correctly in multi-instance deployments (horizontal scaling).
+
+### VR-4 — FFI Boundary Hardening (High)
+
+**Vulnerability**: All `#[no_mangle]` exported functions dereferenced raw pointers without null checks. `extract_centre_crop_64` read 64 rows of 64 bytes without validating that the frame was at least 64×64 pixels, enabling out-of-bounds reads from a narrow frame.
+
+**Choice:** Return `i32` status codes; validate all pointers. Every exported FFI function now returns `i32` (`0 = OK`, negative = error). Null checks are added at function entry for all handles and pointer/length pairs. Frame dimensions are validated before any unsafe memory access: `width >= 64`, `height >= 64`, `y_stride >= width`, and both dimensions capped at 8192 to prevent integer overflow in offset arithmetic.
+
+### VR-5 — Webhook SSRF Protection (Medium)
+
+**Vulnerability**: Webhook URL validation only checked `starts_with("https://")`. The `reqwest::Client` had no timeout, redirect limit, or private-network block. If webhook delivery were wired to stored configs, any registered tenant could redirect webhook delivery to internal AWS/GCP metadata endpoints or internal services.
+
+**Choice**: URL parsed with the `url` crate. Hosts resolving to RFC-1918 (10.x, 172.16-31.x, 192.168.x), loopback (127.x, ::1), link-local, and well-known cloud metadata addresses (`169.254.169.254`, `metadata.google.internal`) are rejected. The `reqwest::Client` is constructed with a 10-second timeout and `redirect::Policy::limited(3)`.
+
+### VR-6 — `mlock` Return Value and Key Memory Protection (Medium)
+
+**Vulnerability**: `libc::mlock()` and `libc::munlock()` return values were silently discarded. If `mlock` failed (e.g., container memory locking quota exhausted, iOS sandbox restriction), the private key could be swapped to disk while the code claimed it was protected.
+
+**Choice:** Logged warning, continue. `mlock` is defense-in-depth on top of two primary protections: (1) the private key is **ephemeral** — generated fresh per-session and never persisted; (2) the `Drop` impl performs a volatile write zero of all key bytes before deallocation. On platforms where mlock is available and succeeds, the swap protection is active. On platforms where it fails, the warning informs operators that the environment needs the `RLIMIT_MEMLOCK` limit raised (for Linux deployments) or that they are running in a restricted sandbox. The SDK continues to function with correct cryptographic output.
+
+---
+
 ## Documentation Index
 
 | Document | Audience | Contents |

@@ -11,11 +11,14 @@ mod tests {
         ScanResult {
             fields: vec![],
             raw_mrz: None,
-            document_type: "passport".into(),
-            issuing_country: "USA".into(),
+            document_type: "passport".to_string(),
+            issuing_country: "USA".to_string(),
             confidence: 0.99,
             pqc_signature: vec![],
             pqc_public_key: vec![],
+            nonce: None,
+            session_id: None,
+            timestamp_iso: None,
         }
     }
 

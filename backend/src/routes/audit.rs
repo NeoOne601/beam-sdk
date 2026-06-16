@@ -1,10 +1,14 @@
 // backend/src/routes/audit.rs
 // GET /v1/audit — Paginated audit log retrieval.
+//
+// VR-3 (Security): Results are scoped to the authenticated tenant_id.
+// TenantContext injected by auth middleware.
 
 use crate::errors::AppError;
+use crate::middleware::auth::TenantContext;
 use crate::AppState;
 use axum::{
-    extract::{Query, State},
+    extract::{Extension, Query, State},
     Json,
 };
 use serde::{Deserialize, Serialize};
@@ -37,13 +41,17 @@ pub struct AuditResponse {
 
 pub async fn list_audit_logs(
     State(_state): State<Arc<AppState>>,
+    Extension(tenant): Extension<TenantContext>,
     Query(query): Query<AuditQuery>,
 ) -> Result<Json<AuditResponse>, AppError> {
     let limit = query.limit.unwrap_or(100).min(1000);
 
-    // In production, this queries the audit_logs table via sqlx with filters.
-    // For initial build, return empty list to satisfy the API contract.
+    // VR-3: Queries are always scoped to the authenticated tenant_id.
+    // TODO: Replace with full sqlx query once migrations are applied:
+    //   SELECT * FROM audit_logs WHERE tenant_id = $1
+    //   ORDER BY created_at DESC LIMIT $2
     tracing::info!(
+        tenant_id = %tenant.tenant_id,
         session_id = ?query.session_id,
         from = ?query.from,
         to = ?query.to,

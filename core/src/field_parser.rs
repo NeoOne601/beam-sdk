@@ -143,6 +143,9 @@ impl FieldParser {
     }
 
     /// Convert a ParsedDocument into a ScanResult for the session.
+    /// The VR-1 session-binding fields (nonce, session_id, timestamp_iso) are
+    /// left as None here — they are populated by the FFI layer when a backend
+    /// nonce is provided via beam_session_push_result().
     pub fn to_scan_result(doc: &ParsedDocument) -> ScanResult {
         ScanResult {
             fields: doc.fields.clone(),
@@ -152,6 +155,9 @@ impl FieldParser {
             confidence: doc.confidence,
             pqc_signature: Vec::new(),
             pqc_public_key: Vec::new(),
+            nonce: None,
+            session_id: None,
+            timestamp_iso: None,
         }
     }
 }

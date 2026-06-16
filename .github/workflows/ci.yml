@@ -72,7 +72,9 @@ jobs:
         with:
           workspaces: backend -> target
       - name: Run migrations
-        run: psql "$DATABASE_URL" -f backend/src/db/migrations/001_initial.sql
+        run: |
+          psql "$DATABASE_URL" -f backend/src/db/migrations/001_initial.sql
+          psql "$DATABASE_URL" -f backend/src/db/migrations/002_trusted_keys.sql
       - name: Format check
         run: cargo fmt --check -p beam-verify-backend
       - name: Clippy lint
@@ -82,6 +84,7 @@ jobs:
 
   # ───────────────────────────────────────────
   # Security — banned phrases, schema validation, cargo-audit
+  # VR-6 CI hardening: --ignore flags removed; all CVEs block the pipeline.
   # ───────────────────────────────────────────
   security-audit:
     runs-on: ubuntu-latest
@@ -97,11 +100,12 @@ jobs:
       - name: Install cargo-audit
         run: cargo install cargo-audit
       - name: Audit Rust dependencies for known vulnerabilities
+        # VR-6: Removed all --ignore flags. Any known CVE now blocks the PR.
+        # Previously suppressed advisories must be resolved (updated deps) or
+        # explicitly re-evaluated and re-added with a justification comment.
         run: |
-          echo "Scanning Rust dependencies for CVEs..."
-          cargo audit --ignore RUSTSEC-2026-0162 --ignore RUSTSEC-2023-0071 --ignore RUSTSEC-2024-0363
-          # Fails CI on actual security vulnerabilities (CVEs)
-          # Info-level advisories (unmaintained crates) are reported but don't block
+          echo "Scanning Rust dependencies for CVEs (no suppressions)..."
+          cargo audit --deny warnings
       - name: Validate JSON schemas
         run: |
           python3 -c "import json; json.load(open('model/schema/output_schema.json')); print('output_schema.json valid')"
@@ -111,6 +115,53 @@ jobs:
         run: |
           test -f model/signing/sign_model.sh && echo "sign_model.sh exists"
           test -f model/signing/verify_model.sh && echo "verify_model.sh exists"
+
+  # ───────────────────────────────────────────
+  # Static security checks — VR-2, VR-3 regression guards
+  # Ensures security-critical patterns are not accidentally reverted.
+  # ───────────────────────────────────────────
+  security-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: VR-2 — Verify no client-supplied public key in verify.rs
+        # The verify route must NOT accept pqc_public_key from the client body.
+        # If this grep matches, a developer has accidentally re-introduced the vulnerability.
+        run: |
+          if grep -n 'pqc_public_key.*client\|from_request.*pqc_public_key\|trust.*client.*public_key' \
+            backend/src/routes/verify.rs 2>/dev/null; then
+            echo "::error::VR-2 regression: verify.rs may be trusting client-supplied public keys."
+            exit 1
+          fi
+          echo "VR-2 check passed: no client-supplied public key patterns found"
+
+      - name: VR-3 — Verify CORS is not permissive
+        # CorsLayer::permissive() must not be used in production code.
+        run: |
+          if grep -rn 'CorsLayer::permissive' backend/src/; then
+            echo "::error::VR-3 regression: CorsLayer::permissive() found in backend source."
+            exit 1
+          fi
+          echo "VR-3 CORS check passed: no permissive CORS layer found"
+
+      - name: VR-5 — Verify webhook validates URL
+        # webhook.rs must call validate_webhook_url (SSRF protection).
+        run: |
+          if ! grep -q 'validate_webhook_url' backend/src/routes/webhook.rs; then
+            echo "::error::VR-5 regression: validate_webhook_url not found in webhook.rs."
+            exit 1
+          fi
+          echo "VR-5 check passed: SSRF validation present in webhook.rs"
+
+      - name: VR-1 — Verify canonical_bytes includes nonce fields
+        # canonical_bytes() must reference __nonce binding.
+        run: |
+          if ! grep -q '__nonce' core/src/result.rs; then
+            echo "::error::VR-1 regression: __nonce not found in canonical_bytes() in result.rs."
+            exit 1
+          fi
+          echo "VR-1 check passed: __nonce binding present in result.rs"
 
   # ───────────────────────────────────────────
   # Android NDK cross-compile check

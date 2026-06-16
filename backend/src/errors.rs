@@ -16,6 +16,10 @@ pub enum AppError {
     #[error("Invalid request: {0}")]
     BadRequest(String),
 
+    /// VR-3 / VR-2: Authentication or key-trust failure.
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String),
+
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
 
@@ -32,6 +36,7 @@ impl IntoResponse for AppError {
             AppError::NonceExpired => (StatusCode::GONE, self.to_string()),
             AppError::SignatureInvalid(_) => (StatusCode::UNAUTHORIZED, self.to_string()),
             AppError::BadRequest(_) => (StatusCode::BAD_REQUEST, self.to_string()),
+            AppError::Unauthorized(_) => (StatusCode::UNAUTHORIZED, self.to_string()),
             AppError::Database(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Database error".into()),
             AppError::Redis(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Cache error".into()),
             AppError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal error".into()),

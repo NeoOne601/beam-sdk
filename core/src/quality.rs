@@ -4,8 +4,13 @@
 // This is the primary performance lever on budget devices (Helio G85).
 // NO GPU involvement here — these run on CPU and must complete < 4ms on
 // a Cortex-A55 core to preserve 25fps pipeline throughput.
+//
+// VR-4 (Security): Frame dimensions are validated via RawFrame::validate()
+// before any unsafe pointer arithmetic. An invalid or too-small frame is
+// returned as Gate::Received (safe early-exit) rather than causing UB.
 
 use crate::frame::RawFrame;
+
 
 /// Ordered quality gates. Run in this exact sequence — cheapest first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -71,8 +76,10 @@ impl QualityGate {
     /// Evaluate all gates. Returns early on first rejection.
     /// Only accesses `frame.y_plane` — UV plane never touched here.
     ///
-    /// # Safety
-    /// Caller guarantees y_plane is valid for width*height bytes.
+    /// If `frame` fails dimension validation (null pointer, zero size, stride < width,
+    /// width/height < 64, or dimensions > 8192), returns a report with `gate_reached =
+    /// Gate::Received` and all scores at 0.0 — the frame is treated as not-yet-accepted
+    /// without causing undefined behaviour.
     pub unsafe fn evaluate(&mut self, frame: &RawFrame) -> QualityReport {
         let mut report = QualityReport {
             gate_reached: Gate::Received,
@@ -82,6 +89,13 @@ impl QualityGate {
             motion_score: 0.0,
             edge_density: 0.0,
         };
+
+        // VR-4: Validate frame dimensions before any unsafe pointer arithmetic.
+        if let Err(_err) = frame.validate() {
+            // Frame is invalid; return Gate::Received (safe early-exit).
+            // Callers should not forward invalid frames to inference.
+            return report;
+        }
 
         // --- Gate 1: Blur (Laplacian variance on 64x64 centre crop) ---
         let crop = self.extract_centre_crop_64(frame);
@@ -119,7 +133,22 @@ impl QualityGate {
         report
     }
 
+    /// Extract a 64×64 centre crop from the Y plane.
+    ///
+    /// # Safety
+    /// `frame.validate()` must have returned `Ok(())` before calling this
+    /// function. That guarantees width >= 64, height >= 64, y_stride >= width,
+    /// and y_plane is non-null — so the 64-row, 64-byte-per-row copy is
+    /// always within bounds.
     unsafe fn extract_centre_crop_64(&self, frame: &RawFrame) -> [u8; 64 * 64] {
+        // Safety: frame.validate() confirmed width >= 64, height >= 64,
+        // y_stride >= width, and y_plane is non-null. The copy accesses
+        // rows [y0 .. y0+64) each reading 64 bytes starting at column x0.
+        // x0 + 64 <= width and y0 + 64 <= height because of the saturating_sub.
+        debug_assert!(
+            frame.width >= 64 && frame.height >= 64 && frame.y_stride >= frame.width,
+            "extract_centre_crop_64 called on unvalidated frame"
+        );
         let mut crop = [0u8; 64 * 64];
         let x0 = (frame.width / 2).saturating_sub(32) as usize;
         let y0 = (frame.height / 2).saturating_sub(32) as usize;

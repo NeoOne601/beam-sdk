@@ -52,9 +52,25 @@ build/
 *.obj
 *.out
 
-# Beam prompt/design documents to ignore
+# Beam confidential / internal-only files — MUST NOT be pushed to GitHub
+# These remain local on the owner's machine only.
 BEAM_ANTIGRAVITY_PROMPT.md
 BEAM_ANTIGRAVITY_PROMPT_v2.md
 BEAM_VERIFY_PRODUCT_PROMPT.md
+Beam_SDK_Engineer_JD.pdf
+commercial/
 docs/BEAM_ANTIGRAVITY_PROMPT.md
 docs/BEAM_WHITEPAPER.md
+
+# Security scan reports (contain vulnerability details)
+codex-security-scans/
+
+# Codex remediation notes (internal)
+Codex_Remediation.md
+FIXES_SUMMARY.md
+
+# Emscripten SDK (large, downloaded locally)
+emsdk/
+
+# Compiled FFI test binaries
+tests/ffi_tests

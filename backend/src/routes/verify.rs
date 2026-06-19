@@ -161,33 +161,60 @@ pub async fn verify_result(
         .format(&time::format_description::well_known::Iso8601::DEFAULT)
         .unwrap_or_else(|_| "unknown".into());
 
-    // ── Step 11: Persist verification result (VR-3: scoped to tenant_id) ─────────
-    // TODO: replace with full sqlx INSERT once migrations are applied end-to-end.
-    tracing::info!(
-        verification_id = %verification_id,
-        tenant_id = %tenant.tenant_id,
-        session_id = %req.session_id,
-        verified = verified,
-        key_id = %trusted_key.key_id,
-        document_type = %req.scan_result.document_type,
-        "Verification complete"
-    );
-
-    // ── Step 12: Write audit log (VR-3: scoped to tenant_id) ────────────────────
-    tracing::info!(
-        event_type = "verification",
-        outcome = if verified { "success" } else { "failure" },
-        tenant_id = %tenant.tenant_id,
-        session_id = %req.session_id,
-        key_id = %trusted_key.key_id,
-        "Audit log entry"
-    );
-
     let fraud_signals = serde_json::json!({
         "mrz_checksum_valid": true,
         "is_screen_photo": 0.0,
         "is_printed_fake": 0.0,
     });
+
+    // ── Step 11: Persist verification result (VR-3: scoped to tenant_id) ─────────
+    sqlx::query!(
+        r#"
+        INSERT INTO verification_results
+            (id, tenant_id, session_id, document_type, issuing_country,
+             confidence, pqc_verified, pqc_public_key_hex, fraud_signals, key_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        "#,
+        verification_id,
+        tenant.tenant_id,
+        req.session_id,
+        req.scan_result.document_type,
+        req.scan_result.issuing_country,
+        req.scan_result.confidence as f64,
+        verified,
+        hex::encode(&req.scan_result.pqc_signature),
+        serde_json::to_value(&fraud_signals).ok(),
+        trusted_key.key_id
+    )
+    .execute(&state.db_pool)
+    .await
+    .map_err(AppError::Database)?;
+
+    // ── Step 12: Write audit log (VR-3: scoped to tenant_id) ────────────────────
+    sqlx::query!(
+        r#"
+        INSERT INTO audit_logs
+            (id, tenant_id, session_id, event_type, outcome, detail)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        "#,
+        Uuid::new_v4(),
+        tenant.tenant_id,
+        req.session_id,
+        "verification",
+        if verified { "success" } else { "failure" },
+        serde_json::json!({
+            "document_type": req.scan_result.document_type,
+            "issuing_country": req.scan_result.issuing_country,
+            "confidence": req.scan_result.confidence,
+            "key_id": trusted_key.key_id,
+            "verification_id": verification_id.to_string()
+        })
+    )
+    .execute(&state.db_pool)
+    .await
+    .map_err(AppError::Database)?;
+
+
 
     if !verified {
         return Err(AppError::SignatureInvalid(

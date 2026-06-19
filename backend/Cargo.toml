@@ -29,5 +29,6 @@ base64 = "0.21"
 rand = "0.8"
 # VR-5: URL parsing for SSRF protection in webhook route
 url = "2.5"
+jsonwebtoken = "9"
 # VR-2: async-trait for KeyProvider strategy pattern
 async-trait = "0.1"

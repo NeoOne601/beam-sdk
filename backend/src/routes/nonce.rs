@@ -11,6 +11,7 @@ use axum::{extract::State, Extension, Json};
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use sqlx;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -42,6 +43,26 @@ pub async fn create_nonce(
     let mut conn = state.redis.get_multiplexed_async_connection().await?;
     conn.set_ex::<_, _, ()>(&redis_key, &nonce_hex, state.config.nonce_ttl_seconds)
         .await?;
+
+    sqlx::query!(
+        r#"
+        INSERT INTO audit_logs
+            (id, tenant_id, session_id, event_type, outcome, detail)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        "#,
+        Uuid::new_v4(),
+        tenant.tenant_id,
+        req.session_id,
+        "nonce_created",
+        "success",
+        serde_json::json!({
+            "nonce_ttl_seconds": state.config.nonce_ttl_seconds,
+            "session_id": req.session_id.to_string()
+        })
+    )
+    .execute(&state.db_pool)
+    .await
+    .map_err(AppError::Database)?;
 
     // Compute expiry timestamp
     let expires_at = time::OffsetDateTime::now_utc()

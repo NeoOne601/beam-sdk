@@ -1,7 +1,8 @@
-FROM rust:1.78-slim AS builder
+FROM rust:1.92-slim AS builder
 WORKDIR /app
 COPY Cargo.toml .
 COPY src/ src/
+ENV DATABASE_URL=postgres://beam:beam@host.docker.internal:5432/beam_verify
 RUN apt-get update && apt-get install -y pkg-config libssl-dev clang libclang-dev && rm -rf /var/lib/apt/lists/*
 RUN cargo build --release
 

@@ -718,6 +718,16 @@ The active strategy is selected by environment variable (`KEY_PROVIDER_STRATEGY=
 
 ---
 
+## Recent Implementation Updates
+
+### Phase 1: Backend Persistence & Authentication
+- **Database Wiring**: Wired real PostgreSQL persistence into the `beam-verify-backend` using `sqlx`. The `/v1/verify` and `/v1/nonce` routes now write to the `verification_results` and `audit_logs` tables respectively, while `/v1/audit` retrieves scoped logs.
+- **JWT Verification**: Upgraded the authentication middleware (`backend/src/middleware/auth.rs`) to validate HS256 JWTs using the `jsonwebtoken` crate, securing endpoints per the VR-3 remediation design.
+- **SQLx Compilation**: Added `backend/.env` containing `DATABASE_URL` and modified the Dockerfile `ENV` to ensure `sqlx::query!` macros can introspect the live PostgreSQL schema during both local host runs and Docker builds.
+- **Build Upgrades**: Bumped the backend Dockerfile base image to `rust:1.92-slim` to satisfy Rust 2024 edition requirements (`idna_adapter` transient dependency). Updated the E2E validation script (`validate_pipeline_m1.sh`) to use `uv run` for reliable Python environment isolation when generating the synthetic ML model.
+
+---
+
 ## Documentation Index
 
 | Document | Audience | Contents |

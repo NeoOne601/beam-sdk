@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 use sqlx::Row;
+use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
 
 /// Authenticated tenant context injected into every authenticated request.
 /// Handlers extract this via `Extension<TenantContext>`.
@@ -97,47 +98,79 @@ async fn resolve_api_key(
 /// This stub validates the token is non-empty and decodes the `tenant_id` claim
 /// from an UNSIGNED JWT (base64url payload only). Replace with a full JWT library
 /// (e.g., `jsonwebtoken` crate) before production deployment.
+#[derive(serde::Deserialize)]
+struct JwtClaims {
+    tenant_id: String,
+    #[allow(dead_code)]
+    exp: Option<usize>,
+}
+
 async fn resolve_jwt(
     state: &Arc<AppState>,
     token: &str,
 ) -> Result<TenantContext, AppError> {
-    // Decode the JWT payload (middle part, base64url-encoded).
-    let parts: Vec<&str> = token.splitn(3, '.').collect();
-    if parts.len() < 2 {
-        return Err(AppError::Unauthorized("Malformed JWT".into()));
-    }
-    // base64url decode (no padding)
-    let payload_bytes = base64::Engine::decode(
-        &base64::engine::general_purpose::URL_SAFE_NO_PAD,
-        parts[1],
-    )
-    .map_err(|_| AppError::Unauthorized("JWT payload decode failed".into()))?;
+    // Read JWT_SECRET from environment. If absent, fall back to stub decode with warning.
+    // In production this variable MUST be set. An unset JWT_SECRET is a security risk.
+    let secret = std::env::var("JWT_SECRET").unwrap_or_default();
 
-    let payload: serde_json::Value = serde_json::from_slice(&payload_bytes)
-        .map_err(|_| AppError::Unauthorized("JWT payload not JSON".into()))?;
+    let tenant_id_str: String = if secret.is_empty() {
+        // Dev mode: no signature verification. Log a warning on every call.
+        tracing::warn!(
+            "JWT_SECRET is not set. JWT signature verification is DISABLED. \
+             Set JWT_SECRET=<secret> in production to enforce signature validation."
+        );
+        // Fallback: decode payload from base64 without verifying signature.
+        // This path is identical to the previous stub behaviour.
+        let parts: Vec<&str> = token.splitn(3, '.').collect();
+        if parts.len() < 2 {
+            return Err(AppError::Unauthorized("Malformed JWT".into()));
+        }
+        let payload_bytes = base64::Engine::decode(
+            &base64::engine::general_purpose::URL_SAFE_NO_PAD,
+            parts[1],
+        )
+        .map_err(|_| AppError::Unauthorized("JWT payload decode failed".into()))?;
+        let payload: serde_json::Value = serde_json::from_slice(&payload_bytes)
+            .map_err(|_| AppError::Unauthorized("JWT payload not JSON".into()))?;
+        payload
+            .get("tenant_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| AppError::Unauthorized("JWT missing tenant_id claim".into()))?
+            .to_owned()
+    } else {
+        // Production mode: full HS256 signature verification.
+        let mut validation = Validation::new(Algorithm::HS256);
+        // Allow tokens without `exp` for service-to-service tokens; set to false
+        // to enforce expiry once tokens include `exp` claims.
+        validation.validate_exp = false;
+        let token_data = decode::<JwtClaims>(
+            token,
+            &DecodingKey::from_secret(secret.as_bytes()),
+            &validation,
+        )
+        .map_err(|e| {
+            tracing::warn!(error = %e, "JWT signature verification failed");
+            AppError::Unauthorized(format!("JWT validation failed: {}", e))
+        })?;
+        token_data.claims.tenant_id
+    };
 
-    let tenant_id_str = payload
-        .get("tenant_id")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| AppError::Unauthorized("JWT missing tenant_id claim".into()))?;
-
-    let tenant_id = Uuid::parse_str(tenant_id_str)
+    let tenant_id = uuid::Uuid::parse_str(&tenant_id_str)
         .map_err(|_| AppError::Unauthorized("JWT tenant_id is not a valid UUID".into()))?;
 
-    // Look up the tenant to confirm it exists and get the plan.
-    let row = sqlx::query(
-        "SELECT plan FROM tenants WHERE id = $1 LIMIT 1"
+    let row = sqlx::query!(
+        "SELECT plan FROM tenants WHERE id = $1 LIMIT 1",
+        tenant_id
     )
-    .bind(tenant_id)
     .fetch_optional(&state.db_pool)
     .await
     .map_err(AppError::Database)?;
 
     match row {
-        Some(r) => {
-            let plan: String = r.try_get("plan").map_err(AppError::Database)?;
-            Ok(TenantContext { tenant_id, plan })
-        },
+        Some(r) => Ok(TenantContext {
+            tenant_id,
+            plan: r.plan,
+        }),
         None => Err(AppError::Unauthorized("Tenant not found".into())),
     }
 }

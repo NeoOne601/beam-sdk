@@ -12,7 +12,7 @@ echo ""
 
 # ─── Step 1: Generate synthetic model ────────────────────────────────────────
 echo "[Step 1/6] Generating synthetic TFLite model..."
-echo "Skipped python generate model due to missing tensorflow"
+python3 "${REPO_ROOT}/scripts/generate_synthetic_model.py"
 TFLITE_PATH="${REPO_ROOT}/model/placeholder/synthetic_test.tflite"
 if [ ! -f "${TFLITE_PATH}" ]; then
     echo "ERROR: Synthetic model not found at ${TFLITE_PATH}"

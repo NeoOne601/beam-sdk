@@ -31,6 +31,10 @@ echo "--- Copying WASM artifacts ---"
 cp "${WASM_SRC}/beam_sdk.wasm" "${NPM_DIR}/beam_sdk.wasm"
 cp "${WASM_SRC}/beam_sdk.js"   "${NPM_DIR}/beam_sdk.js"
 
+# Copy TypeScript SDK wrapper
+echo "--- Copying TypeScript SDK wrapper ---"
+cp "${REPO_ROOT}/platform/web/BeamScanner.ts" "${NPM_DIR}/BeamScanner.ts"
+
 # ─── Write package.json ───────────────────────────────────────────────────────
 
 echo "--- Writing package.json ---"
@@ -39,12 +43,14 @@ cat > "${NPM_DIR}/package.json" <<EOF
   "name": "@surt/beam-sdk",
   "version": "${VERSION}",
   "description": "Beam SDK — document scanning with PQC signing for Surt AI products",
-  "main": "beam_sdk.js",
+  "main": "BeamScanner.js",
   "types": "beam-sdk.d.ts",
   "files": [
     "beam_sdk.js",
     "beam_sdk.wasm",
-    "beam-sdk.d.ts"
+    "beam-sdk.d.ts",
+    "BeamScanner.ts",
+    "BeamScanner.js"
   ],
   "keywords": ["beam", "sdk", "document-scanning", "pqc", "webassembly"],
   "author": "Surt AI",
@@ -177,3 +183,6 @@ echo ""
 echo "=== npm packaging complete ==="
 echo "  Output: ${FINAL}"
 ls -lh "${FINAL}"
+
+# TypeScript compilation (requires tsc on PATH — run manually or in CI after this script)
+# tsc "${NPM_DIR}/BeamScanner.ts" --outDir "${NPM_DIR}" --target ES2022 --module ESNext --strict

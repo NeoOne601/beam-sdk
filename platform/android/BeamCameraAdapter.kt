@@ -32,7 +32,7 @@ import java.util.concurrent.Executors
  */
 class BeamCameraAdapter(
     private val cameraManager: CameraManager,
-    private val nativeBridge:  BeamNativeBridge,
+    private val beamSdk:       BeamSDK,
 ) {
 
     private var cameraDevice:    CameraDevice?       = null
@@ -52,7 +52,7 @@ class BeamCameraAdapter(
             override fun onDisconnected(camera: CameraDevice) { camera.close() }
             override fun onError(camera: CameraDevice, error: Int) {
                 camera.close()
-                nativeBridge.onCameraError(error)
+                beamSdk.onCameraError(error)
             }
         }, cameraHandler)
     }
@@ -86,7 +86,7 @@ class BeamCameraAdapter(
                     startRepeatingCapture(session, surface)
                 }
                 override fun onConfigureFailed(session: CameraCaptureSession) {
-                    nativeBridge.onCameraError(-1)
+                    beamSdk.onCameraError(-1)
                 }
             }
         )
@@ -128,7 +128,7 @@ class BeamCameraAdapter(
         // NV12: UV pixel stride = 2. YV12: UV pixel stride = 1.
         val isNv12 = (uvPlane.pixelStride == 2)
 
-        nativeBridge.onFrame(
+        beamSdk.onFrame(
             yBuffer     = yPlane.buffer,
             uvBuffer    = uvPlane.buffer,
             width       = image.width,

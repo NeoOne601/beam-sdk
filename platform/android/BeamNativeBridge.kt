@@ -1,3 +1,7 @@
+// DEPRECATED — superseded by BeamSDK.kt (created in Wave 1 Agent C).
+// TODO: Delete this file after Wave 1 agent merge is confirmed.
+// Do NOT add new code here.
+
 // platform/android/BeamNativeBridge.kt
 // JNI bridge from Kotlin to the native Beam SDK (tflite_bridge.cpp / libbeam_sdk.so).
 // Declares all external JNI methods matching tflite_bridge.cpp exports.

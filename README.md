@@ -87,6 +87,7 @@ flowchart LR
 
     SWIFT -->|"one frame pointer\nper pipeline tick"| CPP
     CPP -->|"beam_session_push_result()\none call per accepted frame"| RUST
+    SWIFT -->|"beam_session_get_result_json()\npull JSON when state == Complete"| RUST
 
     classDef swift fill:#064e3b,stroke:#34d399,color:#fff
     classDef cpp fill:#1e3a8a,stroke:#60a5fa,color:#fff
@@ -214,7 +215,7 @@ stateDiagram-v2
 | `Scanning` | `Scanning` | gate fail, count >= `adaptive_gate_limit` | `apply_adaptive_relaxation()` called by `FramePipeline` |
 | `Scanning` | `Inferring` | `quality_frame_count >= min_quality_frames` | `consecutive_gate_fails` reset to 0 |
 | `Scanning` | `Failed` | `now_us >= start + timeout_ms * 1000` | `fail("timeout")` |
-| `Inferring` | `Complete` | `complete(result)` via FFI | PQC signature applied before storage |
+| `Inferring` | `Complete` | `complete(result)` via FFI | PQC signature applied. Platforms retrieve via `beam_session_get_result_json()` |
 | `Inferring` | `Failed` | `fail(reason)` | inference layer error |
 | `Complete` | none | terminal | result stored in `session.result` |
 | `Failed` | none | terminal | session must be destroyed and recreated |
@@ -375,7 +376,7 @@ sequenceDiagram
     participant CRYPTO as crypto.rs
     participant SESSION as session.rs
 
-    CPP->>FFI: beam_session_push_result(handle, fields, field_count, doc_type, country, conf, include_pqc_sig=true)
+    CPP->>FFI: beam_session_push_result(handle, fields, count, doc_type, country, nonce, session_id, conf, include_pqc=true)
     FFI->>FFI: unsafe slice::from_raw_parts() over CField array
     FFI->>RES: construct ScanResult — pqc_signature empty
     FFI->>CRYPTO: PqcSigner::generate(MlDsaLevel::Level3)
@@ -484,7 +485,7 @@ flowchart TD
     subgraph CMAKE["CMake Build"]
         AND_SO["libbeam_sdk.so\nAndroid AAR"]
         IOS_ST["libBeamSDK.a\niOS XCFramework"]
-        WB["BeamSDK.wasm + .js\nnpm package"]
+        WB["BeamSDK.wasm + .js + BeamScanner.ts\nnpm package"]
         RS_A["libbeam_core.a\nIMPORTED STATIC"]
         TFL["libtensorflowlite.so\nAndroid only"]
         CML["CoreML.framework\niOS only"]
@@ -562,7 +563,7 @@ flowchart TD
     subgraph MATRIX["Parallel Jobs — github-actions"]
         AND["android-arm64\nubuntu-latest\nNDK r26\nRust: aarch64-linux-android\nTFLite: ci/install_tflite.sh\nCMake: BEAM_TARGET=Android\nOutput: libbeam_sdk.so"]
         IOS["ios-arm64\nmacos-15\nRust: aarch64-apple-ios + sim\nxcodebuild: Release iphoneos\nOutput: XCFramework slices"]
-        WEB["wasm\nubuntu-latest\nEmscripten latest\nRust: wasm32-unknown-emscripten\nemmake\nAssert: BeamSDK.wasm + .js present"]
+        WEB["wasm\nubuntu-latest\nEmscripten latest\nRust: wasm32-unknown-emscripten\nemmake\nAssert: BeamSDK.wasm, .js, BeamScanner.ts present"]
         TST["rust-tests\nubuntu-latest\ncargo test --release\ncargo bench (budget verification)\nclang: required by pqcrypto-dilithium"]
     end
 

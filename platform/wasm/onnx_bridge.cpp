@@ -208,6 +208,8 @@ void beam_wasm_process_frame(
             fields, static_cast<size_t>(field_count),
             (const uint8_t*)doc_type, strlen(doc_type),
             (const uint8_t*)country,  strlen(country),
+            /*nonce_ptr=*/      nullptr, /*nonce_len=*/      0,   // NEW VR-1 param 8-9
+            /*session_id_ptr=*/ nullptr, /*session_id_len=*/ 0,   // NEW VR-1 param 10-11
             confidence,
             /*include_pqc_sig=*/ true
         );

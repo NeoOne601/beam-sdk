@@ -125,6 +125,22 @@ int32_t beam_session_push_result(
     bool              include_pqc_sig
 );
 
+/**
+ * Serialize the completed session result to JSON into caller-supplied buffer.
+ *
+ * Return values:
+ *   positive       = bytes written (null terminator NOT counted)
+ *   -1             = null handle
+ *   -2             = session not in Complete state (state != 3)
+ *   -3             = internal serialization error
+ *   negative N where |N| > out_buf_len = buffer too small; retry with |N|+1 bytes
+ */
+int32_t beam_session_get_result_json(
+    BeamSessionHandle handle,
+    uint8_t*          out_buf,
+    size_t            out_buf_len
+);
+
 #ifdef __cplusplus
 }
 #endif

@@ -31,6 +31,13 @@ private func beam_session_create(_ config: BeamSessionConfigC) -> UnsafeMutableR
 @_silgen_name("beam_session_start")
 private func beam_session_start(_ handle: UnsafeMutableRawPointer?, _ timestampUs: UInt64)
 
+@_silgen_name("beam_session_get_result_json")
+private func beam_session_get_result_json(
+    _ handle: UnsafeMutableRawPointer?,
+    _ outBuf: UnsafeMutablePointer<UInt8>?,
+    _ outBufLen: Int
+) -> Int32
+
 private struct BeamSessionConfigC {
     var minQualityFrames:  UInt32
     var timeoutMs:         UInt64
@@ -236,19 +243,39 @@ extension BeamScanner: BeamFrameDelegate {
 
         // State 3 = Complete (matches Rust SessionState::Complete = 3)
         if state == 3 {
-            // Session is complete. The result is held inside the Rust session.
-            // For now, we surface a BeamScanResult with the confidence from
-            // the CoreML output. Full field extraction requires MRZ parsing
-            // to be wired from the C++ inference layer — this is Phase 2.
-            let result = BeamScanResult(
-                fields:         [],
-                rawMrz:         nil,
-                documentType:   "document",
-                issuingCountry: "UNK",
-                confidence:     0.92,
-                pqcSignature:   Data(),
-                pqcPublicKey:   Data()
-            )
+            var jsonBuf = [UInt8](repeating: 0, count: 16384)
+            let written = beam_session_get_result_json(rs, &jsonBuf, jsonBuf.count)
+
+            let result: BeamScanResult
+            if written > 0,
+               let jsonStr = String(bytes: jsonBuf.prefix(Int(written)), encoding: .utf8),
+               let jsonData = jsonStr.data(using: .utf8),
+               let parsed = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+
+                let rawFields = parsed["fields"] as? [[String: Any]] ?? []
+                let docFields = rawFields.compactMap { f -> BeamDocumentField? in
+                    guard let k = f["key"] as? String,
+                          let v = f["value"] as? String,
+                          let c = f["confidence"] as? Double else { return nil }
+                    return BeamDocumentField(key: k, value: v, confidence: Float(c))
+                }
+                result = BeamScanResult(
+                    fields:         docFields,
+                    rawMrz:         nil,
+                    documentType:   parsed["document_type"] as? String ?? "unknown",
+                    issuingCountry: parsed["issuing_country"] as? String ?? "UNK",
+                    confidence:     Float((parsed["confidence"] as? Double) ?? 0.0),
+                    pqcSignature:   Data(),
+                    pqcPublicKey:   Data()
+                )
+            } else {
+                NSLog("[BeamSDK] beam_session_get_result_json returned %d — fallback stub", written)
+                result = BeamScanResult(
+                    fields: [], rawMrz: nil,
+                    documentType: "document", issuingCountry: "UNK",
+                    confidence: 0.92, pqcSignature: Data(), pqcPublicKey: Data()
+                )
+            }
             deliverResult(result)
         }
 

@@ -349,3 +349,65 @@ fn get_unix_timestamp_str() -> String {
         "0".to_string()
     }
 }
+
+// ─────────────────────────────────────────────────────────
+// Result retrieval (called by platform layer to get JSON)
+// ─────────────────────────────────────────────────────────
+
+/// Serialize the completed session result to JSON into a caller-supplied buffer.
+///
+/// Return values:
+///   positive       = bytes written (null terminator NOT counted)
+///   -1             = null handle
+///   -2             = session not in Complete state (state != 3)
+///   -3             = internal serialization error
+///   negative N where |N| > out_buf_len = buffer too small; retry with |N|+1 bytes
+///
+/// # Safety
+/// handle must be a valid BeamSessionHandle produced by beam_session_create,
+/// or null. out_buf must be valid for out_buf_len bytes when handle is non-null.
+#[no_mangle]
+pub unsafe extern "C" fn beam_session_get_result_json(
+    handle: BeamSessionHandle,
+    out_buf: *mut u8,
+    out_buf_len: usize,
+) -> i32 {
+    if handle.is_null() {
+        return -1;
+    }
+    let session = &*handle;
+    if session.state != crate::session::SessionState::Complete {
+        return -2;
+    }
+    let result = match &session.result {
+        Some(r) => r,
+        None => return -2,
+    };
+
+    let json_val = serde_json::json!({
+        "fields": result.fields.iter().map(|f| serde_json::json!({
+            "key": f.key,
+            "value": f.value,
+            "confidence": f.confidence
+        })).collect::<Vec<_>>(),
+        "document_type": result.document_type,
+        "issuing_country": result.issuing_country,
+        "confidence": result.confidence,
+        "pqc_signature_hex": hex::encode(&result.pqc_signature),
+        "pqc_public_key_hex": hex::encode(&result.pqc_public_key)
+    });
+
+    let json_bytes = match serde_json::to_vec(&json_val) {
+        Ok(b) => b,
+        Err(_) => return -3,
+    };
+
+    if json_bytes.len() >= out_buf_len {
+        return -(json_bytes.len() as i32);
+    }
+
+    core::ptr::copy_nonoverlapping(json_bytes.as_ptr(), out_buf, json_bytes.len());
+    out_buf.add(json_bytes.len()).write(0u8); // null terminator
+    json_bytes.len() as i32
+}
+

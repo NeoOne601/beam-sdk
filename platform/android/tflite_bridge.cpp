@@ -294,6 +294,8 @@ private:
             fields, static_cast<size_t>(n_fields),
             reinterpret_cast<const uint8_t*>(doc_type), strlen(doc_type),
             reinterpret_cast<const uint8_t*>(country),  strlen(country),
+            /*nonce_ptr=*/      nullptr, /*nonce_len=*/      0,   // NEW VR-1 param 8-9
+            /*session_id_ptr=*/ nullptr, /*session_id_len=*/ 0,   // NEW VR-1 param 10-11
             /*overall_conf=*/ 0.92f,
             /*include_pqc_sig=*/ true
         );

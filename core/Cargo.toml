@@ -14,6 +14,8 @@ pqcrypto-traits = "0.3.5"
 # and libc::time() (signing timestamp, VR-1). Optional on WASM.
 libc = { version = "0.2.155", optional = true }
 getrandom = { version = "0.2.15", features = ["js"] }
+serde_json = { version = "1", features = ["alloc"] }
+hex = "0.4"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2.123"

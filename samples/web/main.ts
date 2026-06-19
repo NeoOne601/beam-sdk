@@ -1,6 +1,9 @@
 // samples/web/main.ts
 // Beam Verify Web Sample — Main entry point.
-// Connects UI screens to camera, quality gate simulation, and backend verification.
+// Connects UI screens to camera, quality gate, and backend verification.
+// Uses the real BeamScanner SDK wrapper for WASM inference.
+
+import { BeamScanner, ScanResult } from '../../platform/web/BeamScanner.js';
 
 // Screen navigation
 function showScreen(id: string) {
@@ -46,37 +49,86 @@ function stopCamera(stream: MediaStream | null) {
     video.srcObject = null;
 }
 
-// Simulated scan flow
+// Real scan flow using BeamScanner SDK
 async function runScanFlow() {
     showScreen('scan');
     const video = document.getElementById('cameraPreview') as HTMLVideoElement;
     const gateLabel = document.getElementById('gateLabel')!;
-    const frameCount = document.getElementById('frameCount')!;
     const qualityFill = document.querySelector('.quality-fill') as HTMLElement;
 
     const stream = await startCamera();
     if (!stream) { showScreen('landing'); return; }
     video.srcObject = stream;
 
-    const gates = ['BlurCheck', 'ExposureCheck', 'MotionCheck', 'BoundaryCheck', 'Accepted'];
+    const settings = loadSettings();
+    const scanner = new BeamScanner();
 
-    for (let i = 0; i < gates.length; i++) {
-        await delay(800);
-        gateLabel.textContent = `Gate: ${gates[i]}`;
-        qualityFill.style.width = `${((i + 1) / gates.length) * 100}%`;
-        if (gates[i] === 'Accepted') {
-            frameCount.textContent = 'Quality frames: 3 / 3';
-        }
+    try {
+        await scanner.configure({
+            apiKey: '',
+            backendUrl: settings.backendUrl,
+            modelPath: '/beam_sdk.onnx',
+            enablePqcSigning: settings.pqcSigning,
+        });
+    } catch (e) {
+        console.error('[BeamSample] Failed to configure scanner:', e);
+        stopCamera(stream);
+        showScreen('landing');
+        return;
     }
 
-    await delay(1000);
-    gateLabel.textContent = 'Running ONNX inference...';
-    await delay(1000);
-    gateLabel.textContent = 'Signing with ML-DSA Level 3...';
-    await delay(1000);
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d')!;
 
-    stopCamera(stream);
-    showResult();
+    const processLoop = async () => {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const report = await scanner.processFrame(imageData);
+        gateLabel.textContent = `Gate: ${report.gateReached}`;
+
+        // Update quality fill based on gate progress
+        const gateMap: Record<string, number> = {
+            'Idle': 0, 'Scanning': 25, 'Inferring': 50, 'Complete': 100, 'Failed': 0
+        };
+        qualityFill.style.width = `${gateMap[report.gateReached] ?? 0}%`;
+
+        if (report.gateReached === 'Complete') {
+            const result = await scanner.getScanResult();
+            stopCamera(stream);
+            if (result) showResultFromSdk(result);
+            return;
+        }
+        if (report.gateReached !== 'Failed') {
+            requestAnimationFrame(() => processLoop());
+        }
+    };
+    requestAnimationFrame(() => processLoop());
+}
+
+// Display result from real SDK ScanResult
+function showResultFromSdk(scanResult: ScanResult) {
+    const fieldList = document.getElementById('fieldList')!;
+    fieldList.innerHTML = scanResult.fields.map(f => `
+        <div class="field-item">
+            <div class="field-key">${f.key.replace(/_/g, ' ')}</div>
+            <div class="field-value-row">
+                <span class="field-value">${f.value}</span>
+                <span class="field-conf">${Math.round(f.confidence * 100)}%</span>
+            </div>
+        </div>
+    `).join('');
+
+    document.getElementById('docType')!.textContent = scanResult.documentType.toUpperCase();
+    document.getElementById('country')!.textContent = scanResult.issuingCountry;
+    const confPct = Math.round(scanResult.confidence * 100);
+    document.getElementById('confidenceText')!.textContent = `${confPct}%`;
+
+    const arc = document.getElementById('gaugeArc')!;
+    arc.setAttribute('stroke-dasharray', `${confPct}, 100`);
+
+    showScreen('result');
 }
 
 function showResult() {
@@ -163,9 +215,6 @@ async function verifyWithBackend() {
         btn.style.background = '';
     }, 3000);
 }
-
-// Helpers
-function delay(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
 // Event binding
 document.addEventListener('DOMContentLoaded', () => {

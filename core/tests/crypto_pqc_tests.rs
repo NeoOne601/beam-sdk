@@ -125,8 +125,16 @@ mod tests {
     fn canonical_bytes_order_independent() {
         let result_a = ScanResult {
             fields: vec![
-                DocumentField { key: "surname".into(), value: "SMITH".into(), confidence: 0.99 },
-                DocumentField { key: "given_names".into(), value: "JOHN".into(), confidence: 0.98 },
+                DocumentField {
+                    key: "surname".into(),
+                    value: "SMITH".into(),
+                    confidence: 0.99,
+                },
+                DocumentField {
+                    key: "given_names".into(),
+                    value: "JOHN".into(),
+                    confidence: 0.98,
+                },
             ],
             raw_mrz: None,
             document_type: "passport".into(),

@@ -91,8 +91,16 @@ pub fn bench_canonical_bytes(c: &mut Criterion) {
                 value: "L898902C36UTO7408122F1204159ZE184226B<<<<<10".into(),
                 confidence: 0.99,
             },
-            DocumentField { key: "surname".into(), value: "SMITH".into(), confidence: 0.99 },
-            DocumentField { key: "given_names".into(), value: "JOHN DOE".into(), confidence: 0.98 },
+            DocumentField {
+                key: "surname".into(),
+                value: "SMITH".into(),
+                confidence: 0.99,
+            },
+            DocumentField {
+                key: "given_names".into(),
+                value: "JOHN DOE".into(),
+                confidence: 0.98,
+            },
         ],
         raw_mrz: None,
         document_type: "passport".into(),

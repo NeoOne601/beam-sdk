@@ -11,7 +11,6 @@
 
 use crate::frame::RawFrame;
 
-
 /// Ordered quality gates. Run in this exact sequence — cheapest first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Gate {
@@ -79,7 +78,11 @@ impl QualityGate {
     /// If `frame` fails dimension validation (null pointer, zero size, stride < width,
     /// width/height < 64, or dimensions > 8192), returns a report with `gate_reached =
     /// Gate::Received` and all scores at 0.0 — the frame is treated as not-yet-accepted
-    /// without causing undefined behaviour.
+    ///
+    /// # Safety
+    ///
+    /// This function accesses raw pointer data in the frame. The caller must ensure
+    /// that `frame` is valid and the memory it references is accessible.
     pub unsafe fn evaluate(&mut self, frame: &RawFrame) -> QualityReport {
         let mut report = QualityReport {
             gate_reached: Gate::Received,

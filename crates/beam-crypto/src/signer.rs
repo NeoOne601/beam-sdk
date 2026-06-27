@@ -49,6 +49,12 @@ pub struct SignerRegistry {
     preferred_order: Vec<String>,
 }
 
+impl Default for SignerRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SignerRegistry {
     /// Create an empty registry.
     pub fn new() -> Self {

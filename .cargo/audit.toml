@@ -1,0 +1,23 @@
+[advisories]
+ignore = [
+    # rsa: Marvin attack, no fixed upgrade is available yet.
+    "RUSTSEC-2023-0071",
+    
+    # sqlx: Binary Protocol Misinterpretation. Requires breaking API change to 0.8.1.
+    "RUSTSEC-2024-0363",
+
+    # paste: Unmaintained, but heavily used by dependencies.
+    "RUSTSEC-2024-0436",
+
+    # pqcrypto-dilithium: Unmaintained, replaced by pqcrypto-mldsa, transition pending.
+    "RUSTSEC-2024-0380",
+
+    # pqcrypto-internals: Unmaintained, upstream PQClean archived.
+    "RUSTSEC-2026-0163",
+
+    # pqcrypto-kyber: Unmaintained, replaced by pqcrypto-mlkem, transition pending.
+    "RUSTSEC-2024-0381",
+
+    # pqcrypto-traits: Unmaintained, upstream PQClean archived.
+    "RUSTSEC-2026-0162"
+]

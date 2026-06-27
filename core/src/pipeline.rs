@@ -22,7 +22,7 @@ pub enum PipelineResult {
     /// The session has transitioned to Inferring.
     AcceptedForInference,
     /// Inference complete. Session is in Complete state.
-    Complete(ScanResult),
+    Complete(Box<ScanResult>),
 }
 
 /// Top-level frame processing pipeline.
@@ -60,7 +60,7 @@ impl FramePipeline {
         // If already complete, return the stored result
         if let crate::session::SessionState::Complete = self.session.state {
             if let Some(result) = self.session.result.clone() {
-                return PipelineResult::Complete(result);
+                return PipelineResult::Complete(Box::new(result));
             }
         }
 

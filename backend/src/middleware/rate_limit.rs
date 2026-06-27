@@ -76,9 +76,7 @@ pub async fn rate_limit(
 
     // Set TTL on first request in window to ensure key expiry.
     if count == 1 {
-        let _ = conn
-            .expire::<_, ()>(&redis_key, window_secs as i64)
-            .await;
+        let _ = conn.expire::<_, ()>(&redis_key, window_secs as i64).await;
     }
 
     if count > quota {

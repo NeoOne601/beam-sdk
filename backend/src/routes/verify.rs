@@ -5,7 +5,7 @@
 //   VR-1: Nonce is now bound into the signed canonical bytes — __nonce, __session_id,
 //         __timestamp are included in the reconstructed canonical payload. A replay
 //         requires the attacker to reproduce the exact nonce + session binding.
-//   VR-2: pqc_public_key is no longer accepted from the client. The public key is
+//   VR-2: public key is no longer accepted from the caller. The public key is
 //         looked up from trusted_public_keys via the active KeyProvider strategy.
 //         key_id in the request selects which registered key to use.
 //   VR-3: TenantContext extracted from request extension (set by auth middleware).
@@ -38,7 +38,7 @@ pub struct ScanResultPayload {
 
     /// VR-2: Identifies which pre-registered key in trusted_public_keys to use.
     /// The meaning depends on the active KEY_PROVIDER_STRATEGY (tenant/device/model).
-    /// pqc_public_key is NO LONGER accepted from the client.
+    /// public key is NO LONGER accepted from the caller.
     pub key_id: String,
 
     /// VR-1: The nonce as it was embedded in the signed canonical bytes.
@@ -144,11 +144,8 @@ pub async fn verify_result(
 
     // ── Step 9: Verify ML-DSA signature against the TRUSTED key ─────────────────
     use crate::crypto::ml_dsa_verifier;
-    let verified = ml_dsa_verifier::verify_dilithium3(
-        &trusted_key.public_key_bytes,
-        &canonical,
-        &signature,
-    );
+    let verified =
+        ml_dsa_verifier::verify_dilithium3(&trusted_key.public_key_bytes, &canonical, &signature);
 
     // ── Step 10: Consume nonce ONLY after successful signature verification ───────
     // Consuming the nonce before verification would allow an attacker to exhaust
@@ -213,8 +210,6 @@ pub async fn verify_result(
     .execute(&state.db_pool)
     .await
     .map_err(AppError::Database)?;
-
-
 
     if !verified {
         return Err(AppError::SignatureInvalid(

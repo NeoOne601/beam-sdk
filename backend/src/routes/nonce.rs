@@ -10,8 +10,8 @@ use crate::AppState;
 use axum::{extract::State, Extension, Json};
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use sqlx;
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Deserialize)]

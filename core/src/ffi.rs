@@ -282,8 +282,7 @@ pub unsafe extern "C" fn beam_session_push_result(
     // of canonical_bytes() and are covered by the ML-DSA signature.
     let nonce = if nonce_len > 0 && !nonce_ptr.is_null() {
         Some(
-            String::from_utf8_lossy(core::slice::from_raw_parts(nonce_ptr, nonce_len))
-                .into_owned(),
+            String::from_utf8_lossy(core::slice::from_raw_parts(nonce_ptr, nonce_len)).into_owned(),
         )
     } else {
         None
@@ -332,7 +331,7 @@ pub unsafe extern "C" fn beam_session_push_result(
                     result.pqc_public_key = signer.public_key_bytes();
                     result.algo = signer.algorithm_id().to_string();
                     result.public_key = base64::engine::general_purpose::STANDARD
-                        .encode(&signer.public_key_bytes());
+                        .encode(signer.public_key_bytes());
                 }
             }
         }
@@ -422,4 +421,3 @@ pub unsafe extern "C" fn beam_session_get_result_json(
     out_buf.add(json_bytes.len()).write(0u8); // null terminator
     json_bytes.len() as i32
 }
-

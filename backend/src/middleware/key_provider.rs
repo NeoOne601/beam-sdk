@@ -71,7 +71,7 @@ impl KeyProvider for TenantKeyProvider {
               AND revoked_at IS NULL
             ORDER BY created_at DESC
             LIMIT 1
-            "#
+            "#,
         )
         .bind(tenant.tenant_id)
         .fetch_optional(pool)
@@ -88,9 +88,12 @@ impl KeyProvider for TenantKeyProvider {
                 algorithm,
             }
         })
-        .ok_or_else(|| AppError::Unauthorized(
-            format!("No registered public key for tenant {}", tenant.tenant_id)
-        ))
+        .ok_or_else(|| {
+            AppError::Unauthorized(format!(
+                "No registered public key for tenant {}",
+                tenant.tenant_id
+            ))
+        })
     }
 }
 
@@ -123,7 +126,7 @@ impl KeyProvider for DeviceKeyProvider {
               AND active    = TRUE
               AND revoked_at IS NULL
             LIMIT 1
-            "#
+            "#,
         )
         .bind(tenant.tenant_id)
         .bind(key_id)
@@ -141,9 +144,12 @@ impl KeyProvider for DeviceKeyProvider {
                 algorithm,
             }
         })
-        .ok_or_else(|| AppError::Unauthorized(
-            format!("Device key '{}' not registered for tenant {}", key_id, tenant.tenant_id)
-        ))
+        .ok_or_else(|| {
+            AppError::Unauthorized(format!(
+                "Device key '{}' not registered for tenant {}",
+                key_id, tenant.tenant_id
+            ))
+        })
     }
 }
 
@@ -177,7 +183,7 @@ impl KeyProvider for ModelKeyProvider {
               AND active    = TRUE
               AND revoked_at IS NULL
             LIMIT 1
-            "#
+            "#,
         )
         .bind(tenant.tenant_id)
         .bind(key_id)
@@ -195,9 +201,12 @@ impl KeyProvider for ModelKeyProvider {
                 algorithm,
             }
         })
-        .ok_or_else(|| AppError::Unauthorized(
-            format!("Model key '{}' not registered for tenant {}", key_id, tenant.tenant_id)
-        ))
+        .ok_or_else(|| {
+            AppError::Unauthorized(format!(
+                "Model key '{}' not registered for tenant {}",
+                key_id, tenant.tenant_id
+            ))
+        })
     }
 }
 
@@ -208,8 +217,7 @@ impl KeyProvider for ModelKeyProvider {
 /// Valid values: "tenant" (default), "device", "model".
 /// Unknown values fall back to "tenant" with a warning.
 pub fn build_key_provider() -> Box<dyn KeyProvider> {
-    let strategy = std::env::var("KEY_PROVIDER_STRATEGY")
-        .unwrap_or_else(|_| "tenant".into());
+    let strategy = std::env::var("KEY_PROVIDER_STRATEGY").unwrap_or_else(|_| "tenant".into());
     match strategy.to_lowercase().as_str() {
         "device" => {
             tracing::info!("Key provider strategy: device (per-device pre-registered keys)");

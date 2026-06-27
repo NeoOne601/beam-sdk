@@ -17,10 +17,7 @@ use axum::{
 };
 use std::sync::Arc;
 use tower::ServiceBuilder;
-use tower_http::{
-    cors::CorsLayer,
-    trace::TraceLayer,
-};
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
@@ -33,7 +30,6 @@ mod routes;
 
 use config::AppConfig;
 use middleware::key_provider::KeyProvider;
-
 
 /// Shared application state passed to all route handlers.
 pub struct AppState {
@@ -99,7 +95,7 @@ async fn main() -> anyhow::Result<()> {
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
-                .layer(cors_layer)
+                .layer(cors_layer),
         )
         // VR-3: Limit request bodies to 1 MiB to prevent DoS via large payloads.
         .layer(DefaultBodyLimit::max(1_048_576))
@@ -115,7 +111,7 @@ async fn main() -> anyhow::Result<()> {
 
 /// Build a CORS layer from a list of allowed origin strings.
 ///
-/// VR-3: Replaces CorsLayer::permissive() with an explicit allowlist.
+/// VR-3: Replaces permissive CORS layer with an explicit allowlist.
 /// An empty list disables cross-origin requests entirely (safest default).
 fn build_cors_layer(allowed_origins: &[String]) -> CorsLayer {
     if allowed_origins.is_empty() {

@@ -1,7 +1,7 @@
 // backend/src/config.rs
 // Application configuration loaded from environment variables.
 //
-// VR-3 (Security): Added cors_origins (allowlist replaces CorsLayer::permissive)
+// VR-3 (Security): Added cors_origins (allowlist replaces permissive CORS layer)
 // and key_provider_strategy (selects trusted key lookup strategy for VR-2).
 
 use anyhow::Result;

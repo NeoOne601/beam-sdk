@@ -20,11 +20,11 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Response},
 };
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
+use sqlx::Row;
 use std::sync::Arc;
 use uuid::Uuid;
-use sqlx::Row;
-use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
 
 /// Authenticated tenant context injected into every authenticated request.
 /// Handlers extract this via `Extension<TenantContext>`.
@@ -60,20 +60,15 @@ fn extract_credential(headers: &HeaderMap) -> Option<(&'static str, String)> {
 }
 
 /// Resolve an API key to a TenantContext by querying the `tenants` table.
-async fn resolve_api_key(
-    state: &Arc<AppState>,
-    api_key: &str,
-) -> Result<TenantContext, AppError> {
+async fn resolve_api_key(state: &Arc<AppState>, api_key: &str) -> Result<TenantContext, AppError> {
     // NOTE: In production, add an in-process LRU cache (e.g., moka) keyed by
     // api_key hash to avoid a DB round-trip on every request.
     // The cache TTL should be short (30–60 s) to allow rapid key revocation.
-    let row = sqlx::query(
-        "SELECT id, plan FROM tenants WHERE api_key = $1 LIMIT 1"
-    )
-    .bind(api_key)
-    .fetch_optional(&state.db_pool)
-    .await
-    .map_err(AppError::Database)?;
+    let row = sqlx::query("SELECT id, plan FROM tenants WHERE api_key = $1 LIMIT 1")
+        .bind(api_key)
+        .fetch_optional(&state.db_pool)
+        .await
+        .map_err(AppError::Database)?;
 
     match row {
         Some(r) => {
@@ -83,7 +78,7 @@ async fn resolve_api_key(
                 tenant_id: id,
                 plan,
             })
-        },
+        }
         None => Err(AppError::Unauthorized("Invalid API key".into())),
     }
 }
@@ -105,10 +100,7 @@ struct JwtClaims {
     exp: Option<usize>,
 }
 
-async fn resolve_jwt(
-    state: &Arc<AppState>,
-    token: &str,
-) -> Result<TenantContext, AppError> {
+async fn resolve_jwt(state: &Arc<AppState>, token: &str) -> Result<TenantContext, AppError> {
     // Read JWT_SECRET from environment. If absent, fall back to stub decode with warning.
     // In production this variable MUST be set. An unset JWT_SECRET is a security risk.
     let secret = std::env::var("JWT_SECRET").unwrap_or_default();
@@ -125,11 +117,9 @@ async fn resolve_jwt(
         if parts.len() < 2 {
             return Err(AppError::Unauthorized("Malformed JWT".into()));
         }
-        let payload_bytes = base64::Engine::decode(
-            &base64::engine::general_purpose::URL_SAFE_NO_PAD,
-            parts[1],
-        )
-        .map_err(|_| AppError::Unauthorized("JWT payload decode failed".into()))?;
+        let payload_bytes =
+            base64::Engine::decode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, parts[1])
+                .map_err(|_| AppError::Unauthorized("JWT payload decode failed".into()))?;
         let payload: serde_json::Value = serde_json::from_slice(&payload_bytes)
             .map_err(|_| AppError::Unauthorized("JWT payload not JSON".into()))?;
         payload
@@ -158,13 +148,10 @@ async fn resolve_jwt(
     let tenant_id = uuid::Uuid::parse_str(&tenant_id_str)
         .map_err(|_| AppError::Unauthorized("JWT tenant_id is not a valid UUID".into()))?;
 
-    let row = sqlx::query!(
-        "SELECT plan FROM tenants WHERE id = $1 LIMIT 1",
-        tenant_id
-    )
-    .fetch_optional(&state.db_pool)
-    .await
-    .map_err(AppError::Database)?;
+    let row = sqlx::query!("SELECT plan FROM tenants WHERE id = $1 LIMIT 1", tenant_id)
+        .fetch_optional(&state.db_pool)
+        .await
+        .map_err(AppError::Database)?;
 
     match row {
         Some(r) => Ok(TenantContext {

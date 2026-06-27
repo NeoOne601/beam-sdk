@@ -48,7 +48,6 @@ pub struct ScanResult {
     //
     // When None (SDK-only use, no backend), they are omitted from canonical_bytes()
     // for backward compatibility with callers that do not use the backend.
-
     /// Single-use nonce issued by the backend for this verification session.
     pub nonce: Option<String>,
     /// Backend session UUID string — ties this result to exactly one nonce.

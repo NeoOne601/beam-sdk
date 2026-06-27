@@ -9,6 +9,12 @@ pub struct EdDsaSigner {
     signing_key: ed25519_dalek::SigningKey,
 }
 
+impl Default for EdDsaSigner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EdDsaSigner {
     /// Generate a new Ed25519 keypair using the OS RNG.
     pub fn new() -> Self {

@@ -41,8 +41,8 @@ pub struct WebhookResponse {
 const BLOCKED_HOSTNAMES: &[&str] = &[
     "localhost",
     "metadata.google.internal",
-    "169.254.169.254",       // AWS/Azure/GCP instance metadata
-    "fd00::ec2",             // AWS IPv6 metadata
+    "169.254.169.254", // AWS/Azure/GCP instance metadata
+    "fd00::ec2",       // AWS IPv6 metadata
     "0.0.0.0",
     "::1",
     "[::1]",
@@ -67,27 +67,14 @@ fn is_ssrf_blocked_host(host: &str) -> bool {
 
     // Block IPv4 private ranges via prefix matching
     let ipv4_blocked_prefixes = [
-        "10.",          // RFC-1918 Class A
-        "172.16.",      // RFC-1918 Class B (172.16–31.x)
-        "172.17.",
-        "172.18.",
-        "172.19.",
-        "172.20.",
-        "172.21.",
-        "172.22.",
-        "172.23.",
-        "172.24.",
-        "172.25.",
-        "172.26.",
-        "172.27.",
-        "172.28.",
-        "172.29.",
-        "172.30.",
-        "172.31.",
-        "192.168.",     // RFC-1918 Class C
-        "127.",         // Loopback
-        "169.254.",     // Link-local / APIPA (includes AWS metadata 169.254.169.254)
-        "100.64.",      // Carrier-grade NAT (RFC 6598)
+        "10.",     // RFC-1918 Class A
+        "172.16.", // RFC-1918 Class B (172.16–31.x)
+        "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.", "172.23.", "172.24.",
+        "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.",
+        "192.168.", // RFC-1918 Class C
+        "127.",     // Loopback
+        "169.254.", // Link-local / APIPA (includes AWS metadata 169.254.169.254)
+        "100.64.",  // Carrier-grade NAT (RFC 6598)
     ];
     for prefix in &ipv4_blocked_prefixes {
         if host_lower.starts_with(prefix) {
@@ -138,7 +125,8 @@ fn validate_webhook_url(raw_url: &str) -> Result<(), AppError> {
     }
 
     // Block URL-encoded tricks (e.g., https://example.com@169.254.169.254/)
-    if let Some(userinfo) = parsed.username().is_empty().then_some(None).unwrap_or(Some(parsed.username())) {
+    if !parsed.username().is_empty() {
+        let userinfo = parsed.username();
         return Err(AppError::BadRequest(format!(
             "Webhook URL must not contain userinfo (got: '{}')",
             userinfo
@@ -267,7 +255,10 @@ pub async fn deliver_webhook(
         }
     }
 
-    tracing::error!(url = url, "Webhook delivery failed after all retries — dead lettered");
+    tracing::error!(
+        url = url,
+        "Webhook delivery failed after all retries — dead lettered"
+    );
     Err(anyhow::anyhow!(
         "Webhook delivery failed after {} attempts",
         backoff_delays.len()
@@ -320,7 +311,9 @@ mod tests {
 
     #[test]
     fn test_rejects_google_metadata() {
-        assert!(validate_webhook_url("https://metadata.google.internal/computeMetadata/v1/").is_err());
+        assert!(
+            validate_webhook_url("https://metadata.google.internal/computeMetadata/v1/").is_err()
+        );
     }
 
     #[test]

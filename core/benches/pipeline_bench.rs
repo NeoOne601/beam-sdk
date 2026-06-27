@@ -120,9 +120,11 @@ pub fn bench_session_state_machine(c: &mut Criterion) {
             session.record_quality_frame(); // triggers Inferring
             assert_eq!(session.state, SessionState::Inferring);
             let result = ScanResult {
-                fields: vec![
-                    DocumentField { key: "surname".into(), value: "SMITH".into(), confidence: 0.99 },
-                ],
+                fields: vec![DocumentField {
+                    key: "surname".into(),
+                    value: "SMITH".into(),
+                    confidence: 0.99,
+                }],
                 raw_mrz: None,
                 document_type: "passport".into(),
                 issuing_country: "USA".into(),

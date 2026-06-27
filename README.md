@@ -35,8 +35,7 @@ flowchart TD
 
     subgraph RL["Rust Layer — Business Logic — No GC"]
         GATES["Quality Gates\nBlur · Exposure · Motion · Boundary\nCPU only · target under 4 ms on Helio G85"]
-        SESSION["Session State Machine\nIdle → Scanning → Inferring → Complete / Failed"]
-        PQC["PQC Signer\nML-DSA Level 3 — FIPS 204\nmlock protected · volatile zero on Drop"]
+        PQC["Crypto Agility Registry\nEd25519 (Default) · ML-DSA-65\nmlock protected · volatile zero on Drop"]
     end
 
     subgraph CL["C++ Layer — ML Runtime Boundary"]
@@ -52,7 +51,7 @@ flowchart TD
     TFLITE -->|"beam_session_push_result()"| PQC
     COREML -->|"beam_session_push_result()"| PQC
     ONNXRT -->|"beam_session_push_result()"| PQC
-    PQC -->|"ScanResult + ML-DSA signature"| HOST["Host Application"]
+    PQC -->|"ScanResult + Signature + Algo ID"| HOST["Host Application"]
 
     classDef rust fill:#7c2d12,stroke:#fb923c,color:#fff,font-weight:bold
     classDef cpp fill:#1e3a8a,stroke:#60a5fa,color:#fff,font-weight:bold
@@ -383,8 +382,8 @@ sequenceDiagram
     CRYPTO-->>FFI: PqcSigner with mlock'd private key
     FFI->>RES: canonical_bytes() — sorted, length-prefixed, deterministic encoding
     FFI->>CRYPTO: signer.sign(canonical_bytes)
-    CRYPTO-->>FFI: 3309-byte detached ML-DSA signature
-    FFI->>RES: ScanResult with pqc_signature and pqc_public_key populated
+    CRYPTO-->>FFI: 3309-byte detached ML-DSA signature (or Ed25519)
+    FFI->>RES: ScanResult with signature, public_key, and algo populated
     FFI->>SESSION: session.complete(result) — state → Complete
     Note right of CRYPTO: PqcSigner::drop() immediately after sign().<br/>Volatile zero + munlock() on private key.
 ```
@@ -723,8 +722,13 @@ The active strategy is selected by environment variable (`KEY_PROVIDER_STRATEGY=
 ### Phase 1: Backend Persistence & Authentication
 - **Database Wiring**: Wired real PostgreSQL persistence into the `beam-verify-backend` using `sqlx`. The `/v1/verify` and `/v1/nonce` routes now write to the `verification_results` and `audit_logs` tables respectively, while `/v1/audit` retrieves scoped logs.
 - **JWT Verification**: Upgraded the authentication middleware (`backend/src/middleware/auth.rs`) to validate HS256 JWTs using the `jsonwebtoken` crate, securing endpoints per the VR-3 remediation design.
-- **SQLx Compilation**: Added `backend/.env` containing `DATABASE_URL` and modified the Dockerfile `ENV` to ensure `sqlx::query!` macros can introspect the live PostgreSQL schema during both local host runs and Docker builds.
 - **Build Upgrades**: Bumped the backend Dockerfile base image to `rust:1.92-slim` to satisfy Rust 2024 edition requirements (`idna_adapter` transient dependency). Updated the E2E validation script (`validate_pipeline_m1.sh`) to use `uv run` for reliable Python environment isolation when generating the synthetic ML model.
+
+### Phase 2: ADR-001 Cryptographic Agility Registry
+- **`beam-crypto` Crate**: Extracted signing logic into a standalone crate utilizing a `SignerRegistry` pattern with a global thread-safe `OnceLock` registry.
+- **Algorithm Support**: Implemented `Ed25519` (default legacy) and `ML-DSA-65` (FIPS 204 Dilithium-3, gated by `pqc`). ECDSA and Hybrid signers are structurally stubbed for future phases.
+- **Algorithm Negotiation**: Added the `POST /v1/session/init` backend endpoint allowing client and server to negotiate mutually supported signature algorithms before scanning begins.
+- **Expanded Payload**: `ScanResult` schema updated across all parsers and pipelines to include `algo`, `beam_version`, and `public_key` fields, ensuring verifiable provenance for multi-algorithm deployments.
 
 ---
 

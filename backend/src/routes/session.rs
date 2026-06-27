@@ -7,6 +7,7 @@ use uuid::Uuid;
 #[derive(Deserialize)]
 pub struct SessionInitRequest {
     pub client_supported: Vec<String>,
+    #[allow(dead_code)]
     pub client_preferred: String,
 }
 

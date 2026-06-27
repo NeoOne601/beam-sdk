@@ -330,8 +330,8 @@ pub unsafe extern "C" fn beam_session_push_result(
                     result.pqc_signature = sig;
                     result.pqc_public_key = signer.public_key_bytes();
                     result.algo = signer.algorithm_id().to_string();
-                    result.public_key = base64::engine::general_purpose::STANDARD
-                        .encode(signer.public_key_bytes());
+                    result.public_key =
+                        base64::engine::general_purpose::STANDARD.encode(signer.public_key_bytes());
                 }
             }
         }

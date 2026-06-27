@@ -19,6 +19,9 @@ mod tests {
             nonce: None,
             session_id: None,
             timestamp_iso: None,
+            algo: String::new(),
+            beam_version: String::from("2.0"),
+            public_key: String::new(),
         }
     }
 

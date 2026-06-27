@@ -1,0 +1,18 @@
+[package]
+name = "beam-crypto"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+thiserror = "1"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+pqcrypto-dilithium = { version = "0.5", optional = true }
+pqcrypto-traits = { version = "0.3", optional = true }
+
+[features]
+default = []
+pqc = ["pqcrypto-dilithium", "pqcrypto-traits"]

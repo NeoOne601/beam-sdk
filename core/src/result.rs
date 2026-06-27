@@ -56,6 +56,15 @@ pub struct ScanResult {
     /// UTC signing timestamp (Unix seconds as decimal string).
     /// Backend validates this is within an acceptable freshness window.
     pub timestamp_iso: Option<String>,
+
+    /// Signing algorithm identifier (e.g. "ed25519", "ml-dsa-65").
+    /// Empty string when no signing was performed.
+    pub algo: String,
+    /// Beam SDK version string. Always "2.0" for this release.
+    pub beam_version: String,
+    /// Base64-encoded public key bytes from the signer.
+    /// Empty string when no signing was performed.
+    pub public_key: String,
 }
 
 impl ScanResult {

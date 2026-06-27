@@ -103,6 +103,9 @@ pub fn bench_canonical_bytes(c: &mut Criterion) {
         nonce: None,
         session_id: None,
         timestamp_iso: None,
+        algo: String::new(),
+        beam_version: String::from("2.0"),
+        public_key: String::new(),
     };
 
     let mut group = c.benchmark_group("pqc_crypto");

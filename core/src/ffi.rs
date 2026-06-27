@@ -18,6 +18,7 @@ use crate::frame::RawFrame;
 use crate::quality::QualityGate;
 use crate::result::{DocumentField, ScanResult};
 use crate::session::{ScanSession, SessionConfig};
+use base64::Engine;
 use std::{boxed::Box, string::String, vec::Vec};
 
 // ─── FFI status codes (matches beam_ffi.h) ────────────────────────────────────
@@ -317,14 +318,22 @@ pub unsafe extern "C" fn beam_session_push_result(
         nonce,
         session_id,
         timestamp_iso,
+        algo: String::new(),
+        beam_version: String::from("2.0"),
+        public_key: String::new(),
     };
 
     if include_pqc_sig && session.config.pqc_sign_result {
-        if let Ok(signer) = crate::crypto::PqcSigner::generate(crate::crypto::MlDsaLevel::Level3) {
-            let canonical = result.canonical_bytes();
-            if let Ok(sig) = signer.sign(&canonical) {
-                result.pqc_signature = sig;
-                result.pqc_public_key = signer.public_key_bytes().to_vec();
+        if let Ok(registry) = beam_crypto::global_registry().read() {
+            if let Some(signer) = registry.preferred() {
+                let canonical = result.canonical_bytes();
+                if let Ok(sig) = signer.sign(&canonical) {
+                    result.pqc_signature = sig;
+                    result.pqc_public_key = signer.public_key_bytes();
+                    result.algo = signer.algorithm_id().to_string();
+                    result.public_key = base64::engine::general_purpose::STANDARD
+                        .encode(&signer.public_key_bytes());
+                }
             }
         }
     }
@@ -394,7 +403,10 @@ pub unsafe extern "C" fn beam_session_get_result_json(
         "issuing_country": result.issuing_country,
         "confidence": result.confidence,
         "pqc_signature_hex": hex::encode(&result.pqc_signature),
-        "pqc_public_key_hex": hex::encode(&result.pqc_public_key)
+        "pqc_public_key_hex": hex::encode(&result.pqc_public_key),
+        "algo": result.algo,
+        "beam_version": result.beam_version,
+        "public_key": result.public_key
     });
 
     let json_bytes = match serde_json::to_vec(&json_val) {

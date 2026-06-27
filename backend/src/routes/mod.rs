@@ -15,6 +15,7 @@ use std::sync::Arc;
 pub mod audit;
 pub mod health;
 pub mod nonce;
+pub mod session;
 pub mod verify;
 pub mod webhook;
 
@@ -26,6 +27,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/v1/verify", post(verify::verify_result))
         .route("/v1/audit", get(audit::list_audit_logs))
         .route("/v1/webhooks", post(webhook::register_webhook))
+        .route("/v1/session/init", post(session::session_init))
 }
 
 /// Unauthenticated route for container health probes.

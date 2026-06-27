@@ -110,6 +110,9 @@ mod tests {
             nonce: None,
             session_id: None,
             timestamp_iso: None,
+            algo: String::new(),
+            beam_version: String::from("2.0"),
+            public_key: String::new(),
         };
         let bytes1 = result.canonical_bytes();
         let bytes2 = result.canonical_bytes();
@@ -134,6 +137,9 @@ mod tests {
             nonce: None,
             session_id: None,
             timestamp_iso: None,
+            algo: String::new(),
+            beam_version: String::from("2.0"),
+            public_key: String::new(),
         };
         let result_b = ScanResult {
             fields: vec![
@@ -157,6 +163,9 @@ mod tests {
             nonce: None,
             session_id: None,
             timestamp_iso: None,
+            algo: String::new(),
+            beam_version: String::from("2.0"),
+            public_key: String::new(),
         };
         assert_eq!(
             result_a.canonical_bytes(),

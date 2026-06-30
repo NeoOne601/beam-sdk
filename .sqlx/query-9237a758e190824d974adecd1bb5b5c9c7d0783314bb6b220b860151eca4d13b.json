@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO verification_results\n            (id, tenant_id, session_id, document_type, issuing_country,\n             confidence, pqc_verified, pqc_public_key_hex, fraud_signals, key_id)\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text",
+        "Float8",
+        "Bool",
+        "Text",
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9237a758e190824d974adecd1bb5b5c9c7d0783314bb6b220b860151eca4d13b"
+}

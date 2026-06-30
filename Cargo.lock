@@ -216,6 +216,7 @@ dependencies = [
  "axum",
  "base64 0.21.7",
  "dotenvy",
+ "ed25519-dalek",
  "hex",
  "hmac",
  "jsonwebtoken",

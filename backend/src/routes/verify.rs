@@ -1,5 +1,5 @@
 // backend/src/routes/verify.rs
-// POST /v1/verify — Verify an ML-DSA signed scan result.
+// POST /v1/verify — Verify a scan result signature (ed25519, ml-dsa-65, or future algos).
 //
 // Security hardening (see README.md for full rationale):
 //   VR-1: Nonce is now bound into the signed canonical bytes — __nonce, __session_id,
@@ -15,6 +15,7 @@ use crate::errors::AppError;
 use crate::middleware::auth::TenantContext;
 use crate::AppState;
 use axum::{extract::State, Extension, Json};
+use base64::Engine as _;
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -50,6 +51,20 @@ pub struct ScanResultPayload {
 
     /// VR-1: The UTC timestamp (Unix seconds string) embedded in the signed bytes.
     pub signed_timestamp: String,
+
+    /// Algorithm used to sign this scan result.
+    /// Supported values: "ed25519", "ml-dsa-65".
+    pub algo: String,
+
+    /// Base64-encoded Ed25519 public key (32 bytes).
+    /// Only required when algo == "ed25519".
+    #[serde(default)]
+    pub public_key: String,
+
+    /// Raw bytes of the PQC (Dilithium-3 / ML-DSA-65) public key.
+    /// Only required when algo == "ml-dsa-65".
+    #[serde(default)]
+    pub pqc_public_key: Vec<u8>,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -133,19 +148,56 @@ pub async fn verify_result(
         .await?;
 
     // ── Step 7: Reconstruct canonical bytes (must mirror canonical_bytes() in core) ─
-    let canonical = reconstruct_canonical_bytes(&req.scan_result);
+    let canonical_bytes = reconstruct_canonical_bytes(&req.scan_result);
 
     // ── Step 8: Decode signature from base64 ────────────────────────────────────
-    let signature = base64::Engine::decode(
+    let sig_bytes = base64::Engine::decode(
         &base64::engine::general_purpose::STANDARD,
         &req.scan_result.pqc_signature,
     )
     .map_err(|e| AppError::BadRequest(format!("Invalid base64 signature: {}", e)))?;
 
-    // ── Step 9: Verify ML-DSA signature against the TRUSTED key ─────────────────
-    use crate::crypto::ml_dsa_verifier;
-    let verified =
-        ml_dsa_verifier::verify_dilithium3(&trusted_key.public_key_bytes, &canonical, &signature);
+    // ── Step 9: Dispatch verification by algorithm ───────────────────────────────
+    // The `algo` field in ScanResultPayload selects the verification path.
+    // ed25519 uses the base64-decoded public_key from the payload (client-side key
+    // transport); ml-dsa-65 uses the server-side trusted_key.public_key_bytes (VR-2).
+    let verified = match req.scan_result.algo.as_str() {
+        "ed25519" => {
+            let pub_key_bytes = base64::engine::general_purpose::STANDARD
+                .decode(&req.scan_result.public_key)
+                .map_err(|e| AppError::BadRequest(format!("Invalid public_key base64: {e}")))?;
+            crate::crypto::ed25519_verifier::verify_ed25519(
+                &canonical_bytes,
+                &sig_bytes,
+                &pub_key_bytes,
+            )
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e.to_string())))?
+        }
+        "ml-dsa-65" => crate::crypto::ml_dsa_verifier::verify_dilithium3(
+            &req.scan_result.pqc_public_key,
+            &canonical_bytes,
+            &sig_bytes,
+        ),
+        "ecdsa-p256" => {
+            return Err(AppError::BadRequest(
+                "ECDSA-P256 verification not yet implemented. \
+                 Use ed25519 or ml-dsa-65."
+                    .into(),
+            ));
+        }
+        "hybrid-ed25519-ml-dsa-65" => {
+            return Err(AppError::BadRequest(
+                "Hybrid verification not yet implemented. \
+                 Use ed25519 or ml-dsa-65."
+                    .into(),
+            ));
+        }
+        unknown => {
+            return Err(AppError::BadRequest(format!(
+                "Unknown algorithm: {unknown}. Supported: ed25519, ml-dsa-65"
+            )));
+        }
+    };
 
     // ── Step 10: Consume nonce ONLY after successful signature verification ───────
     // Consuming the nonce before verification would allow an attacker to exhaust
@@ -213,7 +265,7 @@ pub async fn verify_result(
 
     if !verified {
         return Err(AppError::SignatureInvalid(
-            "ML-DSA signature verification failed".into(),
+            "Signature verification failed".into(),
         ));
     }
 

@@ -27,6 +27,7 @@ hex = "0.4"
 dotenvy = "0.15"
 base64 = "0.21"
 rand = "0.8"
+ed25519-dalek = { version = "2" }
 # VR-5: URL parsing for SSRF protection in webhook route
 url = "2.5"
 jsonwebtoken = "9"

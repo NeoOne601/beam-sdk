@@ -137,6 +137,7 @@ pub fn bench_session_state_machine(c: &mut Criterion) {
                 algo: String::new(),
                 beam_version: String::from("2.0"),
                 public_key: String::new(),
+                jws_token: None,
             };
             session.complete(result);
             assert_eq!(session.state, SessionState::Complete);

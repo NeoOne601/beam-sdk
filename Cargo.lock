@@ -200,6 +200,7 @@ dependencies = [
 name = "beam-crypto"
 version = "0.1.0"
 dependencies = [
+ "base64 0.21.7",
  "ed25519-dalek",
  "pqcrypto-dilithium",
  "pqcrypto-traits",

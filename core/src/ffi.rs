@@ -320,6 +320,7 @@ pub unsafe extern "C" fn beam_session_push_result(
         algo: String::new(),
         beam_version: String::from("2.0"),
         public_key: String::new(),
+        jws_token: None,
     };
 
     if include_pqc_sig && session.config.pqc_sign_result {
@@ -332,6 +333,13 @@ pub unsafe extern "C" fn beam_session_push_result(
                     result.algo = signer.algorithm_id().to_string();
                     result.public_key =
                         base64::engine::general_purpose::STANDARD.encode(signer.public_key_bytes());
+                    // Produce compact JWS for classical algorithms (ed25519, ecdsa-p256).
+                    // Returns None for ml-dsa-65, hybrid, and on signing failure.
+                    result.jws_token = beam_crypto::jws::produce_jws(
+                        &canonical,
+                        signer.algorithm_id(),
+                        signer.as_ref(),
+                    );
                 }
             }
         }
@@ -405,7 +413,8 @@ pub unsafe extern "C" fn beam_session_get_result_json(
         "pqc_public_key_hex": hex::encode(&result.pqc_public_key),
         "algo": result.algo,
         "beam_version": result.beam_version,
-        "public_key": result.public_key
+        "public_key": result.public_key,
+        "jws_token": result.jws_token
     });
 
     let json_bytes = match serde_json::to_vec(&json_val) {

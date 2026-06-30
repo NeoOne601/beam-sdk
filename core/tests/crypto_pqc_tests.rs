@@ -113,6 +113,7 @@ mod tests {
             algo: String::new(),
             beam_version: String::from("2.0"),
             public_key: String::new(),
+            jws_token: None,
         };
         let bytes1 = result.canonical_bytes();
         let bytes2 = result.canonical_bytes();
@@ -148,6 +149,7 @@ mod tests {
             algo: String::new(),
             beam_version: String::from("2.0"),
             public_key: String::new(),
+            jws_token: None,
         };
         let result_b = ScanResult {
             fields: vec![
@@ -174,6 +176,7 @@ mod tests {
             algo: String::new(),
             beam_version: String::from("2.0"),
             public_key: String::new(),
+            jws_token: None,
         };
         assert_eq!(
             result_a.canonical_bytes(),
@@ -239,5 +242,30 @@ mod tests {
             "Signature must not be all-zeros (stub detection)"
         );
         let _ = found; // public key search result is informational only
+    }
+
+    // ─── HybridSigner (Ed25519 + ML-DSA-65) ───────────────────────────────────
+
+    #[test]
+    fn test_hybrid_signer_roundtrip() {
+        use beam_crypto::{BeamSigner, EdDsaSigner, HybridSigner, MlDsaSigner};
+        let ed_signer = Box::new(EdDsaSigner::new());
+        let ml_signer = Box::new(MlDsaSigner::new());
+        let hybrid = HybridSigner::new("hybrid-ed25519-ml-dsa-65", ed_signer, ml_signer);
+        
+        let message = b"hybrid signed canonical bytes";
+        let sig = hybrid.sign(message).expect("hybrid signing must succeed");
+        
+        // Verify with correct message
+        let ok = hybrid.verify(message, &sig).expect("hybrid verify must not return error on valid input");
+        assert!(ok, "hybrid sign→verify round-trip must return true");
+
+        // Verify with tampered message
+        let tampered = b"tampered signed canonical bytes";
+        let result = hybrid.verify(tampered, &sig);
+        match result {
+            Ok(valid) => assert!(!valid, "verification of tampered hybrid message must return Ok(false)"),
+            Err(_) => { /* MAC/Verification failure is also acceptable */ }
+        }
     }
 }

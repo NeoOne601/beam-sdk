@@ -64,6 +64,12 @@ pub struct ScanResult {
     /// Base64-encoded public key bytes from the signer.
     /// Empty string when no signing was performed.
     pub public_key: String,
+    /// Compact JWS token (header.payload.signature) for classical algorithms only.
+    /// Produced alongside pqc_signature for "ed25519" and "ecdsa-p256".
+    /// Always None for "ml-dsa-65", "hybrid-*", and unsigned results.
+    /// JWS signs the same canonical_bytes() as pqc_signature — it is an
+    /// additional output format, NOT a replacement for the PQC signature.
+    pub jws_token: Option<String>,
 }
 
 impl ScanResult {

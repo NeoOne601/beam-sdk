@@ -2,7 +2,7 @@ use crate::signer::{BeamSigner, SignerError};
 use std::boxed::Box;
 
 /// A flexible hybrid signer that combines two cryptographic signers.
-/// 
+///
 /// It generates length-prefixed binary concatenations of the signatures
 /// and public keys produced by both inner signers.
 pub struct HybridSigner {
@@ -41,26 +41,32 @@ impl BeamSigner for HybridSigner {
 
     fn verify(&self, payload: &[u8], sig: &[u8]) -> Result<bool, SignerError> {
         if sig.len() < 8 {
-            return Err(SignerError::VerificationFailed("Hybrid signature too short".into()));
+            return Err(SignerError::VerificationFailed(
+                "Hybrid signature too short".into(),
+            ));
         }
 
         // Parse classical signature
         let mut offset = 0;
-        let len1 = u32::from_le_bytes(sig[offset..offset+4].try_into().unwrap()) as usize;
+        let len1 = u32::from_le_bytes(sig[offset..offset + 4].try_into().unwrap()) as usize;
         offset += 4;
         if sig.len() < offset + len1 + 4 {
-            return Err(SignerError::VerificationFailed("Hybrid signature length mismatch".into()));
+            return Err(SignerError::VerificationFailed(
+                "Hybrid signature length mismatch".into(),
+            ));
         }
-        let sig1 = &sig[offset..offset+len1];
+        let sig1 = &sig[offset..offset + len1];
         offset += len1;
 
         // Parse PQC signature
-        let len2 = u32::from_le_bytes(sig[offset..offset+4].try_into().unwrap()) as usize;
+        let len2 = u32::from_le_bytes(sig[offset..offset + 4].try_into().unwrap()) as usize;
         offset += 4;
         if sig.len() < offset + len2 {
-            return Err(SignerError::VerificationFailed("Hybrid signature length mismatch".into()));
+            return Err(SignerError::VerificationFailed(
+                "Hybrid signature length mismatch".into(),
+            ));
         }
-        let sig2 = &sig[offset..offset+len2];
+        let sig2 = &sig[offset..offset + len2];
 
         // Verify both
         let v1 = self.classical.verify(payload, sig1)?;

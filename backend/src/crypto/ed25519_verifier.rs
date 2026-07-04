@@ -9,8 +9,14 @@ use ed25519_dalek::{Signature, VerifyingKey};
 /// Errors that can occur during Ed25519 signature verification.
 #[derive(Debug)]
 pub enum Ed25519VerifyError {
-    InvalidPublicKeyLength { expected: usize, got: usize },
-    InvalidSignatureLength { expected: usize, got: usize },
+    InvalidPublicKeyLength {
+        expected: usize,
+        got: usize,
+    },
+    InvalidSignatureLength {
+        expected: usize,
+        got: usize,
+    },
     InvalidPublicKeyBytes(String),
     InvalidSignatureBytes(String),
     #[allow(dead_code)]
@@ -78,8 +84,8 @@ pub fn verify_ed25519(
     }
 
     // Construct VerifyingKey from the 32-byte array.
-    let pk_array: &[u8; 32] = <&[u8; 32]>::try_from(public_key_bytes)
-        .expect("length already checked to be exactly 32");
+    let pk_array: &[u8; 32] =
+        <&[u8; 32]>::try_from(public_key_bytes).expect("length already checked to be exactly 32");
     let verifying_key = VerifyingKey::from_bytes(pk_array)
         .map_err(|e| Ed25519VerifyError::InvalidPublicKeyBytes(e.to_string()))?;
 

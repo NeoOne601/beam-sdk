@@ -46,10 +46,7 @@ pub fn produce_jws(
     // b64=false signals unencoded payload (RFC 7797); we include it for
     // interoperability documentation, even though we encode the payload below
     // for compact serialisation compatibility.
-    let header_json = format!(
-        r#"{{"alg":"{}","b64":false,"typ":"JWT"}}"#,
-        jose_alg
-    );
+    let header_json = format!(r#"{{"alg":"{}","b64":false,"typ":"JWT"}}"#, jose_alg);
     let header_b64 = URL_SAFE_NO_PAD.encode(header_json.as_bytes());
 
     // ── 2. Base64url-encode the canonical payload ─────────────────────────────

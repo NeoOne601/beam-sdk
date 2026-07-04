@@ -252,19 +252,24 @@ mod tests {
         let ed_signer = Box::new(EdDsaSigner::new());
         let ml_signer = Box::new(MlDsaSigner::new());
         let hybrid = HybridSigner::new("hybrid-ed25519-ml-dsa-65", ed_signer, ml_signer);
-        
+
         let message = b"hybrid signed canonical bytes";
         let sig = hybrid.sign(message).expect("hybrid signing must succeed");
-        
+
         // Verify with correct message
-        let ok = hybrid.verify(message, &sig).expect("hybrid verify must not return error on valid input");
+        let ok = hybrid
+            .verify(message, &sig)
+            .expect("hybrid verify must not return error on valid input");
         assert!(ok, "hybrid sign→verify round-trip must return true");
 
         // Verify with tampered message
         let tampered = b"tampered signed canonical bytes";
         let result = hybrid.verify(tampered, &sig);
         match result {
-            Ok(valid) => assert!(!valid, "verification of tampered hybrid message must return Ok(false)"),
+            Ok(valid) => assert!(
+                !valid,
+                "verification of tampered hybrid message must return Ok(false)"
+            ),
             Err(_) => { /* MAC/Verification failure is also acceptable */ }
         }
     }

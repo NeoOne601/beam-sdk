@@ -1,6 +1,6 @@
+pub mod jws;
 pub mod signer;
 pub mod signers;
-pub mod jws;
 
 pub use signer::{BeamSigner, SignerError, SignerRegistry};
 pub use signers::*;

@@ -23,7 +23,7 @@ pub struct SessionInitError {
     pub error: String,
 }
 
-const SERVER_SUPPORTED: &[&str] = &["ed25519", "ml-dsa-65"];
+const SERVER_SUPPORTED: &[&str] = &["hybrid-ed25519-ml-dsa-65", "ed25519", "ml-dsa-65"];
 
 pub async fn session_init(
     Json(req): Json<SessionInitRequest>,

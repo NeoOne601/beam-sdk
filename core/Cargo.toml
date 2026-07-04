@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
-beam-crypto = { path = "../crates/beam-crypto" }
+beam-crypto = { path = "../crates/beam-crypto", features = ["pqc"] }
 base64 = "0.21"
 pqcrypto-dilithium = { version = "0.5.0", default-features = false, features = ["std"] }
 pqcrypto-kyber = { version = "0.8.1", default-features = false, features = ["std"] }

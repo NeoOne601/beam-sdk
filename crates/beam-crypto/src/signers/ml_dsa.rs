@@ -23,6 +23,13 @@ impl MlDsaSigner {
 }
 
 #[cfg(feature = "pqc")]
+impl Default for MlDsaSigner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "pqc")]
 impl BeamSigner for MlDsaSigner {
     fn algorithm_id(&self) -> &'static str {
         "ml-dsa-65"

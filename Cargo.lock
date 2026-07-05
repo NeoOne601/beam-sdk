@@ -37,6 +37,7 @@ dependencies = [
  "pqcrypto-dilithium",
  "pqcrypto-kyber",
  "pqcrypto-traits",
+ "serde",
  "serde_json",
  "wasm-bindgen",
 ]
@@ -59,6 +60,24 @@ dependencies = [
  "pqcrypto-traits",
  "rand",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ajna-idv"
+version = "0.1.0"
+dependencies = [
+ "ajna-core",
+ "ajna-crypto",
+]
+
+[[package]]
+name = "ajna-intel"
+version = "0.1.0"
+dependencies = [
+ "ajna-crypto",
+ "base64 0.21.7",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -92,6 +111,16 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "ajna-vision"
+version = "0.1.0"
+dependencies = [
+ "ajna-crypto",
+ "base64 0.21.7",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

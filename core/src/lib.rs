@@ -22,6 +22,7 @@ pub mod pipeline;
 pub mod quality;
 pub mod result;
 pub mod session;
+pub mod ui_config;
 
 // ─── Public API surface re-exports ───────────────────────────────────────────
 
@@ -29,9 +30,9 @@ pub use crypto::{CryptoError, MlDsaLevel, MlKemSession, PqcSigner};
 pub use ffi::{
     ajna_gate_create, ajna_gate_destroy, ajna_gate_evaluate, ajna_session_create,
     ajna_session_destroy, ajna_session_get_result_json, ajna_session_get_state,
-    ajna_session_push_result, ajna_session_start, AjnaGateHandle, AjnaSessionHandle, CField,
-    AJNA_ERR_INVALID_FRAME, AJNA_ERR_NULL_HANDLE, AJNA_ERR_NULL_PTR, AJNA_ERR_OUT_OF_RANGE,
-    AJNA_OK,
+    ajna_session_push_result, ajna_session_start, ajna_ui_config_validate, AjnaGateHandle,
+    AjnaSessionHandle, CField, AJNA_ERR_INVALID_CONFIG, AJNA_ERR_INVALID_FRAME,
+    AJNA_ERR_NULL_HANDLE, AJNA_ERR_NULL_PTR, AJNA_ERR_OUT_OF_RANGE, AJNA_OK,
 };
 pub use field_parser::{FieldParser, ParseError, ParsedDocument};
 pub use frame::{FrameError, OwnedFrame, PixelFormat, RawFrame};
@@ -39,3 +40,6 @@ pub use pipeline::{FramePipeline, PipelineResult};
 pub use quality::{Gate, QualityGate, QualityReport};
 pub use result::{DocumentField, ScanResult};
 pub use session::{ScanSession, SessionConfig, SessionState};
+pub use ui_config::{
+    OverlayShape, UiAnimations, UiBranding, UiConfig, UiConfigError, UiMode, UiOverlay, UiTheme,
+};

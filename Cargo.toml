@@ -1,5 +1,13 @@
 [workspace]
-members = ["core", "backend", "core/fuzz", "crates/ajna-crypto"]
+members = [
+    "core",
+    "backend",
+    "core/fuzz",
+    "crates/ajna-crypto",
+    "crates/ajna-idv",
+    "crates/ajna-intel",
+    "crates/ajna-vision",
+]
 resolver = "2"
 
 # Moved here from core/Cargo.toml: profiles in non-root packages are ignored.

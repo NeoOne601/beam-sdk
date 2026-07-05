@@ -1,0 +1,11 @@
+[package]
+name = "ajna-intel"
+version = "0.1.0"
+edition = "2021"
+description = "Ajna Intel — device posture and integrity intelligence"
+
+[dependencies]
+ajna-crypto = { path = "../ajna-crypto", features = ["pqc"] }
+base64 = "0.21"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

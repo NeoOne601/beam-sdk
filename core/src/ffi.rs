@@ -27,6 +27,7 @@ pub const AJNA_ERR_NULL_HANDLE: i32 = -1;
 pub const AJNA_ERR_NULL_PTR: i32 = -2;
 pub const AJNA_ERR_OUT_OF_RANGE: i32 = -3;
 pub const AJNA_ERR_INVALID_FRAME: i32 = -4;
+pub const AJNA_ERR_INVALID_CONFIG: i32 = -5;
 
 /// Maximum number of CField entries accepted per push_result call.
 /// Prevents excessive heap allocation from a malicious bridge.
@@ -429,4 +430,41 @@ pub unsafe extern "C" fn ajna_session_get_result_json(
     core::ptr::copy_nonoverlapping(json_bytes.as_ptr(), out_buf, json_bytes.len());
     out_buf.add(json_bytes.len()).write(0u8); // null terminator
     json_bytes.len() as i32
+}
+
+// ─── Declarative UI configuration validation ─────────────────────────────────
+
+/// Maximum accepted UI config document size (bytes). A capture-UI theme has
+/// no business being larger than this; the cap bounds FFI allocation.
+const MAX_UI_CONFIG_LEN: usize = 64 * 1024;
+
+/// Validate a declarative UI configuration JSON document (UTF-8, not
+/// necessarily NUL-terminated). Platform shells call this once before
+/// applying a client-supplied theme, so a malformed config is rejected at
+/// the boundary instead of mid-capture.
+///
+/// Returns AJNA_OK (0) when the document parses and passes validation,
+/// AJNA_ERR_NULL_PTR / AJNA_ERR_OUT_OF_RANGE for boundary violations, and
+/// AJNA_ERR_INVALID_CONFIG (-5) for malformed JSON, bad colors, or values
+/// outside product limits.
+///
+/// FFI contract: `json_utf8` must be valid for `len` bytes for the duration
+/// of the call only; the buffer may be freed immediately after return.
+#[no_mangle]
+pub extern "C" fn ajna_ui_config_validate(json_utf8: *const u8, len: usize) -> i32 {
+    if json_utf8.is_null() {
+        return AJNA_ERR_NULL_PTR;
+    }
+    if len == 0 || len > MAX_UI_CONFIG_LEN {
+        return AJNA_ERR_OUT_OF_RANGE;
+    }
+    // Safety: FFI contract above — pointer valid for `len` bytes during this call.
+    let bytes = unsafe { core::slice::from_raw_parts(json_utf8, len) };
+    let Ok(json) = core::str::from_utf8(bytes) else {
+        return AJNA_ERR_INVALID_CONFIG;
+    };
+    match crate::ui_config::UiConfig::from_json(json) {
+        Ok(_) => AJNA_OK,
+        Err(_) => AJNA_ERR_INVALID_CONFIG,
+    }
 }

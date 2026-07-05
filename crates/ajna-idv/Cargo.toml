@@ -1,0 +1,9 @@
+[package]
+name = "ajna-idv"
+version = "0.1.0"
+edition = "2021"
+description = "Ajna IDV — document scanning and identity verification product facade"
+
+[dependencies]
+ajna-core = { path = "../../core", features = ["mlock"] }
+ajna-crypto = { path = "../ajna-crypto", features = ["pqc"] }

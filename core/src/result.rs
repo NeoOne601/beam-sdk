@@ -23,7 +23,7 @@ pub struct DocumentField {
 /// The complete output of a Ajna scan session.
 /// Produced by the Rust session after C++ inference pushes a result.
 /// Optionally PQC-signed before delivery to the host application.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ScanResult {
     /// All extracted document fields, in unspecified order.
     /// canonical_bytes() sorts them deterministically.

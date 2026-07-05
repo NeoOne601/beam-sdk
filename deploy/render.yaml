@@ -1,0 +1,28 @@
+# Ajna backend on Render free tier (Blueprint).
+# Render → New → Blueprint → point at this repo. Set DATABASE_URL / REDIS_URL /
+# JWT_SECRET as secret env vars in the dashboard (not committed here).
+services:
+  - type: web
+    name: ajna-verify
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: .            # repo root — backend has path deps on crates/
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: DB_MAX_CONNECTIONS
+        value: "5"
+      - key: DB_REQUIRE_TLS
+        value: "true"
+      - key: RUST_LOG
+        value: "ajna_verify_backend=info"
+      - key: DATABASE_URL
+        sync: false            # set in Render dashboard (Neon/Supabase URL)
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false            # your Vercel dashboard origin

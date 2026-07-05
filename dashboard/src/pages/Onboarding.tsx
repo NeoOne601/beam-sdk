@@ -34,10 +34,15 @@ export function Onboarding() {
 
   return (
     <div>
-      <h1 className="page-title">60-Minute Integration</h1>
-      <p className="page-subtitle">
-        Five steps from zero to a signed, compliant verification in production.
-      </p>
+      <div className="hud-bar">
+        <div>
+          <h1 className="page-title">60-Minute Integration</h1>
+          <p className="page-subtitle">
+            Five steps from zero to a signed, compliant verification in production.
+          </p>
+        </div>
+        <span className="hud-coord">OPS//ONBOARD</span>
+      </div>
 
       <div className="steps">
         {STEPS.map((label, i) => (

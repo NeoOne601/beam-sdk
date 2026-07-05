@@ -33,11 +33,16 @@ export function UiCustomizer() {
 
   return (
     <div>
-      <h1 className="page-title">UI Customizer</h1>
-      <p className="page-subtitle">
-        Edit the declarative capture-UI config. Export produces JSON the SDK validates via{" "}
-        <code>ajna_ui_config_validate</code> — one schema, portal to device.
-      </p>
+      <div className="hud-bar">
+        <div>
+          <h1 className="page-title">UI Customizer</h1>
+          <p className="page-subtitle">
+            Declarative capture-UI config. Export is validated by the SDK via{" "}
+            <code>ajna_ui_config_validate</code> — one schema, portal to device.
+          </p>
+        </div>
+        <span className="hud-coord">CFG//CAPTURE-UI</span>
+      </div>
 
       <div className="row" style={{ gridTemplateColumns: "1fr 300px", alignItems: "start" }}>
         <div>

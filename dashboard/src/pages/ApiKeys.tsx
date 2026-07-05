@@ -49,11 +49,16 @@ export function ApiKeys() {
 
   return (
     <div>
-      <h1 className="page-title">API Keys</h1>
-      <p className="page-subtitle">
-        Keys map to the backend's <code>KEY_PROVIDER_STRATEGY</code> (tenant / device / model).
-        Secret material is shown once at creation and never stored by the portal.
-      </p>
+      <div className="hud-bar">
+        <div>
+          <h1 className="page-title">API Keys</h1>
+          <p className="page-subtitle">
+            Keys map to the backend's <code>KEY_PROVIDER_STRATEGY</code> (tenant / device / model).
+            Secret material is shown once at creation and never stored by the portal.
+          </p>
+        </div>
+        <span className="hud-coord">SEC//KEYS</span>
+      </div>
 
       <div className="card">
         <div className="card-title">Create a key</div>

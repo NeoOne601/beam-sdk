@@ -62,9 +62,14 @@ async fn main() -> anyhow::Result<()> {
 
     let config = AppConfig::from_env()?;
 
-    // Connect to PostgreSQL
-    let db_pool = sqlx::PgPool::connect(&config.database_url).await?;
-    tracing::info!("Connected to PostgreSQL");
+    // Connect to PostgreSQL via an env-tuned pool. Same binary runs against
+    // local Docker Postgres, serverless Neon, or Supabase — only env changes.
+    let pool_config = db::pool::PoolConfig::from_env();
+    let db_pool = db::pool::connect(&config.database_url, &pool_config).await?;
+    tracing::info!(
+        max_connections = pool_config.max_connections,
+        "Connected to PostgreSQL (pooled)"
+    );
 
     // Connect to Redis
     let redis = redis::Client::open(config.redis_url.as_str())?;

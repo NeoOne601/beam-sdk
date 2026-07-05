@@ -23,6 +23,10 @@ export interface ChainReport {
   first_broken_seq: number | null;
 }
 
+/** Backend base URL baked in at build time (set VITE_API_BASE in Vercel). */
+export const DEFAULT_API_BASE: string =
+  (import.meta.env.VITE_API_BASE as string | undefined) ?? "http://localhost:8080";
+
 export class AjnaClient {
   constructor(private baseUrl: string, private apiKey: string) {}
 

@@ -1,0 +1,34 @@
+# Ajna backend on Fly.io free tier.
+#   fly launch --no-deploy --copy-config   # first time, from repo root
+#   fly secrets set DATABASE_URL=... REDIS_URL=... JWT_SECRET=...
+#   fly deploy
+# Build uses backend/Dockerfile with the repo root as context (path deps).
+app = "ajna-verify"
+primary_region = "iad"
+
+[build]
+  dockerfile = "backend/Dockerfile"
+
+[env]
+  PORT = "8080"
+  DB_MAX_CONNECTIONS = "5"
+  DB_REQUIRE_TLS = "true"        # Neon/Supabase mandate TLS
+  RUST_LOG = "ajna_verify_backend=info"
+  # CORS_ALLOWED_ORIGINS set via `fly secrets` to your dashboard origin.
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"     # scale to zero when idle (free-tier friendly)
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/health"
+    interval = "30s"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"                # matches the local 256m budget

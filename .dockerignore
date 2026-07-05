@@ -1,0 +1,7 @@
+target/
+**/target/
+dashboard/node_modules/
+dashboard/dist/
+.git/
+graphify-out/
+*.md

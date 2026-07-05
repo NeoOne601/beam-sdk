@@ -19,7 +19,8 @@ export function App() {
   return (
     <div className="app">
       <nav className="sidebar">
-        <div className="sidebar-logo">◈ Ajna</div>
+        <div className="sidebar-logo">◈ AJNA</div>
+        <div className="sidebar-tag">Integration Console</div>
         {NAV.map((item) => (
           <button
             key={item.id}

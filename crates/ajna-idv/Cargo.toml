@@ -7,3 +7,4 @@ description = "Ajna IDV — document scanning and identity verification product 
 [dependencies]
 ajna-core = { path = "../../core", features = ["mlock"] }
 ajna-crypto = { path = "../ajna-crypto", features = ["pqc"] }
+base64 = "0.21"

@@ -6,9 +6,11 @@
 // and the signed `VisionResult` that carries the verdict to the backend
 // with the same ajna-crypto PQC provenance as every other Ajna pillar.
 
+pub mod landmarks;
 pub mod liveness;
 pub mod matcher;
 
+pub use landmarks::{FaceLandmarks, GestureThresholds, LandmarkError, Point3};
 pub use liveness::{
     Challenge, ChallengeObservation, FailReason, LivenessConfig, LivenessConfigError,
     LivenessSession, LivenessState, SubmitOutcome,

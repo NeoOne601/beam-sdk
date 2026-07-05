@@ -26,6 +26,13 @@ Before making any non-trivial changes or starting a `/goal` loop, you **must** r
 - **Indian National Quantum Mission (NQM):** The `ajna-crypto` crate must align with Indian Quantum Mission standards, ensuring cryptographic agility (e.g., dynamic negotiation of ML-DSA and classical algorithms).
 - **Zero Plagiarism:** The architecture must remain entirely unique and cannot plagiarize proprietary architectures (e.g., Ajna.com).
 
+## UI/UX Design System (Palantir/Defense Aesthetic)
+The dashboard and portal must adopt a premium, tactical, defense-grade aesthetic (similar to Palantir Foundry/Gotham interface paradigms):
+- **Tactical Theme:** Deep charcoal/slate backgrounds (`#0a0d14`), high-contrast state indicators (muted military greens for trust, amber for suspicious warnings, low-intensity cyber red for compromised threats), and monospaced telemetry fonts (e.g., JetBrains Mono, SF Mono) for numeric metrics and cryptographic hashes.
+- **F-Pattern Layout:** Design dashboards following the F-reading pattern. Put high-level status signals and navigation on the top/left, critical telemetry and trends in the middle, and primary actions/workflows on the right.
+- **Progressive Disclosure:** Keep interfaces highly clean. Surface only critical verdicts initially. Hide deep-dive data (such as raw JWS envelopes, base64 PQC public keys, and DB hash-chain trees) behind collapsible modules, drawers, or accordion structures.
+- **High-Productivity UX:** Minimize user typing. Onboarding steps must feature instant code-copying. The UI Customizer should use sliders, color pickers, and live-rendered toggle mockups instead of text input.
+
 ## The Barbell Strategy for Execution (For Claude Code)
 When executing `/goal`, you must use the Barbell Strategy:
 1. **First 10% (Planning):** You (Fable 5) map out the architectural steps, read `CLAUDE.md` and `memory.md`, and write out the spec. **CRITICAL FIRST CHECK:** Before writing any code, you must review the existing architecture decisions in `README.md` to ensure they maintain blazing fast performance on a budget Helio G85 device, guarantee zero-copy frame delivery across HAL implementations, and gracefully degrade when the ANE (Apple Neural Engine) or hardware accelerators are unavailable. You must also verify the architecture sets Ajna up to be the most secure, highly customizable, and absolute best-in-class product on the market. Furthermore, plan the abstraction layer that allows client businesses to fully customize the SDK's capture UI or run it headlessly.

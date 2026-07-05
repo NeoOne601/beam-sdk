@@ -14,8 +14,10 @@
 // signing stay in ajna-core. This crate decides *product* shape only.
 
 mod headless;
+mod ocr;
 
 pub use headless::{HeadlessError, HeadlessScanner};
+pub use ocr::{sign_result, DocumentKind, DocumentParser, OcrEngine, OcrError, OcrText};
 
 // Re-exported engine surface so integrators depend on ajna-idv alone.
 pub use ajna_core::{

@@ -8,8 +8,8 @@
 
 #[cfg(test)]
 mod tests {
-    use beam_core::frame::{PixelFormat, RawFrame};
-    use beam_core::quality::{Gate, QualityGate};
+    use ajna_core::frame::{PixelFormat, RawFrame};
+    use ajna_core::quality::{Gate, QualityGate};
 
     // ─── Helper: create a synthetic RawFrame from a Vec<u8> Y plane ──────────
 

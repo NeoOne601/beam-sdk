@@ -221,10 +221,10 @@ pub async fn deliver_webhook(
         let mut request = client
             .post(url)
             .header("Content-Type", "application/json")
-            .header("User-Agent", "BeamVerify/0.1.0");
+            .header("User-Agent", "AjnaVerify/0.1.0");
 
         if let Some(ref sig) = signature {
-            request = request.header("X-Beam-Signature", sig.as_str());
+            request = request.header("X-Ajna-Signature", sig.as_str());
         }
 
         match request.body(body.clone()).send().await {
@@ -271,12 +271,12 @@ mod tests {
 
     #[test]
     fn test_valid_https_url() {
-        assert!(validate_webhook_url("https://hooks.example.com/beam/events").is_ok());
+        assert!(validate_webhook_url("https://hooks.example.com/ajna/events").is_ok());
     }
 
     #[test]
     fn test_rejects_http() {
-        assert!(validate_webhook_url("http://hooks.example.com/beam").is_err());
+        assert!(validate_webhook_url("http://hooks.example.com/ajna").is_err());
     }
 
     #[test]

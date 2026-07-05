@@ -1,10 +1,10 @@
-# Beam SDK — Architecture & PQC Security Whitepaper
+# Ajna SDK — Architecture & PQC Security Whitepaper
 
 ## Overview
 
-Beam is Surt AI's cross-platform document scanning SDK, designed to deliver
+Ajna is Ajna AI's cross-platform document scanning SDK, designed to deliver
 post-quantum cryptographically signed identity verification results from native
-mobile and web applications to the Surt compliance backend.
+mobile and web applications to the Ajna compliance backend.
 
 ## Architecture
 
@@ -24,7 +24,7 @@ mobile and web applications to the Surt compliance backend.
 │   Raw pointer math at inference boundary ONLY                   │
 └────────────────────────────┬────────────────────────────────────┘
                              │ exactly ONE FFI call per accepted frame
-                             │ beam_session_push_result()
+                             │ ajna_session_push_result()
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │ Rust (all business logic)                                       │
@@ -53,12 +53,12 @@ Frame arrives
 [Gate 4: Boundary] — Sobel edge density > 0.08
      │ fail → QualityReport(gate=BoundaryCheck)
      ▼
-Gate::Accepted → C++ inference → beam_session_push_result()
+Gate::Accepted → C++ inference → ajna_session_push_result()
 ```
 
 ### Zero-Copy Frame Path
 
-- **iOS**: `CVPixelBuffer` locked `.readOnly` by `BeamCameraAdapter` before `didReceiveFrame`. Unlocked immediately after `beam_coreml_process()` returns. No copy.
+- **iOS**: `CVPixelBuffer` locked `.readOnly` by `AjnaCameraAdapter` before `didReceiveFrame`. Unlocked immediately after `ajna_coreml_process()` returns. No copy.
 - **Android**: `AHardwareBuffer` imported via `TfLiteInterpreterSetAHardwareBufferInput` (GPU delegate path). CPU path: locked with `AHardwareBuffer_lock`, copied to tensor, unlocked immediately.
 - **WASM**: `ImageData → OwnedFrame` copy is **mandatory and documented**. The JS heap is not accessible to ONNX Runtime's C++ allocator. This is an expected cost at ~5 MB/s for 25fps/1080p.
 
@@ -76,7 +76,7 @@ Gate::Accepted → C++ inference → beam_session_push_result()
 
 ### ML-DSA (FIPS 204 — CRYSTALS-Dilithium)
 
-Beam uses Dilithium-3 (ML-DSA Level 3) for result signing. Parameters:
+Ajna uses Dilithium-3 (ML-DSA Level 3) for result signing. Parameters:
 
 | Parameter | Value |
 |-----------|-------|
@@ -120,4 +120,4 @@ Transport key encapsulation uses Kyber-1024:
 
 ## Entity Graph
 
-Beam delivers a PQC-signed `ScanResult` to the host application. The entity graph linking IDV results to FaceGuard face embeddings and Guardian device fingerprints is assembled **server-side by Surt**. Beam does not implement cross-product linking.
+Ajna delivers a PQC-signed `ScanResult` to the host application. The entity graph linking IDV results to FaceGuard face embeddings and Guardian device fingerprints is assembled **server-side by Ajna**. Ajna does not implement cross-product linking.

@@ -1,4 +1,4 @@
--- Beam Verify Backend — Trusted Public Key Registry
+-- Ajna Verify Backend — Trusted Public Key Registry
 -- Migration 002: VR-2 (Security) — Trusted key registration replacing client-supplied keys.
 --
 -- Architectural decision (README.md §VR-2):
@@ -13,7 +13,7 @@
 --     device  → set to device_id (supplied in request body alongside signature)
 --     model   → set to model_id + "/" + model_version (supplied in request body)
 --
--- Run with: psql -d beam_verify -f 002_trusted_keys.sql
+-- Run with: psql -d ajna_verify -f 002_trusted_keys.sql
 
 CREATE TABLE trusted_public_keys (
     id          UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),

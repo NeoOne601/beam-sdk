@@ -25,6 +25,76 @@ dependencies = [
 ]
 
 [[package]]
+name = "ajna-core"
+version = "0.1.0"
+dependencies = [
+ "ajna-crypto",
+ "base64 0.21.7",
+ "criterion",
+ "getrandom 0.2.17",
+ "hex",
+ "libc",
+ "pqcrypto-dilithium",
+ "pqcrypto-kyber",
+ "pqcrypto-traits",
+ "serde_json",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "ajna-core-fuzz"
+version = "0.0.0"
+dependencies = [
+ "ajna-core",
+ "libfuzzer-sys",
+]
+
+[[package]]
+name = "ajna-crypto"
+version = "0.1.0"
+dependencies = [
+ "base64 0.21.7",
+ "ed25519-dalek",
+ "pqcrypto-dilithium",
+ "pqcrypto-traits",
+ "rand",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ajna-verify-backend"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "base64 0.21.7",
+ "dotenvy",
+ "ed25519-dalek",
+ "hex",
+ "hmac",
+ "jsonwebtoken",
+ "pqcrypto-dilithium",
+ "pqcrypto-traits",
+ "rand",
+ "redis",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sqlx",
+ "thiserror 1.0.69",
+ "time",
+ "tokio",
+ "tower 0.4.13",
+ "tower-http 0.5.2",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "uuid",
+]
+
+[[package]]
 name = "allocator-api2"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -170,76 +240,6 @@ name = "base64ct"
 version = "1.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
-
-[[package]]
-name = "beam-core"
-version = "0.1.0"
-dependencies = [
- "base64 0.21.7",
- "beam-crypto",
- "criterion",
- "getrandom 0.2.17",
- "hex",
- "libc",
- "pqcrypto-dilithium",
- "pqcrypto-kyber",
- "pqcrypto-traits",
- "serde_json",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "beam-core-fuzz"
-version = "0.0.0"
-dependencies = [
- "beam-core",
- "libfuzzer-sys",
-]
-
-[[package]]
-name = "beam-crypto"
-version = "0.1.0"
-dependencies = [
- "base64 0.21.7",
- "ed25519-dalek",
- "pqcrypto-dilithium",
- "pqcrypto-traits",
- "rand",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "beam-verify-backend"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "base64 0.21.7",
- "dotenvy",
- "ed25519-dalek",
- "hex",
- "hmac",
- "jsonwebtoken",
- "pqcrypto-dilithium",
- "pqcrypto-traits",
- "rand",
- "redis",
- "reqwest",
- "serde",
- "serde_json",
- "sha2",
- "sqlx",
- "thiserror 1.0.69",
- "time",
- "tokio",
- "tower 0.4.13",
- "tower-http 0.5.2",
- "tracing",
- "tracing-subscriber",
- "url",
- "uuid",
-]
 
 [[package]]
 name = "bitflags"

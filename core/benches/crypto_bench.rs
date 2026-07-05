@@ -1,14 +1,14 @@
 // core/benches/crypto_bench.rs
 // Criterion benchmarks for PQC cryptographic operations.
-// Targets documented in BEAM_VERIFY_PRODUCT_PROMPT.md:
+// Targets documented in AJNA_VERIFY_PRODUCT_PROMPT.md:
 //   - ml_dsa_keygen: < 5ms per keygen on host
 //   - ml_dsa_sign: < 5ms per sign on host
 //   - ml_dsa_verify: < 3ms per verify on host
 //   - canonical_bytes: < 100µs with 9 fields
 //   - ml_kem_encapsulate: < 3ms per encapsulation
 
-use beam_core::result::{DocumentField, ScanResult};
-use beam_core::{MlDsaLevel, MlKemSession, PqcSigner};
+use ajna_core::result::{DocumentField, ScanResult};
+use ajna_core::{MlDsaLevel, MlKemSession, PqcSigner};
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use std::time::Duration;
 
@@ -112,7 +112,7 @@ pub fn bench_canonical_bytes(c: &mut Criterion) {
         session_id: None,
         timestamp_iso: None,
         algo: String::new(),
-        beam_version: String::from("2.0"),
+        ajna_version: String::from("2.0"),
         public_key: String::new(),
         jws_token: None,
     };

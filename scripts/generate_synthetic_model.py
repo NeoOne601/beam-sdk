@@ -5,7 +5,7 @@ Generate a synthetic TFLite model for end-to-end pipeline validation.
 
 This model outputs CONSTANT placeholder values regardless of input pixels.
 It is NOT a real document OCR model — it exists solely to exercise the full
-pipeline: quality gates → inference → beam_session_push_result → Rust session
+pipeline: quality gates → inference → ajna_session_push_result → Rust session
 → PQC signing → Complete state.
 
 The model is INT8 quantized for TFLite GPU delegate compatibility.

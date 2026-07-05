@@ -21,7 +21,7 @@ pub enum SessionState {
     Failed = 4,
 }
 
-/// Session configuration. Mirrors BeamScanConfig on iOS/Android.
+/// Session configuration. Mirrors AjnaScanConfig on iOS/Android.
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct SessionConfig {

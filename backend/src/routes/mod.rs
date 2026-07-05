@@ -1,5 +1,5 @@
 // backend/src/routes/mod.rs
-// Route registry for the Beam Verify backend.
+// Route registry for the Ajna Verify backend.
 //
 // VR-3 (Security): Routes are split into two groups:
 //   router()        — authenticated routes (auth + rate limiting applied in main.rs)

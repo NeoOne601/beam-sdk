@@ -1,19 +1,19 @@
 // tests/ffi_integration_tests.cpp
 // C++ FFI integration test suite.
-// Tests all #[no_mangle] exports from ffi.rs via the hand-written beam_ffi.h header.
+// Tests all #[no_mangle] exports from ffi.rs via the hand-written ajna_ffi.h header.
 // Includes a timing assertion for gate evaluation performance (budget: < 4ms on A55).
 //
 // Build requirements:
-//   - libbeam_core.a must be in the link path
-//   - beam_ffi.h must be generated or hand-written (included below as an inline header)
-//   - Compile: clang++ -O2 ffi_integration_tests.cpp -L../target/release -lbeam_core -o ffi_tests
+//   - libajna_core.a must be in the link path
+//   - ajna_ffi.h must be generated or hand-written (included below as an inline header)
+//   - Compile: clang++ -O2 ffi_integration_tests.cpp -L../target/release -lajna_core -o ffi_tests
 //
 // Memory test:
 //   valgrind --leak-check=full --error-exitcode=1 ./ffi_tests
 //   Expected: 0 bytes definitely lost.
 
-// Use the shared beam_ffi.h header (canonical source of truth for FFI types).
-#include "../include/beam_ffi.h"
+// Use the shared ajna_ffi.h header (canonical source of truth for FFI types).
+#include "../include/ajna_ffi.h"
 
 // ─── Test runner ─────────────────────────────────────────────────────────────
 
@@ -40,8 +40,8 @@ static int tests_passed = 0;
 
 // ─── Default config helper ────────────────────────────────────────────────────
 
-static BeamSessionConfig default_config() {
-    BeamSessionConfig cfg;
+static AjnaSessionConfig default_config() {
+    AjnaSessionConfig cfg;
     cfg.min_quality_frames  = 3;
     cfg.timeout_ms          = 30000;
     cfg.adaptive_gate_limit = 60;
@@ -65,33 +65,33 @@ static std::vector<uint8_t> make_checkerboard_y(uint32_t w, uint32_t h) {
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 static bool test_session_create_returns_non_null() {
-    BeamSessionHandle h = beam_session_create(default_config());
+    AjnaSessionHandle h = ajna_session_create(default_config());
     bool ok = (h != nullptr);
-    if (h) beam_session_destroy(h);
+    if (h) ajna_session_destroy(h);
     return ok;
 }
 
 static bool test_gate_create_returns_non_null() {
-    BeamGateHandle g = beam_gate_create();
+    AjnaGateHandle g = ajna_gate_create();
     bool ok = (g != nullptr);
-    if (g) beam_gate_destroy(g);
+    if (g) ajna_gate_destroy(g);
     return ok;
 }
 
 static bool test_session_start_transitions_to_scanning() {
-    BeamSessionHandle h = beam_session_create(default_config());
+    AjnaSessionHandle h = ajna_session_create(default_config());
     if (!h) return false;
-    int32_t start_res = beam_session_start(h, 0);
-    uint32_t state = beam_session_get_state(h);
-    beam_session_destroy(h);
+    int32_t start_res = ajna_session_start(h, 0);
+    uint32_t state = ajna_session_get_state(h);
+    ajna_session_destroy(h);
     // State 1 = Scanning
     return (start_res == 0) && (state == 1);
 }
 
 static bool test_push_result_transitions_to_complete() {
-    BeamSessionHandle h = beam_session_create(default_config());
+    AjnaSessionHandle h = ajna_session_create(default_config());
     if (!h) return false;
-    beam_session_start(h, 0);
+    ajna_session_start(h, 0);
 
     // Push a result with two fields
     const char key1[]   = "surname";
@@ -114,7 +114,7 @@ static bool test_push_result_transitions_to_complete() {
     fields[1].value_len  = strlen(val2);
     fields[1].confidence = 0.98f;
 
-    int32_t push_res = beam_session_push_result(
+    int32_t push_res = ajna_session_push_result(
         h,
         fields, 2,
         (const uint8_t*)dtype,   strlen(dtype),
@@ -125,25 +125,25 @@ static bool test_push_result_transitions_to_complete() {
         false
     );
 
-    uint32_t state = beam_session_get_state(h);
-    beam_session_destroy(h);
+    uint32_t state = ajna_session_get_state(h);
+    ajna_session_destroy(h);
     // State 3 = Complete
     return (push_res == 0) && (state == 3);
 }
 
 static bool test_session_destroy_no_crash() {
-    BeamSessionHandle h = beam_session_create(default_config());
-    int32_t res = beam_session_destroy(h); // must not crash
+    AjnaSessionHandle h = ajna_session_create(default_config());
+    int32_t res = ajna_session_destroy(h); // must not crash
     return res == 0;
 }
 
 static bool test_session_destroy_null_no_crash() {
-    int32_t res = beam_session_destroy(nullptr); // null guard must prevent crash
+    int32_t res = ajna_session_destroy(nullptr); // null guard must prevent crash
     return res == 0;
 }
 
 static bool test_gate_destroy_null_no_crash() {
-    int32_t res = beam_gate_destroy(nullptr); // null guard must prevent crash
+    int32_t res = ajna_gate_destroy(nullptr); // null guard must prevent crash
     return res == 0;
 }
 
@@ -158,28 +158,28 @@ static bool test_gate_evaluate_timing_1080p() {
     auto y = make_checkerboard_y(W, H);
     std::vector<uint8_t> uv(W * H / 2, 128);
 
-    BeamRawFrame frame;
+    AjnaRawFrame frame;
     frame.y_plane      = y.data();
     frame.uv_plane     = uv.data();
     frame.width        = W;
     frame.height       = H;
     frame.y_stride     = W;
     frame.uv_stride    = W;
-    frame.format       = BEAM_FMT_NV12;
+    frame.format       = AJNA_FMT_NV12;
     frame.timestamp_us = 0;
 
-    BeamGateHandle gate = beam_gate_create();
+    AjnaGateHandle gate = ajna_gate_create();
     if (!gate) return false;
 
     // Warm-up pass
-    beam_gate_evaluate(gate, &frame);
+    ajna_gate_evaluate(gate, &frame);
 
     // Timed pass
     auto t0 = std::chrono::high_resolution_clock::now();
-    uint32_t result = beam_gate_evaluate(gate, &frame);
+    uint32_t result = ajna_gate_evaluate(gate, &frame);
     auto t1 = std::chrono::high_resolution_clock::now();
 
-    beam_gate_destroy(gate);
+    ajna_gate_destroy(gate);
 
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     printf("  [TIMING] gate_evaluate 1920x1080: %.3f ms (budget: < 4ms)\n", ms);
@@ -194,7 +194,7 @@ static bool test_gate_evaluate_timing_1080p() {
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 int main() {
-    printf("=== Beam SDK FFI Integration Tests ===\n\n");
+    printf("=== Ajna SDK FFI Integration Tests ===\n\n");
 
     RUN_TEST(session_create_returns_non_null);
     RUN_TEST(gate_create_returns_non_null);
@@ -210,7 +210,7 @@ int main() {
     // MEMORY NOTE:
     // Run with: valgrind --leak-check=full --error-exitcode=1 ./ffi_tests
     // Expected output: "definitely lost: 0 bytes in 0 blocks"
-    // The beam_session_destroy and beam_gate_destroy null guards ensure
+    // The ajna_session_destroy and ajna_gate_destroy null guards ensure
     // no allocations are orphaned. Box::from_raw() in ffi.rs guarantees
     // the Rust allocator reclaims all heap memory on destroy.
 

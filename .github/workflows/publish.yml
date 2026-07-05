@@ -1,4 +1,4 @@
-name: Beam SDK Publish
+name: Ajna SDK Publish
 on:
   push:
     tags: ['v*']
@@ -40,8 +40,8 @@ jobs:
           targets: aarch64-apple-ios,aarch64-apple-ios-sim
       - name: Build XCFramework
         run: |
-          cargo build --release --target aarch64-apple-ios -p beam-core
-          cargo build --release --target aarch64-apple-ios-sim -p beam-core
+          cargo build --release --target aarch64-apple-ios -p ajna-core
+          cargo build --release --target aarch64-apple-ios-sim -p ajna-core
           bash scripts/package_ios_xcframework.sh
         working-directory: .
       - name: Generate SPM package
@@ -49,7 +49,7 @@ jobs:
       - name: Upload XCFramework to release
         uses: softprops/action-gh-release@v2
         with:
-          files: build_output/spm/BeamVerify-*.xcframework.zip
+          files: build_output/spm/AjnaVerify-*.xcframework.zip
 
   publish-npm:
     runs-on: ubuntu-latest

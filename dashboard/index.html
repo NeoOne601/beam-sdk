@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Beam Verify Admin Dashboard — Monitor verifications, audit logs, and system health">
-    <title>Beam Verify — Admin Dashboard</title>
+    <meta name="description" content="Ajna Verify Admin Dashboard — Monitor verifications, audit logs, and system health">
+    <title>Ajna Verify — Admin Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -150,7 +150,7 @@
     <div class="dashboard">
         <!-- Sidebar -->
         <aside class="sidebar">
-            <div class="sidebar-logo">⟐ Beam Verify</div>
+            <div class="sidebar-logo">⟐ Ajna Verify</div>
             <nav class="sidebar-nav">
                 <a class="nav-item active" data-page="overview"><span class="icon">📊</span> Overview</a>
                 <a class="nav-item" data-page="verifications"><span class="icon">✅</span> Verifications</a>
@@ -159,7 +159,7 @@
                 <a class="nav-item" data-page="webhooks"><span class="icon">🔗</span> Webhooks</a>
             </nav>
             <div class="sidebar-footer">
-                <span>Beam Verify v0.1.0</span>
+                <span>Ajna Verify v0.1.0</span>
             </div>
         </aside>
 
@@ -335,7 +335,7 @@
         // Webhooks table
         const webhookTable = document.getElementById('webhookTable');
         const webhooks = [
-            { id: 'wh-a1b2c3', url: 'https://hooks.example.com/beam', events: 'verification.complete', status: 'active', last: '2m ago' },
+            { id: 'wh-a1b2c3', url: 'https://hooks.example.com/ajna', events: 'verification.complete', status: 'active', last: '2m ago' },
             { id: 'wh-d4e5f6', url: 'https://api.partner.co/verify-callback', events: 'verification.complete, verification.failed', status: 'active', last: '15m ago' },
         ];
         webhooks.forEach(w => {

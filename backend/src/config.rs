@@ -45,7 +45,7 @@ impl AppConfig {
 
         Ok(Self {
             database_url: std::env::var("DATABASE_URL")
-                .unwrap_or_else(|_| "postgres://beam:beam@localhost:5432/beam_verify".into()),
+                .unwrap_or_else(|_| "postgres://ajna:ajna@localhost:5432/ajna_verify".into()),
             redis_url: std::env::var("REDIS_URL")
                 .unwrap_or_else(|_| "redis://127.0.0.1:6379".into()),
             port: std::env::var("PORT")

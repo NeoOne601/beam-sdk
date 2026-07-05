@@ -1,11 +1,11 @@
 {
   "manifest_version": "1.0.0",
-  "description": "Beam Verify model pack manifest. This file describes the model artifacts that must be present for a complete Beam Verify deployment.",
-  "beam_sdk_version": "0.1.0",
+  "description": "Ajna Verify model pack manifest. This file describes the model artifacts that must be present for a complete Ajna Verify deployment.",
+  "ajna_sdk_version": "0.1.0",
   "models": [
     {
       "platform": "android",
-      "filename": "beam_idv_v1.tflite",
+      "filename": "ajna_idv_v1.tflite",
       "sha256": "REPLACE_WHEN_MODEL_IS_PROVIDED",
       "size_bytes": 0,
       "input_name": "image",
@@ -18,7 +18,7 @@
     },
     {
       "platform": "ios",
-      "filename": "beam_idv_v1.mlpackage",
+      "filename": "ajna_idv_v1.mlpackage",
       "sha256": "REPLACE_WHEN_MODEL_IS_PROVIDED",
       "size_bytes": 0,
       "input_name": "image",
@@ -28,7 +28,7 @@
     },
     {
       "platform": "wasm",
-      "filename": "beam_idv_v1.onnx",
+      "filename": "ajna_idv_v1.onnx",
       "sha256": "REPLACE_WHEN_MODEL_IS_PROVIDED",
       "size_bytes": 0,
       "input_name": "image",

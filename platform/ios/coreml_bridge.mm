@@ -1,12 +1,12 @@
 // platform/ios/coreml_bridge.mm
 // CoreML inference bridge for iOS.
-// Accepts a CVPixelBufferRef already locked by BeamCameraAdapter (Swift layer).
+// Accepts a CVPixelBufferRef already locked by AjnaCameraAdapter (Swift layer).
 // Creates an MLFeatureValue from the buffer for zero-copy ANE/CPU dispatch.
-// Calls beam_session_push_result() to hand results to Rust.
+// Calls ajna_session_push_result() to hand results to Rust.
 //
 // Zero-copy path:
 //   CVPixelBuffer (locked .readOnly by Swift) → MLFeatureValue → ANE / CPU
-//   Lock is released by Swift immediately after beam_coreml_process() returns.
+//   Lock is released by Swift immediately after ajna_coreml_process() returns.
 //
 // ANE availability:
 //   MLComputeUnits.all enables ANE dispatch. If unavailable, falls back to CPU.
@@ -20,7 +20,7 @@
 #import <Foundation/Foundation.h>
 #import <CoreML/CoreML.h>
 #import <CoreVideo/CoreVideo.h>
-#import "../../include/beam_ffi.h"
+#import "../../include/ajna_ffi.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,18 +28,18 @@ extern "C" {
 
 // ─── Opaque session type ─────────────────────────────────────────────────────
 
-typedef struct beam_coreml_session {
+typedef struct ajna_coreml_session {
     MLModel*      model;        // Loaded CoreML model (nil in stub mode)
     NSString*     model_path;   // Path used at load time (for diagnostics)
     BOOL          stub_mode;    // true if no model was loaded
-} beam_coreml_session_t;
+} ajna_coreml_session_t;
 
 // ─── Lifecycle ───────────────────────────────────────────────────────────────
 
 /// Load a .mlpackage or .mlmodel at model_path from the app bundle.
 /// Returns a valid session even if the model fails to load (stub mode).
-beam_coreml_session_t* beam_coreml_create(const char* model_path) {
-    beam_coreml_session_t* s = (beam_coreml_session_t*)calloc(1, sizeof(*s));
+ajna_coreml_session_t* ajna_coreml_create(const char* model_path) {
+    ajna_coreml_session_t* s = (ajna_coreml_session_t*)calloc(1, sizeof(*s));
 
     NSString* path = [NSString stringWithUTF8String:model_path];
     NSURL*    url  = [NSURL fileURLWithPath:path];
@@ -54,7 +54,7 @@ beam_coreml_session_t* beam_coreml_create(const char* model_path) {
                                                error:&error];
     if (error || !model) {
         fprintf(stderr,
-            "[BeamCoreML] stub mode — no real model loaded at %s: %s\n",
+            "[AjnaCoreML] stub mode — no real model loaded at %s: %s\n",
             model_path,
             error ? [[error localizedDescription] UTF8String] : "file not found");
         s->stub_mode  = YES;
@@ -71,17 +71,17 @@ beam_coreml_session_t* beam_coreml_create(const char* model_path) {
 /// Run inference on a locked CVPixelBufferRef.
 /// `pixel_buffer` MUST already be locked with CVPixelBufferLockBaseAddress(.readOnly).
 /// The Swift adapter guarantees this — never call this without a prior lock.
-void beam_coreml_process(
-    beam_coreml_session_t* s,
+void ajna_coreml_process(
+    ajna_coreml_session_t* s,
     CVPixelBufferRef        pixel_buffer,
-    BeamSessionHandle       rust_session)
+    AjnaSessionHandle       rust_session)
 {
     if (s->stub_mode || !s->model) {
         // Stub mode: push a zero-confidence result so the pipeline stays complete.
-        fprintf(stderr, "[BeamCoreML] stub mode — returning confidence 0.0\n");
+        fprintf(stderr, "[AjnaCoreML] stub mode — returning confidence 0.0\n");
         const char doc_type[] = "unknown";
         const char country[]  = "UNK";
-        beam_session_push_result(
+        ajna_session_push_result(
             rust_session,
             /*fields=*/ NULL, /*field_count=*/ 0,
             (const uint8_t*)doc_type, strlen(doc_type),
@@ -110,7 +110,7 @@ void beam_coreml_process(
              initWithDictionary:inputDict
                           error:&error];
     if (error) {
-        fprintf(stderr, "[BeamCoreML] input provider error: %s\n",
+        fprintf(stderr, "[AjnaCoreML] input provider error: %s\n",
                 [[error localizedDescription] UTF8String]);
         return;
     }
@@ -124,7 +124,7 @@ void beam_coreml_process(
                                  options:opts
                                    error:&error];
     if (error || !output) {
-        fprintf(stderr, "[BeamCoreML] inference error: %s\n",
+        fprintf(stderr, "[AjnaCoreML] inference error: %s\n",
                 error ? [[error localizedDescription] UTF8String] : "nil output");
         return;
     }
@@ -174,7 +174,7 @@ void beam_coreml_process(
         ++field_count;
     }
 
-    beam_session_push_result(
+    ajna_session_push_result(
         rust_session,
         fields, (size_t)field_count,
         (const uint8_t*)doc_type, doc_type ? strlen(doc_type) : 0,
@@ -186,7 +186,7 @@ void beam_coreml_process(
     );
 }
 
-void beam_coreml_destroy(beam_coreml_session_t* s) {
+void ajna_coreml_destroy(ajna_coreml_session_t* s) {
     if (!s) return;
     // ARC handles model deallocation; free the session struct.
     free(s);

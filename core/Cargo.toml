@@ -1,5 +1,5 @@
 [package]
-name = "beam-core"
+name = "ajna-core"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
-beam-crypto = { path = "../crates/beam-crypto", features = ["pqc"] }
+ajna-crypto = { path = "../crates/ajna-crypto", features = ["pqc"] }
 base64 = "0.21"
 pqcrypto-dilithium = { version = "0.5.0", default-features = false, features = ["std"] }
 pqcrypto-kyber = { version = "0.8.1", default-features = false, features = ["std"] }
@@ -25,12 +25,6 @@ wasm-bindgen = "0.2.123"
 [features]
 default = ["mlock"]
 mlock = ["libc"]
-
-[profile.release]
-opt-level = 3
-lto = true
-codegen-units = 1
-panic = "abort"
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }

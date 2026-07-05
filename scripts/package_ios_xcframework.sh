@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # scripts/package_ios_xcframework.sh
-# Package the Beam SDK as an XCFramework for iOS distribution.
+# Package the Ajna SDK as an XCFramework for iOS distribution.
 #
-# Output: dist/BeamSDK.xcframework/
+# Output: dist/AjnaSDK.xcframework/
 #
 # Prerequisites:
 #   - Xcode with xcodebuild on PATH
@@ -11,11 +11,11 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="${REPO_ROOT}/dist"
-XCF_OUT="${DIST_DIR}/BeamSDK.xcframework"
+XCF_OUT="${DIST_DIR}/AjnaSDK.xcframework"
 BUILD_IOS="${REPO_ROOT}/build_ios"
-SCHEME="BeamSDK"
+SCHEME="AjnaSDK"
 
-echo "=== Beam SDK iOS XCFramework Packaging ==="
+echo "=== Ajna SDK iOS XCFramework Packaging ==="
 mkdir -p "${DIST_DIR}"
 
 # ─── Invoke CI build script ───────────────────────────────────────────────────
@@ -29,8 +29,8 @@ DEVICE_ARCHIVE="${REPO_ROOT}/build_ios_device/Release-iphoneos/${SCHEME}.framewo
 SIM_ARCHIVE="${REPO_ROOT}/build_ios_sim/Release-iphonesimulator/${SCHEME}.framework"
 
 # Fall back to .a if framework is not present (static lib build)
-DEVICE_LIB="${REPO_ROOT}/build_ios_device/Release-iphoneos/libBeamSDK.a"
-SIM_LIB="${REPO_ROOT}/build_ios_sim/Release-iphonesimulator/libBeamSDK.a"
+DEVICE_LIB="${REPO_ROOT}/build_ios_device/Release-iphoneos/libAjnaSDK.a"
+SIM_LIB="${REPO_ROOT}/build_ios_sim/Release-iphonesimulator/libAjnaSDK.a"
 
 # ─── Create XCFramework ───────────────────────────────────────────────────────
 

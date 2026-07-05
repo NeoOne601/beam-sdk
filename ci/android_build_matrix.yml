@@ -1,4 +1,4 @@
-name: Beam SDK Android Build Matrix
+name: Ajna SDK Android Build Matrix
 
 # Separate matrix job for release pipelines.
 # Builds all three Android ABIs in parallel.
@@ -88,7 +88,7 @@ jobs:
             -DCMAKE_MODULE_PATH=../build \
             -DANDROID_ABI=${{ matrix.abi }} \
             -DANDROID_PLATFORM=${{ matrix.android_platform }} \
-            -DBEAM_TARGET=Android \
+            -DAJNA_TARGET=Android \
             ../build
           cmake --build . --config Release
         working-directory: build_${{ matrix.abi }}
@@ -96,8 +96,8 @@ jobs:
       - name: Upload .so artifact
         uses: actions/upload-artifact@v4
         with:
-          name: libbeam_sdk-${{ matrix.abi }}
-          path: build_${{ matrix.abi }}/libbeam_sdk.so
+          name: libajna_sdk-${{ matrix.abi }}
+          path: build_${{ matrix.abi }}/libajna_sdk.so
 
   package-aar:
     runs-on: ubuntu-latest
@@ -116,5 +116,5 @@ jobs:
       - name: Upload AAR
         uses: actions/upload-artifact@v4
         with:
-          name: BeamSDK-release-aar
-          path: dist/BeamSDK-0.1.0-release.aar
+          name: AjnaSDK-release-aar
+          path: dist/AjnaSDK-0.1.0-release.aar

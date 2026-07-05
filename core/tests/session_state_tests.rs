@@ -4,8 +4,8 @@
 
 #[cfg(test)]
 mod tests {
-    use beam_core::result::ScanResult;
-    use beam_core::session::{ScanSession, SessionConfig, SessionState};
+    use ajna_core::result::ScanResult;
+    use ajna_core::session::{ScanSession, SessionConfig, SessionState};
 
     fn default_result() -> ScanResult {
         ScanResult {
@@ -20,7 +20,7 @@ mod tests {
             session_id: None,
             timestamp_iso: None,
             algo: String::new(),
-            beam_version: String::from("2.0"),
+            ajna_version: String::from("2.0"),
             public_key: String::new(),
             jws_token: None,
         }

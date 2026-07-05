@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ci/wasm_emscripten.sh
-# Build the Beam SDK WASM module via Emscripten.
+# Build the Ajna SDK WASM module via Emscripten.
 # Requires: emcc on PATH (via setup-emsdk in CI or source emsdk_env.sh locally)
 # Exits non-zero on any failure or if the .wasm output is not produced.
 set -euo pipefail
@@ -9,7 +9,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${REPO_ROOT}/build_wasm"
 OUTPUT_DIR="${REPO_ROOT}/dist/wasm"
 
-echo "=== Beam SDK WASM Build ==="
+echo "=== Ajna SDK WASM Build ==="
 
 # ─── Rust WASM target ────────────────────────────────────────────────────────
 
@@ -31,7 +31,7 @@ mkdir -p "${BUILD_DIR}"
 emcmake cmake \
   -S "${REPO_ROOT}/build" \
   -B "${BUILD_DIR}" \
-  -DBEAM_TARGET=WASM \
+  -DAJNA_TARGET=WASM \
   -DCMAKE_BUILD_TYPE=Release
 
 # ─── Emmake build ────────────────────────────────────────────────────────────
@@ -41,8 +41,8 @@ emmake make -C "${BUILD_DIR}" -j"$(nproc 2>/dev/null || echo 2)"
 
 # ─── Assert output exists ────────────────────────────────────────────────────
 
-WASM_FILE="${BUILD_DIR}/BeamSDK.wasm"
-JS_FILE="${BUILD_DIR}/BeamSDK.js"
+WASM_FILE="${BUILD_DIR}/AjnaSDK.wasm"
+JS_FILE="${BUILD_DIR}/AjnaSDK.js"
 
 if [ ! -f "${WASM_FILE}" ]; then
   echo "ERROR: Expected WASM output not found: ${WASM_FILE}"
@@ -60,8 +60,8 @@ ls -lh "${WASM_FILE}" "${JS_FILE}"
 # ─── Copy to dist ────────────────────────────────────────────────────────────
 
 mkdir -p "${OUTPUT_DIR}"
-cp "${WASM_FILE}" "${OUTPUT_DIR}/beam_sdk.wasm"
-cp "${JS_FILE}"   "${OUTPUT_DIR}/beam_sdk.js"
+cp "${WASM_FILE}" "${OUTPUT_DIR}/ajna_sdk.wasm"
+cp "${JS_FILE}"   "${OUTPUT_DIR}/ajna_sdk.js"
 
 echo ""
 echo "=== WASM build complete ==="

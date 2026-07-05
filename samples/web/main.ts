@@ -1,9 +1,9 @@
 // samples/web/main.ts
-// Beam Verify Web Sample — Main entry point.
+// Ajna Verify Web Sample — Main entry point.
 // Connects UI screens to camera, quality gate, and backend verification.
-// Uses the real BeamScanner SDK wrapper for WASM inference.
+// Uses the real AjnaScanner SDK wrapper for WASM inference.
 
-import { BeamScanner, ScanResult } from '../../platform/web/BeamScanner.js';
+import { AjnaScanner, ScanResult } from '../../platform/web/AjnaScanner.js';
 
 // Screen navigation
 function showScreen(id: string) {
@@ -14,9 +14,9 @@ function showScreen(id: string) {
 // Settings persistence
 function loadSettings() {
     return {
-        backendUrl: localStorage.getItem('beam_backend_url') || 'http://localhost:8080',
-        pqcSigning: localStorage.getItem('beam_pqc') !== 'false',
-        includeRawMrz: localStorage.getItem('beam_mrz') === 'true',
+        backendUrl: localStorage.getItem('ajna_backend_url') || 'http://localhost:8080',
+        pqcSigning: localStorage.getItem('ajna_pqc') !== 'false',
+        includeRawMrz: localStorage.getItem('ajna_mrz') === 'true',
     };
 }
 
@@ -24,9 +24,9 @@ function saveSettings() {
     const url = (document.getElementById('settingBackendUrl') as HTMLInputElement).value;
     const pqc = (document.getElementById('settingPqc') as HTMLInputElement).checked;
     const mrz = (document.getElementById('settingMrz') as HTMLInputElement).checked;
-    localStorage.setItem('beam_backend_url', url);
-    localStorage.setItem('beam_pqc', String(pqc));
-    localStorage.setItem('beam_mrz', String(mrz));
+    localStorage.setItem('ajna_backend_url', url);
+    localStorage.setItem('ajna_pqc', String(pqc));
+    localStorage.setItem('ajna_mrz', String(mrz));
     showScreen('landing');
 }
 
@@ -49,7 +49,7 @@ function stopCamera(stream: MediaStream | null) {
     video.srcObject = null;
 }
 
-// Real scan flow using BeamScanner SDK
+// Real scan flow using AjnaScanner SDK
 async function runScanFlow() {
     showScreen('scan');
     const video = document.getElementById('cameraPreview') as HTMLVideoElement;
@@ -61,17 +61,17 @@ async function runScanFlow() {
     video.srcObject = stream;
 
     const settings = loadSettings();
-    const scanner = new BeamScanner();
+    const scanner = new AjnaScanner();
 
     try {
         await scanner.configure({
             apiKey: '',
             backendUrl: settings.backendUrl,
-            modelPath: '/beam_sdk.onnx',
+            modelPath: '/ajna_sdk.onnx',
             enablePqcSigning: settings.pqcSigning,
         });
     } catch (e) {
-        console.error('[BeamSample] Failed to configure scanner:', e);
+        console.error('[AjnaSample] Failed to configure scanner:', e);
         stopCamera(stream);
         showScreen('landing');
         return;

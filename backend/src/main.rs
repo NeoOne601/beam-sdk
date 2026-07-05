@@ -1,5 +1,5 @@
 // backend/src/main.rs
-// Beam Verify Backend — Axum-based verification service.
+// Ajna Verify Backend — Axum-based verification service.
 // Provides nonce-protected ML-DSA signature verification,
 // audit logging, webhook delivery, and health checks.
 //
@@ -49,7 +49,7 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "beam_verify_backend=info,tower_http=info".into()),
+                .unwrap_or_else(|_| "ajna_verify_backend=info,tower_http=info".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
@@ -102,7 +102,7 @@ async fn main() -> anyhow::Result<()> {
         .with_state(state);
 
     let bind_addr = format!("0.0.0.0:{}", config.port);
-    tracing::info!("Beam Verify Backend listening on {}", bind_addr);
+    tracing::info!("Ajna Verify Backend listening on {}", bind_addr);
     let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
     axum::serve(listener, app).await?;
 

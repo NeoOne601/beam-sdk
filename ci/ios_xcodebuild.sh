@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ci/ios_xcodebuild.sh
-# Build BeamSDK for iOS device (arm64) and simulator (x86_64 + arm64).
+# Build AjnaSDK for iOS device (arm64) and simulator (x86_64 + arm64).
 # Exits non-zero on any failure.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SCHEME="BeamSDK"
+SCHEME="AjnaSDK"
 
-echo "=== Beam SDK iOS Build ==="
+echo "=== Ajna SDK iOS Build ==="
 echo "Repository: ${REPO_ROOT}"
 
 # ─── Generate Xcode Projects using CMake ──────────────────────────────────────
@@ -19,7 +19,7 @@ cmake -G Xcode \
   -B "${REPO_ROOT}/build_ios_device" \
   -DCMAKE_SYSTEM_NAME=iOS \
   -DCMAKE_OSX_SYSROOT=iphoneos \
-  -DBEAM_TARGET=iOS
+  -DAJNA_TARGET=iOS
 
 echo "--- Generating Xcode project for iOS Simulator (x86_64) ---"
 mkdir -p "${REPO_ROOT}/build_ios_sim"
@@ -28,14 +28,14 @@ cmake -G Xcode \
   -B "${REPO_ROOT}/build_ios_sim" \
   -DCMAKE_SYSTEM_NAME=iOS \
   -DCMAKE_OSX_SYSROOT=iphonesimulator \
-  -DBEAM_TARGET=iOS
+  -DAJNA_TARGET=iOS
 
 # ─── Device build (arm64) ────────────────────────────────────────────────────
 
 echo ""
 echo "--- Building for iOS device (arm64) ---"
 xcodebuild \
-  -project        "${REPO_ROOT}/build_ios_device/beam_sdk.xcodeproj" \
+  -project        "${REPO_ROOT}/build_ios_device/ajna_sdk.xcodeproj" \
   -scheme         "${SCHEME}" \
   -sdk            iphoneos \
   -configuration  Release \
@@ -54,7 +54,7 @@ fi
 echo ""
 echo "--- Building for iOS simulator ---"
 xcodebuild \
-  -project        "${REPO_ROOT}/build_ios_sim/beam_sdk.xcodeproj" \
+  -project        "${REPO_ROOT}/build_ios_sim/ajna_sdk.xcodeproj" \
   -scheme         "${SCHEME}" \
   -sdk            iphonesimulator \
   -configuration  Release \

@@ -123,7 +123,7 @@ impl FramePipeline {
     }
 
     /// Push an inference result into the session, transitioning to Complete.
-    /// Called by the C++ layer via beam_session_push_result → ffi.rs → here.
+    /// Called by the C++ layer via ajna_session_push_result → ffi.rs → here.
     pub fn push_result(&mut self, result: ScanResult) {
         self.session.complete(result);
     }

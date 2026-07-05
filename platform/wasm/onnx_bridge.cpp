@@ -15,24 +15,24 @@
 // Build requirement:
 //   ONNX Runtime headers are available only during the Emscripten cross-compilation
 //   build (ci/wasm_emscripten.sh). When building natively for IDE analysis or host
-//   tests, the ORT headers are absent — the BEAM_HAS_ORT guard compiles a stub
+//   tests, the ORT headers are absent — the AJNA_HAS_ORT guard compiles a stub
 //   implementation that logs a warning and returns early.
 
 // ─── Detect ONNX Runtime availability ───────────────────────────────────────
 //
 // __has_include is standard C++17 (we require C++17 via CMakeLists.txt).
-// When ORT headers are present (Emscripten build), BEAM_HAS_ORT is defined
+// When ORT headers are present (Emscripten build), AJNA_HAS_ORT is defined
 // and the real implementation is compiled. Otherwise a stub path is used.
 #if defined(__has_include)
   #if __has_include(<onnxruntime_cxx_api.h>)
-    #define BEAM_HAS_ORT 1
+    #define AJNA_HAS_ORT 1
   #endif
 #endif
 
-#ifdef BEAM_HAS_ORT
+#ifdef AJNA_HAS_ORT
 #include <onnxruntime_cxx_api.h>
 #include <vector>
-#include "../../include/beam_ffi.h"
+#include "../../include/ajna_ffi.h"
 #endif
 
 #include <stdint.h>
@@ -42,18 +42,18 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 // REAL IMPLEMENTATION — compiled only when ONNX Runtime headers are available
 // ═══════════════════════════════════════════════════════════════════════════════
-#ifdef BEAM_HAS_ORT
+#ifdef AJNA_HAS_ORT
 
 // ─── Session type ────────────────────────────────────────────────────────────
 
-struct BeamWasmSession {
+struct AjnaWasmSession {
     Ort::Env              env;
     Ort::Session          session;
     Ort::AllocatorWithDefaultOptions allocator;
     bool                  use_webgpu;
 
-    BeamWasmSession(const char* model_path, bool use_webgpu_)
-        : env(ORT_LOGGING_LEVEL_WARNING, "BeamWASM"),
+    AjnaWasmSession(const char* model_path, bool use_webgpu_)
+        : env(ORT_LOGGING_LEVEL_WARNING, "AjnaWASM"),
           session(nullptr),
           use_webgpu(use_webgpu_)
     {
@@ -66,7 +66,7 @@ struct BeamWasmSession {
             OrtStatus* status = OrtSessionOptionsAppendExecutionProvider_WebGPU(
                 opts, nullptr);
             if (status) {
-                fprintf(stderr, "[BeamWASM] WebGPU EP unavailable, falling back to WASM SIMD\n");
+                fprintf(stderr, "[AjnaWASM] WebGPU EP unavailable, falling back to WASM SIMD\n");
                 Ort::GetApi().ReleaseStatus(status);
                 use_webgpu_ = false;
             }
@@ -106,18 +106,18 @@ static std::vector<float> rgba_to_chw_float(
 
 extern "C" {
 
-void* beam_wasm_create(const char* model_path) {
+void* ajna_wasm_create(const char* model_path) {
     try {
         bool try_webgpu = true; // Always attempt WebGPU first
-        auto* s = new BeamWasmSession(model_path, try_webgpu);
+        auto* s = new AjnaWasmSession(model_path, try_webgpu);
         return s;
     } catch (const Ort::Exception& e) {
-        fprintf(stderr, "[BeamWASM] Failed to create session: %s\n", e.what());
+        fprintf(stderr, "[AjnaWASM] Failed to create session: %s\n", e.what());
         return nullptr;
     }
 }
 
-void beam_wasm_process_frame(
+void ajna_wasm_process_frame(
     void*     ort_session,
     uint8_t*  rgba,
     int       w,
@@ -126,9 +126,9 @@ void beam_wasm_process_frame(
 {
     if (!ort_session || !rgba || !rust_session_handle) return;
 
-    auto* s = reinterpret_cast<BeamWasmSession*>(ort_session);
-    BeamSessionHandle rust_session =
-        reinterpret_cast<BeamSessionHandle>(rust_session_handle);
+    auto* s = reinterpret_cast<AjnaWasmSession*>(ort_session);
+    AjnaSessionHandle rust_session =
+        reinterpret_cast<AjnaSessionHandle>(rust_session_handle);
 
     // Mandatory RGBA → CHW float tensor copy (documented expected cost)
     std::vector<float> input_tensor = rgba_to_chw_float(rgba, w, h);
@@ -203,7 +203,7 @@ void beam_wasm_process_frame(
 
         const char doc_type[] = "passport";
         const char country[]  = "UNK";
-        beam_session_push_result(
+        ajna_session_push_result(
             rust_session,
             fields, static_cast<size_t>(field_count),
             (const uint8_t*)doc_type, strlen(doc_type),
@@ -214,13 +214,13 @@ void beam_wasm_process_frame(
             /*include_pqc_sig=*/ true
         );
     } catch (const Ort::Exception& e) {
-        fprintf(stderr, "[BeamWASM] Inference error: %s\n", e.what());
+        fprintf(stderr, "[AjnaWASM] Inference error: %s\n", e.what());
     }
 }
 
-void beam_wasm_destroy(void* ort_session) {
+void ajna_wasm_destroy(void* ort_session) {
     if (!ort_session) return;
-    delete reinterpret_cast<BeamWasmSession*>(ort_session);
+    delete reinterpret_cast<AjnaWasmSession*>(ort_session);
 }
 
 } // extern "C"
@@ -230,20 +230,20 @@ void beam_wasm_destroy(void* ort_session) {
 // This path exists so the file is valid C++ for IDE analysis, host-mode tests,
 // and non-Emscripten builds. All functions log a warning and return early/null.
 // ═══════════════════════════════════════════════════════════════════════════════
-#else // !BEAM_HAS_ORT
+#else // !AJNA_HAS_ORT
 
 extern "C" {
 
-void* beam_wasm_create(const char* model_path) {
+void* ajna_wasm_create(const char* model_path) {
     (void)model_path;
     fprintf(stderr,
-        "[BeamWASM] stub mode — ONNX Runtime not available.\n"
+        "[AjnaWASM] stub mode — ONNX Runtime not available.\n"
         "  This binary was compiled without <onnxruntime_cxx_api.h>.\n"
         "  Build with Emscripten + ORT headers for real inference.\n");
     return nullptr;
 }
 
-void beam_wasm_process_frame(
+void ajna_wasm_process_frame(
     void*     ort_session,
     uint8_t*  rgba,
     int       w,
@@ -251,13 +251,13 @@ void beam_wasm_process_frame(
     void*     rust_session_handle)
 {
     (void)ort_session; (void)rgba; (void)w; (void)h; (void)rust_session_handle;
-    fprintf(stderr, "[BeamWASM] stub mode — beam_wasm_process_frame is a no-op.\n");
+    fprintf(stderr, "[AjnaWASM] stub mode — ajna_wasm_process_frame is a no-op.\n");
 }
 
-void beam_wasm_destroy(void* ort_session) {
+void ajna_wasm_destroy(void* ort_session) {
     (void)ort_session;
 }
 
 } // extern "C"
 
-#endif // BEAM_HAS_ORT
+#endif // AJNA_HAS_ORT

@@ -1,3 +1,12 @@
 [workspace]
-members = ["core", "backend", "core/fuzz", "crates/beam-crypto"]
+members = ["core", "backend", "core/fuzz", "crates/ajna-crypto"]
 resolver = "2"
+
+# Moved here from core/Cargo.toml: profiles in non-root packages are ignored.
+# lto = "thin" (not fat): full-workspace fat LTO exceeds the 8GB build host
+# budget; thin LTO keeps the mobile artifact optimization at safe memory cost.
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"

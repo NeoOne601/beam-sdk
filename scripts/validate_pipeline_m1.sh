@@ -6,7 +6,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-echo "=== Beam SDK M1 Pipeline Validation ==="
+echo "=== Ajna SDK M1 Pipeline Validation ==="
 echo "Repo: ${REPO_ROOT}"
 echo ""
 
@@ -29,15 +29,15 @@ echo ""
 
 # ─── Step 3: FFI integration tests (macOS host target) ───────────────────────
 echo "[Step 3/6] Building and running C++ FFI integration tests..."
-cargo build --release -p beam-core --target aarch64-apple-darwin \
+cargo build --release -p ajna-core --target aarch64-apple-darwin \
     --manifest-path "${REPO_ROOT}/Cargo.toml" 2>&1
 
 clang++ -O2 "${REPO_ROOT}/tests/ffi_integration_tests.cpp" \
     -I "${REPO_ROOT}/include/" \
     -L "${REPO_ROOT}/target/aarch64-apple-darwin/release" \
-    -lbeam_core \
-    -o /tmp/beam_ffi_tests
-/tmp/beam_ffi_tests
+    -lajna_core \
+    -o /tmp/ajna_ffi_tests
+/tmp/ajna_ffi_tests
 echo "  ✓ FFI integration tests passed"
 echo ""
 
@@ -78,7 +78,7 @@ echo "[Step 6/6] Starting backend and running verification round-trip..."
 (cd "${REPO_ROOT}/backend" && docker compose up -d 2>&1)
 sleep 5
 
-DB_URL="postgres://beam:beam@localhost:5432/beam_verify"
+DB_URL="postgres://ajna:ajna@localhost:5432/ajna_verify"
 psql "${DB_URL}" -f "${REPO_ROOT}/backend/src/db/migrations/001_initial.sql" 2>/dev/null || true
 psql "${DB_URL}" -f "${REPO_ROOT}/backend/src/db/migrations/002_trusted_keys.sql" 2>/dev/null || true
 

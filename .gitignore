@@ -52,15 +52,15 @@ build/
 *.obj
 *.out
 
-# Beam confidential / internal-only files — MUST NOT be pushed to GitHub
+# Ajna confidential / internal-only files — MUST NOT be pushed to GitHub
 # These remain local on the owner's machine only.
 BEAM_ANTIGRAVITY_PROMPT.md
 BEAM_ANTIGRAVITY_PROMPT_v2.md
-BEAM_VERIFY_PRODUCT_PROMPT.md
-Beam_SDK_Engineer_JD.pdf
+AJNA_VERIFY_PRODUCT_PROMPT.md
+Ajna_SDK_Engineer_JD.pdf
 commercial/
 docs/BEAM_ANTIGRAVITY_PROMPT.md
-docs/BEAM_WHITEPAPER.md
+docs/AJNA_WHITEPAPER.md
 model/placeholder/synthetic_test.tflite
 
 # Security scan reports (contain vulnerability details)

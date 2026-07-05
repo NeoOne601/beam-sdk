@@ -21,12 +21,12 @@ use crate::session::{ScanSession, SessionConfig};
 use base64::Engine;
 use std::{boxed::Box, string::String, vec::Vec};
 
-// ─── FFI status codes (matches beam_ffi.h) ────────────────────────────────────
-pub const BEAM_OK: i32 = 0;
-pub const BEAM_ERR_NULL_HANDLE: i32 = -1;
-pub const BEAM_ERR_NULL_PTR: i32 = -2;
-pub const BEAM_ERR_OUT_OF_RANGE: i32 = -3;
-pub const BEAM_ERR_INVALID_FRAME: i32 = -4;
+// ─── FFI status codes (matches ajna_ffi.h) ────────────────────────────────────
+pub const AJNA_OK: i32 = 0;
+pub const AJNA_ERR_NULL_HANDLE: i32 = -1;
+pub const AJNA_ERR_NULL_PTR: i32 = -2;
+pub const AJNA_ERR_OUT_OF_RANGE: i32 = -3;
+pub const AJNA_ERR_INVALID_FRAME: i32 = -4;
 
 /// Maximum number of CField entries accepted per push_result call.
 /// Prevents excessive heap allocation from a malicious bridge.
@@ -35,11 +35,11 @@ const MAX_FIELD_COUNT: usize = 256;
 const MAX_FIELD_STR_LEN: usize = 4096;
 
 /// Opaque handle to a ScanSession. Returned to C++ as a raw pointer.
-/// Caller MUST call beam_session_destroy() when done.
-pub type BeamSessionHandle = *mut ScanSession;
+/// Caller MUST call ajna_session_destroy() when done.
+pub type AjnaSessionHandle = *mut ScanSession;
 
 /// Opaque handle to a QualityGate instance.
-pub type BeamGateHandle = *mut QualityGate;
+pub type AjnaGateHandle = *mut QualityGate;
 
 // ─────────────────────────────────────────────────────────
 // Session lifecycle
@@ -48,39 +48,39 @@ pub type BeamGateHandle = *mut QualityGate;
 /// Create a new scan session with the given configuration.
 /// Returns a non-null opaque handle on success, or null on allocation failure.
 #[no_mangle]
-pub extern "C" fn beam_session_create(config: SessionConfig) -> BeamSessionHandle {
+pub extern "C" fn ajna_session_create(config: SessionConfig) -> AjnaSessionHandle {
     let session = Box::new(ScanSession::new(config));
     Box::into_raw(session)
 }
 
-/// Destroy a session handle previously obtained from beam_session_create.
+/// Destroy a session handle previously obtained from ajna_session_create.
 ///
 /// # Safety
-/// `handle` must be a valid BeamSessionHandle obtained from beam_session_create,
+/// `handle` must be a valid AjnaSessionHandle obtained from ajna_session_create,
 /// or null. After this call, `handle` is invalid and must not be used.
-/// Returns BEAM_OK (0). A null handle is a no-op (not an error).
+/// Returns AJNA_OK (0). A null handle is a no-op (not an error).
 #[no_mangle]
-pub unsafe extern "C" fn beam_session_destroy(handle: BeamSessionHandle) -> i32 {
+pub unsafe extern "C" fn ajna_session_destroy(handle: AjnaSessionHandle) -> i32 {
     if !handle.is_null() {
         // Safety: handle is a valid non-null pointer to a Box<ScanSession>
         drop(Box::from_raw(handle));
     }
-    BEAM_OK
+    AJNA_OK
 }
 
 /// Transition the session to Scanning state and record the start timestamp.
 ///
 /// # Safety
-/// `handle` must be a valid, non-null BeamSessionHandle.
-/// Returns BEAM_ERR_NULL_HANDLE (-1) if handle is null.
+/// `handle` must be a valid, non-null AjnaSessionHandle.
+/// Returns AJNA_ERR_NULL_HANDLE (-1) if handle is null.
 #[no_mangle]
-pub unsafe extern "C" fn beam_session_start(handle: BeamSessionHandle, timestamp_us: u64) -> i32 {
+pub unsafe extern "C" fn ajna_session_start(handle: AjnaSessionHandle, timestamp_us: u64) -> i32 {
     if handle.is_null() {
-        return BEAM_ERR_NULL_HANDLE;
+        return AJNA_ERR_NULL_HANDLE;
     }
     let session = &mut *handle;
     session.start(timestamp_us);
-    BEAM_OK
+    AJNA_OK
 }
 
 /// Returns the session state as a u32 (matches SessionState repr(C) discriminants).
@@ -88,9 +88,9 @@ pub unsafe extern "C" fn beam_session_start(handle: BeamSessionHandle, timestamp
 /// Returns u32::MAX (0xFFFFFFFF) if handle is null.
 ///
 /// # Safety
-/// `handle` must be a valid, non-null BeamSessionHandle.
+/// `handle` must be a valid, non-null AjnaSessionHandle.
 #[no_mangle]
-pub unsafe extern "C" fn beam_session_get_state(handle: BeamSessionHandle) -> u32 {
+pub unsafe extern "C" fn ajna_session_get_state(handle: AjnaSessionHandle) -> u32 {
     if handle.is_null() {
         return u32::MAX;
     }
@@ -104,7 +104,7 @@ pub unsafe extern "C" fn beam_session_get_state(handle: BeamSessionHandle) -> u3
 
 /// Create a new quality gate with default thresholds.
 #[no_mangle]
-pub extern "C" fn beam_gate_create() -> BeamGateHandle {
+pub extern "C" fn ajna_gate_create() -> AjnaGateHandle {
     Box::into_raw(Box::new(QualityGate::default()))
 }
 
@@ -115,11 +115,11 @@ pub extern "C" fn beam_gate_create() -> BeamGateHandle {
 /// (VR-4: avoids UB when receiving a malformed frame from the C++ bridge).
 ///
 /// # Safety
-/// - `gate` must be a valid, non-null BeamGateHandle.
+/// - `gate` must be a valid, non-null AjnaGateHandle.
 /// - `frame` must be a valid pointer to a RawFrame. The frame's y_plane must be
 ///   valid for at least `frame.height * frame.y_stride` bytes.
 #[no_mangle]
-pub unsafe extern "C" fn beam_gate_evaluate(gate: BeamGateHandle, frame: *const RawFrame) -> u32 {
+pub unsafe extern "C" fn ajna_gate_evaluate(gate: AjnaGateHandle, frame: *const RawFrame) -> u32 {
     if gate.is_null() || frame.is_null() {
         return u32::MAX;
     }
@@ -141,14 +141,14 @@ pub unsafe extern "C" fn beam_gate_evaluate(gate: BeamGateHandle, frame: *const 
 /// Destroy a gate handle. A null handle is a no-op.
 ///
 /// # Safety
-/// `handle` must be a valid BeamGateHandle, or null. Handle is invalid after this call.
+/// `handle` must be a valid AjnaGateHandle, or null. Handle is invalid after this call.
 #[no_mangle]
-pub unsafe extern "C" fn beam_gate_destroy(handle: BeamGateHandle) -> i32 {
+pub unsafe extern "C" fn ajna_gate_destroy(handle: AjnaGateHandle) -> i32 {
     if !handle.is_null() {
         // Safety: handle is a valid non-null pointer to a Box<QualityGate>
         drop(Box::from_raw(handle));
     }
-    BEAM_OK
+    AJNA_OK
 }
 
 // ─────────────────────────────────────────────────────────
@@ -156,7 +156,7 @@ pub unsafe extern "C" fn beam_gate_destroy(handle: BeamGateHandle) -> i32 {
 // ─────────────────────────────────────────────────────────
 
 /// C-compatible field struct for crossing the FFI boundary.
-/// All pointers must remain valid for the duration of the beam_session_push_result call.
+/// All pointers must remain valid for the duration of the ajna_session_push_result call.
 #[repr(C)]
 pub struct CField {
     /// UTF-8 key bytes. NOT null-terminated; length given by key_len.
@@ -172,7 +172,7 @@ pub struct CField {
 /// Internally performs PQC signing if configured.
 ///
 /// # Parameters
-/// - `handle`          : valid, non-null BeamSessionHandle
+/// - `handle`          : valid, non-null AjnaSessionHandle
 /// - `fields`          : pointer to at least `field_count` valid CField entries; may be null if field_count == 0
 /// - `field_count`     : number of CField entries (0..=MAX_FIELD_COUNT)
 /// - `doc_type_ptr`    : UTF-8 document type string bytes; length given by `doc_type_len`
@@ -183,10 +183,10 @@ pub struct CField {
 /// - `include_pqc_sig` : if true, sign with ML-DSA Level3 using the configured key strategy
 ///
 /// # Return value
-/// BEAM_OK (0) on success, negative on error (see FFI status codes at top of file).
+/// AJNA_OK (0) on success, negative on error (see FFI status codes at top of file).
 ///
 /// # Safety
-/// - `handle` must be a valid, non-null BeamSessionHandle.
+/// - `handle` must be a valid, non-null AjnaSessionHandle.
 /// - `fields` must point to at least `field_count` valid CField entries (or be null when field_count == 0).
 /// - All string pointers within each CField must be valid for their respective lengths.
 /// - `doc_type_ptr` must be valid for `doc_type_len` bytes (or null if len == 0).
@@ -194,8 +194,8 @@ pub struct CField {
 /// - `nonce_ptr` and `session_id_ptr` may be null (treated as empty string).
 /// - None of the above pointers need to remain valid after this function returns.
 #[no_mangle]
-pub unsafe extern "C" fn beam_session_push_result(
-    handle: BeamSessionHandle,
+pub unsafe extern "C" fn ajna_session_push_result(
+    handle: AjnaSessionHandle,
     fields: *const CField,
     field_count: usize,
     doc_type_ptr: *const u8,
@@ -211,25 +211,25 @@ pub unsafe extern "C" fn beam_session_push_result(
 ) -> i32 {
     // VR-4: Null-check the session handle.
     if handle.is_null() {
-        return BEAM_ERR_NULL_HANDLE;
+        return AJNA_ERR_NULL_HANDLE;
     }
 
     // VR-4: Validate field_count before creating a slice.
     if field_count > MAX_FIELD_COUNT {
-        return BEAM_ERR_OUT_OF_RANGE;
+        return AJNA_ERR_OUT_OF_RANGE;
     }
 
     // VR-4: Null-check fields pointer when field_count > 0.
     if field_count > 0 && fields.is_null() {
-        return BEAM_ERR_NULL_PTR;
+        return AJNA_ERR_NULL_PTR;
     }
 
     // VR-4: Null-check required string pointers when their lengths are non-zero.
     if doc_type_len > 0 && doc_type_ptr.is_null() {
-        return BEAM_ERR_NULL_PTR;
+        return AJNA_ERR_NULL_PTR;
     }
     if country_len > 0 && country_ptr.is_null() {
-        return BEAM_ERR_NULL_PTR;
+        return AJNA_ERR_NULL_PTR;
     }
 
     // VR-4: Validate individual field string lengths.
@@ -237,13 +237,13 @@ pub unsafe extern "C" fn beam_session_push_result(
         let field_slice = core::slice::from_raw_parts(fields, field_count);
         for f in field_slice {
             if f.key_len > MAX_FIELD_STR_LEN || f.value_len > MAX_FIELD_STR_LEN {
-                return BEAM_ERR_OUT_OF_RANGE;
+                return AJNA_ERR_OUT_OF_RANGE;
             }
             if f.key_len > 0 && f.key.is_null() {
-                return BEAM_ERR_NULL_PTR;
+                return AJNA_ERR_NULL_PTR;
             }
             if f.value_len > 0 && f.value.is_null() {
-                return BEAM_ERR_NULL_PTR;
+                return AJNA_ERR_NULL_PTR;
             }
         }
     }
@@ -318,13 +318,13 @@ pub unsafe extern "C" fn beam_session_push_result(
         session_id,
         timestamp_iso,
         algo: String::new(),
-        beam_version: String::from("2.0"),
+        ajna_version: String::from("2.0"),
         public_key: String::new(),
         jws_token: None,
     };
 
     if include_pqc_sig && session.config.pqc_sign_result {
-        if let Ok(registry) = beam_crypto::global_registry().read() {
+        if let Ok(registry) = ajna_crypto::global_registry().read() {
             if let Some(signer) = registry.preferred() {
                 let canonical = result.canonical_bytes();
                 if let Ok(sig) = signer.sign(&canonical) {
@@ -335,7 +335,7 @@ pub unsafe extern "C" fn beam_session_push_result(
                         base64::engine::general_purpose::STANDARD.encode(signer.public_key_bytes());
                     // Produce compact JWS for classical algorithms (ed25519, ecdsa-p256).
                     // Returns None for ml-dsa-65, hybrid, and on signing failure.
-                    result.jws_token = beam_crypto::jws::produce_jws(
+                    result.jws_token = ajna_crypto::jws::produce_jws(
                         &canonical,
                         signer.algorithm_id(),
                         signer.as_ref(),
@@ -346,7 +346,7 @@ pub unsafe extern "C" fn beam_session_push_result(
     }
 
     session.complete(result);
-    BEAM_OK
+    AJNA_OK
 }
 
 /// Get current Unix timestamp as a decimal string (seconds since epoch).
@@ -380,11 +380,11 @@ fn get_unix_timestamp_str() -> String {
 ///   negative N where |N| > out_buf_len = buffer too small; retry with |N|+1 bytes
 ///
 /// # Safety
-/// handle must be a valid BeamSessionHandle produced by beam_session_create,
+/// handle must be a valid AjnaSessionHandle produced by ajna_session_create,
 /// or null. out_buf must be valid for out_buf_len bytes when handle is non-null.
 #[no_mangle]
-pub unsafe extern "C" fn beam_session_get_result_json(
-    handle: BeamSessionHandle,
+pub unsafe extern "C" fn ajna_session_get_result_json(
+    handle: AjnaSessionHandle,
     out_buf: *mut u8,
     out_buf_len: usize,
 ) -> i32 {
@@ -412,7 +412,7 @@ pub unsafe extern "C" fn beam_session_get_result_json(
         "pqc_signature_hex": hex::encode(&result.pqc_signature),
         "pqc_public_key_hex": hex::encode(&result.pqc_public_key),
         "algo": result.algo,
-        "beam_version": result.beam_version,
+        "ajna_version": result.ajna_version,
         "public_key": result.public_key,
         "jws_token": result.jws_token
     });

@@ -46,13 +46,13 @@ pub async fn rate_limit(
     let quota = quota_for_plan(&tenant.plan);
     let window_secs: u64 = 60;
 
-    // Fixed-window key: "beam:rl:<tenant_id>:<unix_minute>"
+    // Fixed-window key: "ajna:rl:<tenant_id>:<unix_minute>"
     let now_secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
     let window = now_secs / window_secs;
-    let redis_key = format!("beam:rl:{}:{}", tenant.tenant_id, window);
+    let redis_key = format!("ajna:rl:{}:{}", tenant.tenant_id, window);
 
     let mut conn = match state.redis.get_multiplexed_async_connection().await {
         Ok(c) => c,

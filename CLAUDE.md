@@ -1,127 +1,95 @@
-# CLAUDE.md
+# CLAUDE.md — Ajna Context & Rules
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides the primary instruction set and architectural rules for Claude Code (Fable 5) when executing long-horizon tasks in this workspace. 
+
+## Project Identity & Rebrand
+This project was previously known as "Ajna". **It has been rebranded to "Ajna".** All new code, architectures, crates, and variables must reflect the Ajna naming convention (e.g., `ajna-core`, `ajna-verify-backend`, `ajna-idv`, `ajna-intel`, `ajna-vision`).
 
 ## What this is
+Ajna is a complete Go-To-Market (GTM) security platform suite with three pillars:
+1. **Ajna IDV:** Document scanning and identity verification.
+2. **Ajna Intel:** Device Posture and Intelligence (fraud/jailbreak detection).
+3. **Ajna Vision:** Facial Liveness and Face Verification.
 
-Beam SDK: cross-platform native document-scanning SDK with post-quantum cryptographic result
-integrity. Rust core (`core/`) does all business logic (quality gates, session state machine,
-PQC signing, FFI boundary). C++ sits only at the ML runtime boundary (TFLite/CoreML/ONNX Runtime)
-for zero-copy tensor delivery. Swift/Kotlin are thin camera adapters with no business logic. A
-separate Rust Axum service (`backend/`) verifies signed scan results server-side.
+The platform relies on native execution with **post-quantum cryptographic (PQC) result integrity** at the edge. The Rust core performs all business logic and PQC signing. C++ handles zero-copy ML tensor delivery. The backend is an Axum service handling verification. 
+**New Additions:** 
+- An **MCP Server (`ajna-mcp-server`)** makes this platform agentic and easily consumable by other AI agents.
+- **60-Minute Onboarding:** A premium dashboard and integration portal makes client setup seamless.
+- **Client UI Customization:** The SDK must expose a headless mode and a declarative UI configuration layer. End-user businesses must be able to completely customize the capture UI (colors, overlays, animations, branding) or build their own UI entirely on top of the Ajna core to fit their company's needs.
 
-Full architecture, sequence diagrams, and the security remediation log (VR-1..VR-6) live in
-[README.md](README.md) — read it before making non-trivial changes; it is the primary design doc,
-not just an intro.
+## Current Architecture & State
+Before making any non-trivial changes or starting a `/goal` loop, you **must** read:
+- @README.md: This is the primary design document. It contains the full architecture, sequence diagrams, C++ FFI boundaries, and the critical security remediation log (VR-1..VR-6).
 
-## Workspace layout
+## Compliance Constraints (Strict Rules)
+- **SOC2 Type 2:** All backend actions and verification results MUST be written to an append-only, tamper-evident audit log in PostgreSQL.
+- **Indian National Quantum Mission (NQM):** The `ajna-crypto` crate must align with Indian Quantum Mission standards, ensuring cryptographic agility (e.g., dynamic negotiation of ML-DSA and classical algorithms).
+- **Zero Plagiarism:** The architecture must remain entirely unique and cannot plagiarize proprietary architectures (e.g., Ajna.com).
 
-Cargo workspace members: `core`, `backend`, `core/fuzz`, `crates/beam-crypto`.
+## The Barbell Strategy for Execution (For Claude Code)
+When executing `/goal`, you must use the Barbell Strategy:
+1. **First 10% (Planning):** You (Fable 5) map out the architectural steps, read `CLAUDE.md` and `memory.md`, and write out the spec. **CRITICAL FIRST CHECK:** Before writing any code, you must review the existing architecture decisions in `README.md` to ensure they maintain blazing fast performance on a budget Helio G85 device, guarantee zero-copy frame delivery across HAL implementations, and gracefully degrade when the ANE (Apple Neural Engine) or hardware accelerators are unavailable. You must also verify the architecture sets Ajna up to be the most secure, highly customizable, and absolute best-in-class product on the market. Furthermore, plan the abstraction layer that allows client businesses to fully customize the SDK's capture UI or run it headlessly.
+2. **Middle 80% (Gruntwork):** Delegate the heavy code-writing to subagents. In Claude Code, you can do this by using subagent tools (like Opus, Sonnet or Haiku) to execute boilerplate tasks, scaffold the UI, and write tests, while you remain the orchestrator tracking the termination condition.
+3. **Last 10% (Verification):** You (Fable 5) step back in to audit the final codebase against the compliance constraints, run integration tests, and finalize the loop.
 
-- `core/` — `beam-core`, the on-device SDK core. Built as `staticlib` + `cdylib` + `rlib` and
-  cross-compiled to Android/iOS/WASM. Depends on `beam-crypto`.
-- `crates/beam-crypto/` — standalone signing crate, no knowledge of scan/session logic. Exposes
-  the `BeamSigner` trait + `SignerRegistry` (crypto agility registry, ADR-001) and a process-wide
-  `OnceLock<RwLock<SignerRegistry>>` via `global_registry()` / `init_registry()`. Concrete signers
-  live under `signers/`: `EdDsaSigner` (default), `MlDsaSigner` (FIPS 204 Dilithium-3, behind the
-  `pqc` feature), `HybridSigner`, `EcdsaSigner` (stub). `jws.rs` produces dual-envelope JWS output
-  for classical algorithms.
-- `backend/` — `beam-verify-backend`, an Axum service that verifies signed `ScanResult`s
-  server-side, issues nonces, and logs audit trail. Not part of the on-device SDK.
-- `platform/{android,ios,wasm}` — C++/Swift/Kotlin bridges consumed by `build/CMakeLists.txt`.
-  These call into `beam-core` only through `include/beam_ffi.h`.
+## Hardware Constraints (8GB M1 Mac)
+The host machine is an M1 iMac with strictly 8GB of RAM. To prevent Out-Of-Memory (OOM) crashes and swap thrashing during autonomous loops, you MUST adhere to the following:
+- **Limit Compilation Concurrency:** Never run standard `cargo test` or `cargo build` which spawns many threads. Always restrict jobs using `-j 2` (e.g., `cargo test --release -j 2`).
+- **Constrain Docker:** When spinning up `docker-compose` for the backend, ensure Postgres and Redis have strict memory limits applied (`mem_limit: 256m`) so they do not starve the Rust compiler.
+- **Sequential Execution:** Do not instruct subagents to run heavy builds in parallel. Orchestrate tasks sequentially.
 
-## Commands
+## Workflow Orchestration
 
-### Rust core (`core/`)
-```bash
-cd core && cargo test --release                       # all tests
-cargo test --release -p beam-core --test quality_gate_tests            # one test file
-cargo test --release -p beam-core --test quality_gate_tests -- exact_name  # one test
-cargo fmt --check -p beam-core && cargo clippy -p beam-core -- -D warnings
-cargo bench -p beam-core --bench pipeline_bench -- --test    # dry-run bench (what CI runs)
-cargo bench -p beam-core                                      # full Criterion run
-```
-Test files: `tests/quality_gate_tests.rs`, `tests/session_state_tests.rs`, `tests/crypto_pqc_tests.rs`.
+### 1. Plan Mode Default
+- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
+- If something goes sideways, STOP and re-plan immediately
+- Use plan mode for verification steps, not just building
+- Write detailed specs upfront to reduce ambiguity
 
-### beam-crypto
-```bash
-cargo test -p beam-crypto                     # default features (no PQC)
-cargo test -p beam-crypto --features pqc      # include ML-DSA signer tests
-```
+### 2. Subagent Strategy
+- Use subagents liberally to keep main context window clean
+- Offload research, exploration, and parallel analysis to subagents
+- For complex problems, throw more compute at it via subagents
+- One task per subagent for focused execution
 
-### Backend (`backend/`)
-Needs Postgres + Redis — `docker-compose up -d` from `backend/` starts both with the same
-creds `main.rs`/`config.rs` default to (`postgres://beam:beam@localhost:5432/beam_verify`,
-`redis://127.0.0.1:6379`).
-```bash
-cd backend
-psql "$DATABASE_URL" -f src/db/migrations/001_initial.sql
-psql "$DATABASE_URL" -f src/db/migrations/002_trusted_keys.sql
-cargo test --release -p beam-verify-backend
-cargo fmt --check -p beam-verify-backend && cargo clippy -p beam-verify-backend -- -D warnings -A unused
-```
-`.sqlx/` holds cached query metadata for `sqlx`'s compile-time query checking — regenerate with
-`cargo sqlx prepare` (from `backend/`) after changing any `sqlx::query!`/`query_as!` call, with
-`DATABASE_URL` pointing at a live, migrated database.
+### 3. Self-Improvement Loop
+- After ANY correction from the user: update `tasks/lessons.md` with the pattern
+- Write rules for yourself that prevent the same mistake
+- Ruthlessly iterate on these lessons until mistake rate drops
+- Review lessons at session start for relevant project
 
-### C++ FFI integration tests
-```bash
-# after `cargo build --release` in core/ for the host target:
-clang++ -O2 tests/ffi_integration_tests.cpp -I include/ -L core/target/release \
-    -lbeam_core -lpthread -ldl -o ffi_tests
-./ffi_tests
-valgrind --leak-check=full --error-exitcode=1 ./ffi_tests   # expect 0 bytes definitely lost
-```
+### 4. Verification Before Done
+- Never mark a task complete without proving it works
+- Diff behavior between main and your changes when relevant
+- Ask yourself: "Would a staff engineer approve this?"
+- Run tests, check logs, demonstrate correctness
 
-### Mobile/WASM cross-compilation
-Full toolchain setup (NDK/Xcode/Emscripten env vars) is in README.md "Build System" — don't
-re-derive it, follow that section verbatim. Quick reference:
-```bash
-cd core && cargo build --release --target aarch64-linux-android   # Android arm64
-cd core && cargo build --release --target aarch64-apple-ios       # iOS device
-cd core && cargo build --release --target wasm32-unknown-emscripten  # WASM
-```
+### 5. Demand Elegance (Balanced)
+- For non-trivial changes: pause and ask "is there a more elegant way?"
+- If a fix feels hacky: "Knowing everything I know now, implement the elegant solution"
+- Skip this for simple, obvious fixes -- don't over-engineer
+- Challenge your own work before presenting it
 
-## Non-obvious invariants (grep-enforced by CI, do not regress silently)
+### 6. Autonomous Bug Fixing
+- When given a bug report: just fix it. Don't ask for hand-holding
+- Point at logs, errors, failing tests -- then resolve them
+- Zero context switching required from the user
+- Go fix failing CI tests without being told how
 
-`.github/workflows/ci.yml`'s `security-checks` job greps for these patterns on every push. If you
-touch the related files, keep the invariant or update the CI check deliberately — don't just make
-the grep pass:
+## Task Management
 
-- **`core/src/pipeline.rs`**: `AcceptedForInference` must be returned from exactly one place, only
-  when `gate_reached == Gate::Accepted`. C++ must never see a rejected frame.
-- **`core/src/result.rs`**: `canonical_bytes()` must include `__nonce`, `__session_id`,
-  `__timestamp` (VR-1 nonce-binding — prevents replaying a signed result into a new session).
-- **`backend/src/routes/verify.rs`**: must never trust a client-supplied `pqc_public_key` (VR-2 —
-  keys are resolved server-side via `KeyProvider`, strategy selected by `KEY_PROVIDER_STRATEGY`
-  env var: `tenant` (default) / `device` / `model`).
-- **`backend/src/`**: no `CorsLayer::permissive()` anywhere (VR-3 — CORS is an explicit allowlist
-  built from `CORS_ALLOWED_ORIGINS` in `main.rs::build_cors_layer`).
-- **`backend/src/routes/webhook.rs`**: must call `validate_webhook_url` (VR-5 SSRF protection —
-  blocks RFC-1918/loopback/link-local/cloud-metadata hosts).
-- CI also fails on any `fips certified|fips validated|fips compliant|never leaves the enclave` in
-  `docs/`, and on any `cargo audit` finding (no `--ignore` suppressions allowed).
+1. **Plan First:** Write plan to `tasks/todo.md` with checkable items
+2. **Verify Plan:** Check in before starting implementation
+3. **Track Progress:** Mark items complete as you go
+4. **Explain Changes:** High-level summary at each step
+5. **Document Results:** Add review section to `tasks/todo.md`
+6. **Capture Lessons:** Update `tasks/lessons.md` after corrections
 
-## Backend request flow
+## Core Principles
 
-`main.rs` wires two router groups: `routes::router()` (auth + Redis token-bucket rate limiting
-applied via `route_layer`, in that order — see `middleware/auth.rs`, `middleware/rate_limit.rs`)
-and `routes::health_router()` (`/health`, deliberately exempt from both). Auth accepts `X-Api-Key`
-first, falls back to `Authorization: Bearer <jwt>` (HS256 via `jsonwebtoken`); both resolve to a
-tenant context used to scope every query. Routes live in `backend/src/routes/`: `nonce`, `verify`,
-`audit`, `webhook`, `session` (algorithm negotiation endpoint, `/v1/session/init`).
+- **Simplicity First:** Make every change as simple as possible. Impact minimal code.
+- **No Laziness:** Find root causes. No temporary fixes. Senior developer standards.
+- **Minimal Impact:** Only touch what's necessary. No side effects with new bugs.
 
-## Key source files
-
-| File | Contents |
-|---|---|
-| `core/src/quality.rs` | Quality gates (blur/exposure/motion/boundary), thresholds, adaptive relaxation |
-| `core/src/session.rs` | Session state machine, timeout, adaptive gate limit |
-| `core/src/result.rs` | `ScanResult`, `canonical_bytes()` deterministic encoding |
-| `core/src/crypto.rs` | mlock-protected key handling, zero-on-drop (SDK-side, pre-dates `beam-crypto`) |
-| `core/src/pipeline.rs` | `FramePipeline` orchestrator — the accept/reject invariant lives here |
-| `core/src/ffi.rs` | All `#[no_mangle]` C exports; every `unsafe` block has a `Safety:` comment |
-| `crates/beam-crypto/src/signer.rs` | `BeamSigner` trait + `SignerRegistry` |
-| `include/beam_ffi.h` | Canonical C header consumed by all three platform bridges |
-| `backend/src/config.rs` | Env-var driven `AppConfig` — see for every backend env var and its default |
+## Accumulated Memory
+@beam-context/memory.md

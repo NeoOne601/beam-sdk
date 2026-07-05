@@ -1,5 +1,5 @@
 // core/src/lib.rs
-// Beam SDK core — public API facade.
+// Ajna SDK core — public API facade.
 // Re-exports only. No logic in this file.
 //
 // Targeting no_std with alloc for cross-platform compatibility:
@@ -27,11 +27,11 @@ pub mod session;
 
 pub use crypto::{CryptoError, MlDsaLevel, MlKemSession, PqcSigner};
 pub use ffi::{
-    beam_gate_create, beam_gate_destroy, beam_gate_evaluate, beam_session_create,
-    beam_session_destroy, beam_session_get_result_json, beam_session_get_state,
-    beam_session_push_result, beam_session_start, BeamGateHandle, BeamSessionHandle, CField,
-    BEAM_ERR_INVALID_FRAME, BEAM_ERR_NULL_HANDLE, BEAM_ERR_NULL_PTR, BEAM_ERR_OUT_OF_RANGE,
-    BEAM_OK,
+    ajna_gate_create, ajna_gate_destroy, ajna_gate_evaluate, ajna_session_create,
+    ajna_session_destroy, ajna_session_get_result_json, ajna_session_get_state,
+    ajna_session_push_result, ajna_session_start, AjnaGateHandle, AjnaSessionHandle, CField,
+    AJNA_ERR_INVALID_FRAME, AJNA_ERR_NULL_HANDLE, AJNA_ERR_NULL_PTR, AJNA_ERR_OUT_OF_RANGE,
+    AJNA_OK,
 };
 pub use field_parser::{FieldParser, ParseError, ParsedDocument};
 pub use frame::{FrameError, OwnedFrame, PixelFormat, RawFrame};

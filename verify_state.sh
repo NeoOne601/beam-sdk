@@ -16,10 +16,10 @@ echo "--- Gap 1: registered in crypto/mod.rs ---"
 grep -n "pub mod ed25519_verifier" backend/src/crypto/mod.rs 2>/dev/null || echo "NOT FOUND"
 
 echo "--- Gap 3: JWS module ---"
-test -f crates/beam-crypto/src/jws.rs && echo "FILE EXISTS" || echo "MISSING"
-grep -c "pub fn produce_jws" crates/beam-crypto/src/jws.rs 2>/dev/null || echo "0"
+test -f crates/ajna-crypto/src/jws.rs && echo "FILE EXISTS" || echo "MISSING"
+grep -c "pub fn produce_jws" crates/ajna-crypto/src/jws.rs 2>/dev/null || echo "0"
 grep -n "jws_token" core/src/result.rs 2>/dev/null || echo "NOT FOUND IN result.rs"
-grep -n "pub mod jws" crates/beam-crypto/src/lib.rs 2>/dev/null || echo "NOT FOUND"
+grep -n "pub mod jws" crates/ajna-crypto/src/lib.rs 2>/dev/null || echo "NOT FOUND"
 
 echo "--- Gap 4: ADR-002 ---"
 test -f docs/adr/ADR-002-redis-before-enrollment.md && echo "FILE EXISTS" || echo "MISSING"
@@ -31,13 +31,13 @@ echo "## Part C — check Session 3 (React Native wrapper)"
 echo "--- Session 3: package exists ---"
 test -d packages/react-native && echo "DIR EXISTS" || echo "MISSING"
 test -f packages/react-native/package.json && echo "package.json EXISTS" || echo "MISSING"
-test -f packages/react-native/src/BeamCamera.tsx && echo "BeamCamera.tsx EXISTS" || echo "MISSING"
-test -f packages/react-native/src/BeamNativeModule.ts && echo "BeamNativeModule.ts EXISTS" || echo "MISSING"
+test -f packages/react-native/src/AjnaCamera.tsx && echo "AjnaCamera.tsx EXISTS" || echo "MISSING"
+test -f packages/react-native/src/AjnaNativeModule.ts && echo "AjnaNativeModule.ts EXISTS" || echo "MISSING"
 test -f packages/react-native/src/index.ts && echo "index.ts EXISTS" || echo "MISSING"
 
 echo "--- Session 3: npm publish status ---"
 grep -n '"version"' packages/react-native/package.json 2>/dev/null || echo "N/A - package.json missing"
-npm view @beam/react-native version 2>&1 | head -3
+npm view @ajna/react-native version 2>&1 | head -3
 
 echo "## Part D — check Session 4 Corrected v2 (tenant policy, onboarding, verifications list)"
 echo "--- File 1: tenant_policies migration ---"

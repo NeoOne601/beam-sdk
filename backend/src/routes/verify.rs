@@ -95,7 +95,7 @@ pub async fn verify_result(
 ) -> Result<Json<VerifyResponse>, AppError> {
     // ── Step 1: Retrieve nonce from Redis (namespaced by tenant + session) ──────
     // VR-3: Nonce key is namespaced by tenant_id to prevent cross-tenant nonce reuse.
-    let redis_key = format!("beam:nonce:{}:{}", tenant.tenant_id, req.session_id);
+    let redis_key = format!("ajna:nonce:{}:{}", tenant.tenant_id, req.session_id);
     let mut conn = state.redis.get_multiplexed_async_connection().await?;
     let stored_nonce: Option<String> = conn.get(&redis_key).await?;
     let stored_nonce = stored_nonce.ok_or(AppError::NonceExpired)?;

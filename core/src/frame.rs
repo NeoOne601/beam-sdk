@@ -1,5 +1,5 @@
 // core/src/frame.rs
-// Frame type definitions for the Beam SDK.
+// Frame type definitions for the Ajna SDK.
 // RawFrame is a non-owning C-compatible view over camera buffer memory.
 // OwnedFrame is the heap-allocated copy used on WASM (mandatory copy boundary).
 //

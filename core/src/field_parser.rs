@@ -145,7 +145,7 @@ impl FieldParser {
     /// Convert a ParsedDocument into a ScanResult for the session.
     /// The VR-1 session-binding fields (nonce, session_id, timestamp_iso) are
     /// left as None here — they are populated by the FFI layer when a backend
-    /// nonce is provided via beam_session_push_result().
+    /// nonce is provided via ajna_session_push_result().
     pub fn to_scan_result(doc: &ParsedDocument) -> ScanResult {
         ScanResult {
             fields: doc.fields.clone(),
@@ -159,7 +159,7 @@ impl FieldParser {
             session_id: None,
             timestamp_iso: None,
             algo: String::new(),
-            beam_version: String::from("2.0"),
+            ajna_version: String::from("2.0"),
             public_key: String::new(),
             jws_token: None,
         }

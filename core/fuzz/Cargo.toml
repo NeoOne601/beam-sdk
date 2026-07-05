@@ -1,5 +1,5 @@
 [package]
-name = "beam-core-fuzz"
+name = "ajna-core-fuzz"
 version = "0.0.0"
 edition = "2021"
 publish = false
@@ -9,7 +9,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4.13"
-beam-core = { path = "..", features = ["mlock"] }
+ajna-core = { path = "..", features = ["mlock"] }
 
 [[bin]]
 name = "fuzz_push_result"

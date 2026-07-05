@@ -1,14 +1,14 @@
 #if defined(__has_include)
   #if __has_include(<tensorflow/lite/interpreter.h>)
-    #define BEAM_HAS_TFLITE 1
+    #define AJNA_HAS_TFLITE 1
   #endif
 #endif
 
 // Build behaviour:
-//   WITH real TFLite headers (BEAM_HAS_TFLITE defined):
+//   WITH real TFLite headers (AJNA_HAS_TFLITE defined):
 //     - Real TFLite Interpreter, GPU delegate, NNAPI delegate are used.
 //     - Stub blocks are compiled out.
-//     - JNI functions call real beam::TFLiteInference.
+//     - JNI functions call real ajna::TFLiteInference.
 //   WITHOUT real TFLite headers (default, for IDE / syntax analysis):
 //     - Stub types provide minimal definitions for compilation.
 //     - JNI functions return 0 / no-op and log a warning.
@@ -18,13 +18,13 @@
 // TFLite GPU delegate + NNAPI bridge for Android.
 // This is the C++ layer that owns the ML runtime boundary.
 // It receives zero-copy gralloc frame pointers from the Kotlin/JNI adapter,
-// runs inference, and calls beam_session_push_result() to hand results to Rust.
+// runs inference, and calls ajna_session_push_result() to hand results to Rust.
 //
 // Zero-copy tensor input path:
 //   ISP DRAM (gralloc buffer) → AHardwareBuffer → TFLite GPU delegate tensor
 //   No CPU memcpy in the hot path.
 
-#include "beam_ffi.h"         // generated from Rust FFI
+#include "ajna_ffi.h"         // generated from Rust FFI
 #include <android/hardware_buffer.h>
 #include <android/log.h>
 #include <jni.h>
@@ -32,13 +32,13 @@
 #include <string>
 #include <vector>
 
-#ifdef BEAM_HAS_TFLITE
+#ifdef AJNA_HAS_TFLITE
 #include "tensorflow/lite/c/c_api.h"
 #include "tensorflow/lite/delegates/gpu/delegate.h"
 #include "tensorflow/lite/delegates/nnapi/nnapi_delegate_c_api.h"
 #endif
 
-#ifndef BEAM_HAS_TFLITE
+#ifndef AJNA_HAS_TFLITE
 // --- Stub type definitions (no real TFLite headers present) ---
 
 struct TfLiteGpuDelegateOptionsV2 {
@@ -52,7 +52,7 @@ typedef void TfLiteDelegate;
 typedef int  TfLiteStatus;
 static const TfLiteStatus kTfLiteOk = 0;
 
-#endif // !BEAM_HAS_TFLITE
+#endif // !AJNA_HAS_TFLITE
 
 // Custom TFLite AHWB structures/flags (not present in official headers)
 #ifndef TFLITE_GPU_EXPERIMENTAL_FLAGS_ENABLE_AHWB
@@ -70,11 +70,11 @@ struct TfLiteAHardwareBufferDesc {
     TfLiteAHardwareBufferFormat format;
 };
 
-#define TAG "BeamTFLite"
+#define TAG "AjnaTFLite"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  TAG, __VA_ARGS__)
 
-#ifdef BEAM_HAS_TFLITE
+#ifdef AJNA_HAS_TFLITE
 
 // Inline/static fallback stub to make compiler happy
 inline TfLiteStatus TfLiteInterpreterSetAHardwareBufferInput(
@@ -84,7 +84,7 @@ inline TfLiteStatus TfLiteInterpreterSetAHardwareBufferInput(
     return kTfLiteOk;
 }
 
-namespace beam {
+namespace ajna {
 
 /// Inference backend selection — determined at runtime by device capability probe.
 enum class Backend {
@@ -190,7 +190,7 @@ public:
     /// Returns false if inference fails.
     bool run_on_hardware_buffer(
         AHardwareBuffer*    hw_buffer,
-        BeamSessionHandle   session,
+        AjnaSessionHandle   session,
         uint32_t            width,
         uint32_t            height)
     {
@@ -212,7 +212,7 @@ private:
 
     bool run_gpu_zero_copy(
         AHardwareBuffer* hw_buffer,
-        BeamSessionHandle session,
+        AjnaSessionHandle session,
         uint32_t width, uint32_t height)
     {
         TfLiteTensor* input = TfLiteInterpreterGetInputTensor(interpreter_, 0);
@@ -242,7 +242,7 @@ private:
 
     bool run_cpu_path(
         AHardwareBuffer* hw_buffer,
-        BeamSessionHandle session,
+        AjnaSessionHandle session,
         uint32_t width, uint32_t height)
     {
         // Lock gralloc buffer for CPU access
@@ -270,7 +270,7 @@ private:
         return push_output_to_session(session);
     }
 
-    bool push_output_to_session(BeamSessionHandle session) {
+    bool push_output_to_session(AjnaSessionHandle session) {
         // Output tensor 0: field confidence scores [N_FIELDS]
         // Output tensor 1: field string indices → decode from vocab table
         const TfLiteTensor* scores  = TfLiteInterpreterGetOutputTensor(interpreter_, 0);
@@ -289,7 +289,7 @@ private:
         CField fields[16];
         int n_fields = decode_output_fields(scores, strings, fields, 16);
 
-        beam_session_push_result(
+        ajna_session_push_result(
             session,
             fields, static_cast<size_t>(n_fields),
             reinterpret_cast<const uint8_t*>(doc_type), strlen(doc_type),
@@ -314,7 +314,7 @@ private:
         // Tensor 2: field_strings — N null-terminated UTF-8 strings packed sequentially
         // Tensor 3: field_confidences — float32 [N] parallel to field_strings
         //
-        // This implementation expects a model following the Beam canonical schema.
+        // This implementation expects a model following the Ajna canonical schema.
         // Substitute your own parsing logic if your model uses a different output layout.
 
         if (!scores || !strings) return 0;
@@ -371,53 +371,53 @@ Backend probe_backend() {
     return Backend::GpuDelegate;
 }
 
-} // namespace beam
+} // namespace ajna
 
-#endif // BEAM_HAS_TFLITE
+#endif // AJNA_HAS_TFLITE
 
 // ─── JNI entry points ──────────────────────────────────────────────────────
 
-#ifdef BEAM_HAS_TFLITE
+#ifdef AJNA_HAS_TFLITE
 extern "C" JNIEXPORT jlong JNICALL
-Java_ai_surt_beam_BeamSDK_nativeCreateInferenceEngine(
+Java_ai_ajna_ajna_AjnaSDK_nativeCreateInferenceEngine(
     JNIEnv* env, jobject, jstring model_path)
 {
     const char* path = env->GetStringUTFChars(model_path, nullptr);
-    auto* engine = new beam::TFLiteInference(path, beam::probe_backend());
+    auto* engine = new ajna::TFLiteInference(path, ajna::probe_backend());
     env->ReleaseStringUTFChars(model_path, path);
     return reinterpret_cast<jlong>(engine);
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_ai_surt_beam_BeamSDK_nativeDestroyInferenceEngine(
+Java_ai_ajna_ajna_AjnaSDK_nativeDestroyInferenceEngine(
     JNIEnv*, jobject, jlong handle)
 {
-    delete reinterpret_cast<beam::TFLiteInference*>(handle);
+    delete reinterpret_cast<ajna::TFLiteInference*>(handle);
 }
-#endif // BEAM_HAS_TFLITE
+#endif // AJNA_HAS_TFLITE
 
-#ifndef BEAM_HAS_TFLITE
+#ifndef AJNA_HAS_TFLITE
 extern "C" JNIEXPORT jlong JNICALL
-Java_ai_surt_beam_BeamSDK_nativeCreateInferenceEngine(
+Java_ai_ajna_ajna_AjnaSDK_nativeCreateInferenceEngine(
     JNIEnv* env, jobject, jstring model_path)
 {
     (void)env; (void)model_path;
-    __android_log_print(ANDROID_LOG_WARN, "BeamTFLite",
+    __android_log_print(ANDROID_LOG_WARN, "AjnaTFLite",
         "nativeCreateInferenceEngine: stub mode (no TFLite headers)");
     return 0L;
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_ai_surt_beam_BeamSDK_nativeDestroyInferenceEngine(
+Java_ai_ajna_ajna_AjnaSDK_nativeDestroyInferenceEngine(
     JNIEnv*, jobject, jlong handle)
 {
     (void)handle;
 }
-#endif // !BEAM_HAS_TFLITE
+#endif // !AJNA_HAS_TFLITE
 
 // ─── TFLite C++ Stubs for Linker Resolution ──────────────────────────────────
 
-#ifndef BEAM_HAS_TFLITE
+#ifndef AJNA_HAS_TFLITE
 // TFLite C++ Stubs for Linker Resolution (no real TFLite headers present)
 extern "C" {
 TfLiteGpuDelegateOptionsV2 TfLiteGpuDelegateOptionsV2Default() {
@@ -430,9 +430,9 @@ TfLiteDelegate* TfLiteGpuDelegateV2Create(const TfLiteGpuDelegateOptionsV2* opti
     return nullptr;
 }
 }
-#endif // !BEAM_HAS_TFLITE
+#endif // !AJNA_HAS_TFLITE
 
-#ifndef BEAM_HAS_TFLITE
+#ifndef AJNA_HAS_TFLITE
 
 namespace tflite {
 
@@ -513,4 +513,4 @@ StatefulNnApiDelegate::Data::~Data() {}
 
 } // namespace tflite
 
-#endif // !BEAM_HAS_TFLITE
+#endif // !AJNA_HAS_TFLITE

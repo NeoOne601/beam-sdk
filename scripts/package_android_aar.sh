@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # scripts/package_android_aar.sh
-# Package the Beam SDK as an Android AAR for distribution.
+# Package the Ajna SDK as an Android AAR for distribution.
 #
-# Output: dist/BeamSDK-0.1.0-release.aar
+# Output: dist/AjnaSDK-0.1.0-release.aar
 #
 # AAR structure:
-#   jni/arm64-v8a/libbeam_sdk.so
-#   jni/armeabi-v7a/libbeam_sdk.so
-#   classes.jar  (compiled BeamNativeBridge.kt)
+#   jni/arm64-v8a/libajna_sdk.so
+#   jni/armeabi-v7a/libajna_sdk.so
+#   classes.jar  (compiled AjnaNativeBridge.kt)
 #   AndroidManifest.xml
 #
 # Prerequisites:
@@ -20,11 +20,11 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="${REPO_ROOT}/dist"
 AAR_WORK="${DIST_DIR}/.aar_work"
-AAR_OUT="${DIST_DIR}/BeamSDK-0.1.0-release.aar"
+AAR_OUT="${DIST_DIR}/AjnaSDK-0.1.0-release.aar"
 NDK="${ANDROID_NDK:-${ANDROID_NDK_ROOT:-/opt/android/ndk}}"
 VERSION="0.1.0"
 
-echo "=== Beam SDK Android AAR Packaging ==="
+echo "=== Ajna SDK Android AAR Packaging ==="
 echo "NDK: ${NDK}"
 mkdir -p "${DIST_DIR}" "${AAR_WORK}/jni/arm64-v8a" "${AAR_WORK}/jni/armeabi-v7a" "${AAR_WORK}/jni/x86_64"
 
@@ -36,11 +36,11 @@ build_abi() {
     local BUILD_DIR="${REPO_ROOT}/build_${ABI}"
 
     # Check if a prebuilt .so exists from a download-artifact step
-    local PREBUILT_SO="${REPO_ROOT}/dist_libs/libbeam_sdk-${ABI}/libbeam_sdk.so"
+    local PREBUILT_SO="${REPO_ROOT}/dist_libs/libajna_sdk-${ABI}/libajna_sdk.so"
     if [ -f "${PREBUILT_SO}" ]; then
         echo "Using prebuilt .so for ${ABI} from ${PREBUILT_SO}"
         mkdir -p "${AAR_WORK}/jni/${ABI}"
-        cp "${PREBUILT_SO}" "${AAR_WORK}/jni/${ABI}/libbeam_sdk.so"
+        cp "${PREBUILT_SO}" "${AAR_WORK}/jni/${ABI}/libajna_sdk.so"
         echo "  ✓ ${ABI} (prebuilt): $(ls -lh ${PREBUILT_SO} | awk '{print $5}')"
         return 0
     fi
@@ -126,17 +126,17 @@ build_abi() {
           -DCMAKE_MODULE_PATH="${REPO_ROOT}/build" \
           -DANDROID_ABI="${ABI}" \
           -DANDROID_PLATFORM="android-26" \
-          -DBEAM_TARGET=Android \
+          -DAJNA_TARGET=Android \
           -DCMAKE_BUILD_TYPE=Release
         cmake --build "${BUILD_DIR}" --config Release
     )
 
-    local SO="${BUILD_DIR}/libbeam_sdk.so"
+    local SO="${BUILD_DIR}/libajna_sdk.so"
     if [ ! -f "${SO}" ]; then
-        echo "ERROR: libbeam_sdk.so not found for ${ABI}"
+        echo "ERROR: libajna_sdk.so not found for ${ABI}"
         exit 1
     fi
-    cp "${SO}" "${AAR_WORK}/jni/${ABI}/libbeam_sdk.so"
+    cp "${SO}" "${AAR_WORK}/jni/${ABI}/libajna_sdk.so"
     echo "  ✓ ${ABI}: $(ls -lh ${SO} | awk '{print $5}')"
 }
 
@@ -144,9 +144,9 @@ build_abi "arm64-v8a"   "aarch64-linux-android"
 build_abi "armeabi-v7a" "armv7-linux-androideabi"
 build_abi "x86_64"      "x86_64-linux-android"
 
-# ─── Compile BeamNativeBridge.kt → classes.jar ───────────────────────────────
+# ─── Compile AjnaNativeBridge.kt → classes.jar ───────────────────────────────
 
-KOTLIN_SRC="${REPO_ROOT}/platform/android/BeamNativeBridge.kt"
+KOTLIN_SRC="${REPO_ROOT}/platform/android/AjnaNativeBridge.kt"
 KOTLIN_OUT="${AAR_WORK}/kotlin_classes"
 mkdir -p "${KOTLIN_OUT}"
 
@@ -165,7 +165,7 @@ fi
 cat > "${AAR_WORK}/AndroidManifest.xml" <<'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="ai.surt.beam"
+    package="com.ajna.sdk"
     android:versionCode="1"
     android:versionName="0.1.0">
 </manifest>
@@ -193,7 +193,7 @@ else
     echo "--- Signing with provided keystore ---"
     jarsigner -keystore "${KEYSTORE_PATH}" \
               -storepass "${KEYSTORE_PASS:-changeit}" \
-              "${AAR_OUT}" "${KEY_ALIAS:-beam}"
+              "${AAR_OUT}" "${KEY_ALIAS:-ajna}"
 fi
 
 echo ""

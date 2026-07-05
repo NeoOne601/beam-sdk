@@ -1,8 +1,8 @@
-# Beam Verify SDK — Export Control Notice
+# Ajna Verify SDK — Export Control Notice
 
 ## EAR Classification
 
-The Beam Verify SDK incorporates cryptographic functionality subject to the U.S. Export Administration Regulations (EAR), 15 CFR Parts 730–774.
+The Ajna Verify SDK incorporates cryptographic functionality subject to the U.S. Export Administration Regulations (EAR), 15 CFR Parts 730–774.
 
 ### Applicable ECCN
 
@@ -38,7 +38,7 @@ The SDK must NOT be exported to, or used by nationals of, countries under compre
 
 ### Integrator Responsibility
 
-Integrators incorporating Beam Verify into their applications are independently responsible for their own EAR compliance, including any additional classification requirements arising from their specific product configuration or end-use.
+Integrators incorporating Ajna Verify into their applications are independently responsible for their own EAR compliance, including any additional classification requirements arising from their specific product configuration or end-use.
 
 ## Out of Scope
 

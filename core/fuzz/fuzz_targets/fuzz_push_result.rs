@@ -1,5 +1,5 @@
 // core/fuzz/fuzz_targets/fuzz_push_result.rs
-//! Fuzz target for beam_session_push_result FFI function.
+//! Fuzz target for ajna_session_push_result FFI function.
 //!
 //! This fuzzes the primary attack surface: the CField array and string pointers
 //! received from the C++ ML bridge. A malicious or buggy bridge could send:
@@ -10,10 +10,10 @@
 //! - Empty strings, maximum-length strings
 
 #![no_main]
-use beam_core::ffi::{
-    beam_session_create, beam_session_destroy, beam_session_push_result, beam_session_start, CField,
+use ajna_core::ffi::{
+    ajna_session_create, ajna_session_destroy, ajna_session_push_result, ajna_session_start, CField,
 };
-use beam_core::session::SessionConfig;
+use ajna_core::session::SessionConfig;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
@@ -31,13 +31,13 @@ fuzz_target!(|data: &[u8]| {
         include_raw_mrz: false,
     };
 
-    let session = beam_session_create(config);
+    let session = ajna_session_create(config);
     if session.is_null() {
         return;
     }
 
     unsafe {
-        beam_session_start(session, 1000);
+        ajna_session_start(session, 1000);
     }
 
     // Parse fuzz data into field-like structures
@@ -104,7 +104,7 @@ fuzz_target!(|data: &[u8]| {
         .unwrap_or(0);
 
     unsafe {
-        beam_session_push_result(
+        ajna_session_push_result(
             session,
             fields.as_ptr(),
             fields.len(),
@@ -120,6 +120,6 @@ fuzz_target!(|data: &[u8]| {
             false, // include_pqc_sig - disabled for fuzzing speed
         );
 
-        beam_session_destroy(session);
+        ajna_session_destroy(session);
     }
 });

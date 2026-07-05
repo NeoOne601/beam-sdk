@@ -1,5 +1,5 @@
 // core/src/result.rs
-// ScanResult and DocumentField — the output of the Beam pipeline.
+// ScanResult and DocumentField — the output of the Ajna pipeline.
 // canonical_bytes() produces a deterministic byte sequence suitable for PQC signing.
 //
 // VR-1 (Security): nonce, session_id, and timestamp_iso are now optional fields
@@ -20,7 +20,7 @@ pub struct DocumentField {
     pub confidence: f32,
 }
 
-/// The complete output of a Beam scan session.
+/// The complete output of a Ajna scan session.
 /// Produced by the Rust session after C++ inference pushes a result.
 /// Optionally PQC-signed before delivery to the host application.
 #[derive(Debug, Clone)]
@@ -59,8 +59,8 @@ pub struct ScanResult {
     /// Signing algorithm identifier (e.g. "ed25519", "ml-dsa-65").
     /// Empty string when no signing was performed.
     pub algo: String,
-    /// Beam SDK version string. Always "2.0" for this release.
-    pub beam_version: String,
+    /// Ajna SDK version string. Always "2.0" for this release.
+    pub ajna_version: String,
     /// Base64-encoded public key bytes from the signer.
     /// Empty string when no signing was performed.
     pub public_key: String,

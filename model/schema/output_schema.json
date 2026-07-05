@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "description": "Beam Verify canonical model output schema. Any model used with Beam must produce outputs matching this specification.",
+  "description": "Ajna Verify canonical model output schema. Any model used with Ajna must produce outputs matching this specification.",
   "inputs": {
     "primary": {
       "name": "image",
@@ -49,7 +49,7 @@
     }
   },
   "compatibility": {
-    "min_beam_version": "0.1.0",
+    "min_ajna_version": "0.1.0",
     "tflite_opset": 17,
     "coreml_spec_version": 7,
     "onnx_opset": 17

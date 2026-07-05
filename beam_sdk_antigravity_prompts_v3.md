@@ -1,4 +1,4 @@
-# Beam SDK — ADR-001 Crypto Agility Layer
+# Ajna SDK — ADR-001 Crypto Agility Layer
 # Antigravity Multi-Model Prompt System — v3 (Clean First Pass)
 #
 # WHAT CHANGED FROM v2
@@ -11,9 +11,9 @@
 #         Without this: every cargo test and cargo bench fails immediately.
 # Fix 3 (Prompt 3): Added base64 = "0.21" to core/Cargo.toml dependencies.
 #         Without this: base64 encoding in ffi.rs fails to compile.
-# Fix 4 (Prompt 3): Added beam_session_get_result_json() update.
+# Fix 4 (Prompt 3): Added ajna_session_get_result_json() update.
 #         The json!() block in ffi.rs:387-398 must include the 3 new fields.
-# Fix 5 (Prompt 1): Removed once_cell = "1" from beam-crypto/Cargo.toml.
+# Fix 5 (Prompt 1): Removed once_cell = "1" from ajna-crypto/Cargo.toml.
 #         std::sync::OnceLock is used (stable since Rust 1.70). No external crate needed.
 #
 # HOW TO RUN
@@ -36,43 +36,43 @@ SET ANTIGRAVITY MODEL TO: Claude Opus 4.6 (Thinking)
 PHASE: Trait design, FFI scaffold, workspace registration
 ═══════════════════════════════════════════════════════════════
 
-You are a senior Rust systems engineer implementing ADR-001 for the Beam SDK.
+You are a senior Rust systems engineer implementing ADR-001 for the Ajna SDK.
 
 ## Verified codebase state (read before writing anything)
 - Workspace Cargo.toml (repo root): members = ["core", "backend", "core/fuzz"]
-  crates/beam-crypto does NOT exist yet — you are creating it.
-- Signing currently lives in: core/src/ffi.rs, function beam_session_push_result()
+  crates/ajna-crypto does NOT exist yet — you are creating it.
+- Signing currently lives in: core/src/ffi.rs, function ajna_session_push_result()
   which calls crate::crypto::PqcSigner::generate() at lines 322-330.
-- C++ bridges (tflite_bridge.cpp, coreml_bridge.mm) call beam_session_push_result()
+- C++ bridges (tflite_bridge.cpp, coreml_bridge.mm) call ajna_session_push_result()
   with include_pqc_sig=true — they do NOT call any signing function directly.
-- beam_ffi.h does NOT need a beam_sign() declaration.
+- ajna_ffi.h does NOT need a ajna_sign() declaration.
 - Architecture decision: signing is abstracted via a SignerRegistry in the new
-  beam-crypto crate. core/src/ffi.rs will call through the registry.
-  The C++ bridges remain unchanged. beam_ffi.h remains unchanged.
+  ajna-crypto crate. core/src/ffi.rs will call through the registry.
+  The C++ bridges remain unchanged. ajna_ffi.h remains unchanged.
 
 ## Your task — write exactly these four files, nothing else
 
-### File 1: crates/beam-crypto/src/signer.rs
-Define the BeamSigner trait and SignerRegistry.
+### File 1: crates/ajna-crypto/src/signer.rs
+Define the AjnaSigner trait and SignerRegistry.
 
 Requirements:
-- `pub trait BeamSigner: Send + Sync` with exactly these four methods:
+- `pub trait AjnaSigner: Send + Sync` with exactly these four methods:
     fn algorithm_id(&self) -> &'static str;
     fn sign(&self, payload: &[u8]) -> Result<Vec<u8>, SignerError>;
     fn verify(&self, payload: &[u8], sig: &[u8]) -> Result<bool, SignerError>;
     fn public_key_bytes(&self) -> Vec<u8>;
 - `pub struct SignerRegistry` containing:
-    signers: HashMap<String, Arc<dyn BeamSigner>>
+    signers: HashMap<String, Arc<dyn AjnaSigner>>
     preferred_order: Vec<String>
 - `impl SignerRegistry` with these methods and no others:
     pub fn new() -> Self
-    pub fn register(&mut self, signer: impl BeamSigner + 'static) -> &mut Self
+    pub fn register(&mut self, signer: impl AjnaSigner + 'static) -> &mut Self
       — inserts into signers map keyed by signer.algorithm_id()
       — appends algorithm_id to preferred_order
       — returns &mut Self for chaining
-    pub fn select(&self, algo_id: &str) -> Option<Arc<dyn BeamSigner>>
+    pub fn select(&self, algo_id: &str) -> Option<Arc<dyn AjnaSigner>>
       — returns None (never panics) if algo_id not found
-    pub fn preferred(&self) -> Option<Arc<dyn BeamSigner>>
+    pub fn preferred(&self) -> Option<Arc<dyn AjnaSigner>>
       — returns the first signer in preferred_order that is present in signers, or None
       — if preferred_order is empty, returns None (no panic)
     pub fn supported_algorithms(&self) -> Vec<String>
@@ -85,10 +85,10 @@ Requirements:
 - Derive thiserror::Error and std::fmt::Display on SignerError with #[error("...")] on each variant
 - Imports needed: std::collections::HashMap, std::sync::Arc, thiserror::Error
 
-### File 2: crates/beam-crypto/src/lib.rs
+### File 2: crates/ajna-crypto/src/lib.rs
 - pub mod signer;
 - pub mod signers;
-- pub use signer::{BeamSigner, SignerError, SignerRegistry};
+- pub use signer::{AjnaSigner, SignerError, SignerRegistry};
 - A global SignerRegistry instance using std::sync::OnceLock (no external once_cell crate):
     use std::sync::{OnceLock, RwLock};
     static GLOBAL_REGISTRY: OnceLock<RwLock<SignerRegistry>> = OnceLock::new();
@@ -97,13 +97,13 @@ Requirements:
     pub fn init_registry(registry: SignerRegistry)
       — calls GLOBAL_REGISTRY.set(RwLock::new(registry))
       — if already set: panics with a clear message ("init_registry called twice")
-- Do NOT write a beam_sign() C extern function here.
+- Do NOT write a ajna_sign() C extern function here.
   The entry point into signing from ffi.rs will use global_registry() directly.
 - Re-export signers module contents: pub use signers::*;
 
-### File 3: crates/beam-crypto/Cargo.toml
+### File 3: crates/ajna-crypto/Cargo.toml
 [package]
-name = "beam-crypto"
+name = "ajna-crypto"
 version = "0.1.0"
 edition = "2021"
 
@@ -124,11 +124,11 @@ pqc = ["pqcrypto-dilithium", "pqcrypto-traits"]
 NOTE: Do NOT include once_cell. OnceLock is in std since Rust 1.70.
 
 ### File 4: Cargo.toml (workspace root — MODIFY existing file)
-Add "crates/beam-crypto" to the members list.
+Add "crates/ajna-crypto" to the members list.
 The complete file must be:
 
 [workspace]
-members = ["core", "backend", "core/fuzz", "crates/beam-crypto"]
+members = ["core", "backend", "core/fuzz", "crates/ajna-crypto"]
 resolver = "2"
 
 ## Output format — STRICT
@@ -147,10 +147,10 @@ PHASE: Signer implementations, session endpoint, payload envelope, construction 
 ═══════════════════════════════════════════════════════════════
 
 You are a senior Rust engineer. Phase 1 has written:
-- crates/beam-crypto/src/signer.rs   (BeamSigner trait, SignerRegistry, SignerError)
-- crates/beam-crypto/src/lib.rs      (global_registry(), init_registry(), pub mods)
-- crates/beam-crypto/Cargo.toml
-- Workspace Cargo.toml updated to include crates/beam-crypto
+- crates/ajna-crypto/src/signer.rs   (AjnaSigner trait, SignerRegistry, SignerError)
+- crates/ajna-crypto/src/lib.rs      (global_registry(), init_registry(), pub mods)
+- crates/ajna-crypto/Cargo.toml
+- Workspace Cargo.toml updated to include crates/ajna-crypto
 
 ## Verified codebase state (read before writing anything)
 - Payload struct to modify: core/src/result.rs — struct ScanResult
@@ -163,7 +163,7 @@ You are a senior Rust engineer. Phase 1 has written:
 - Session route does not exist yet. Existing routes in backend/src/routes/mod.rs:
   nonce, verify, audit, webhook, health
 - uuid = { version = "1", features = ["v4", "serde"] } already exists in backend/Cargo.toml
-- All signer files go under: crates/beam-crypto/src/signers/
+- All signer files go under: crates/ajna-crypto/src/signers/
 
 ## CRITICAL: naming rules
 - The Ed25519 signer file is named ed25519_signer.rs (NOT ed25519.rs)
@@ -172,12 +172,12 @@ You are a senior Rust engineer. Phase 1 has written:
 
 ## Your task — write exactly these files listed below, nothing else
 
-### File 1: crates/beam-crypto/src/signers/ed25519_signer.rs
+### File 1: crates/ajna-crypto/src/signers/ed25519_signer.rs
 - `pub struct EdDsaSigner { signing_key: ed25519_dalek::SigningKey }`
 - `impl EdDsaSigner`: pub fn new() -> Self
     use rand::rngs::OsRng;
     Self { signing_key: ed25519_dalek::SigningKey::generate(&mut OsRng) }
-- `impl BeamSigner for EdDsaSigner`:
+- `impl AjnaSigner for EdDsaSigner`:
     algorithm_id() -> "ed25519"
     sign():
       use ed25519_dalek::Signer;
@@ -192,9 +192,9 @@ You are a senior Rust engineer. Phase 1 has written:
         .map(|_| true)
         .map_err(|e| SignerError::VerificationFailed(e.to_string()))
     public_key_bytes(): self.signing_key.verifying_key().to_bytes().to_vec()
-- Imports: use crate::signer::{BeamSigner, SignerError};
+- Imports: use crate::signer::{AjnaSigner, SignerError};
 
-### File 2: crates/beam-crypto/src/signers/ml_dsa.rs
+### File 2: crates/ajna-crypto/src/signers/ml_dsa.rs
 - Gate entire file: wrap ALL content (struct, impls, use statements) in
   #[cfg(feature = "pqc")] blocks so the file compiles as empty without the feature.
 - `pub struct MlDsaSigner { public_key: pqcrypto_dilithium::dilithium3::PublicKey,
@@ -202,7 +202,7 @@ You are a senior Rust engineer. Phase 1 has written:
 - `impl MlDsaSigner`: pub fn new() -> Self
     let (pk, sk) = pqcrypto_dilithium::dilithium3::keypair();
     Self { public_key: pk, secret_key: sk }
-- `impl BeamSigner for MlDsaSigner`:
+- `impl AjnaSigner for MlDsaSigner`:
     algorithm_id() -> "ml-dsa-65"
     sign():
       use pqcrypto_dilithium::dilithium3::detached_sign;
@@ -220,27 +220,27 @@ You are a senior Rust engineer. Phase 1 has written:
     public_key_bytes():
       use pqcrypto_traits::sign::PublicKey;
       self.public_key.as_bytes().to_vec()
-- Imports: use crate::signer::{BeamSigner, SignerError};
+- Imports: use crate::signer::{AjnaSigner, SignerError};
 
-### File 3: crates/beam-crypto/src/signers/ecdsa_stub.rs
+### File 3: crates/ajna-crypto/src/signers/ecdsa_stub.rs
 - `pub struct EcdsaSigner;`
-- `impl BeamSigner for EcdsaSigner`:
+- `impl AjnaSigner for EcdsaSigner`:
     algorithm_id() -> "ecdsa-p256"
     sign() -> Err(SignerError::NotImplemented("EcdsaSigner ships in Phase 2".into()))
     verify() -> Err(SignerError::NotImplemented("EcdsaSigner ships in Phase 2".into()))
     public_key_bytes() -> vec![]
-- Imports: use crate::signer::{BeamSigner, SignerError};
+- Imports: use crate::signer::{AjnaSigner, SignerError};
 
-### File 4: crates/beam-crypto/src/signers/hybrid_stub.rs
+### File 4: crates/ajna-crypto/src/signers/hybrid_stub.rs
 - `pub struct HybridSigner;`
-- `impl BeamSigner for HybridSigner`:
+- `impl AjnaSigner for HybridSigner`:
     algorithm_id() -> "hybrid-ed25519-ml-dsa-65"
     sign() -> Err(SignerError::NotImplemented("HybridSigner ships in Phase 2".into()))
     verify() -> Err(SignerError::NotImplemented("HybridSigner ships in Phase 2".into()))
     public_key_bytes() -> vec![]
-- Imports: use crate::signer::{BeamSigner, SignerError};
+- Imports: use crate::signer::{AjnaSigner, SignerError};
 
-### File 5: crates/beam-crypto/src/signers/mod.rs
+### File 5: crates/ajna-crypto/src/signers/mod.rs
 pub mod ed25519_signer;
 pub mod ml_dsa;
 pub mod ecdsa_stub;
@@ -307,7 +307,7 @@ Add `.route("/v1/session/init", post(session::session_init))` to the router() fu
 The complete file must be:
 
 // backend/src/routes/mod.rs
-// Route registry for the Beam Verify backend.
+// Route registry for the Ajna Verify backend.
 //
 // VR-3 (Security): Routes are split into two groups:
 //   router()        — authenticated routes (auth + rate limiting applied in main.rs)
@@ -350,8 +350,8 @@ Add three new fields to ScanResult, AFTER the existing timestamp_iso field:
     /// Signing algorithm identifier (e.g. "ed25519", "ml-dsa-65").
     /// Empty string when no signing was performed.
     pub algo: String,
-    /// Beam SDK version string. Always "2.0" for this release.
-    pub beam_version: String,
+    /// Ajna SDK version string. Always "2.0" for this release.
+    pub ajna_version: String,
     /// Base64-encoded public key bytes from the signer.
     /// Empty string when no signing was performed.
     pub public_key: String,
@@ -366,7 +366,7 @@ Adding fields to a struct in Rust breaks every existing construction site.
 You MUST update the following 5 files to add the 3 new fields to every
 ScanResult { ... } literal. Use these default values in every construction:
     algo: String::new(),
-    beam_version: String::from("2.0"),
+    ajna_version: String::from("2.0"),
     public_key: String::new(),
 
 Files containing ScanResult literals (output EACH as a complete file):
@@ -414,20 +414,20 @@ You are a senior Rust systems engineer. Phases 1 and 2 have completed.
 ## Verified codebase state — architecture clarification (critical)
 The C++ bridges (platform/android/tflite_bridge.cpp, platform/ios/coreml_bridge.mm)
 do NOT call any signing function directly. They call:
-    beam_session_push_result(..., include_pqc_sig: true, ...)
+    ajna_session_push_result(..., include_pqc_sig: true, ...)
 
-The actual signing call is inside core/src/ffi.rs, in the beam_session_push_result()
+The actual signing call is inside core/src/ffi.rs, in the ajna_session_push_result()
 function, at lines 322-330, which currently calls:
     crate::crypto::PqcSigner::generate(crate::crypto::MlDsaLevel::Level3)
 
 This is the ONLY signing call site. The C++ bridges are NOT modified.
-Do not touch tflite_bridge.cpp, coreml_bridge.mm, or beam_ffi.h.
+Do not touch tflite_bridge.cpp, coreml_bridge.mm, or ajna_ffi.h.
 
 ## Your task — three parts
 
 ### Part A: Wire SignerRegistry into core/src/ffi.rs
 
-In core/src/ffi.rs, locate the beam_session_push_result() function.
+In core/src/ffi.rs, locate the ajna_session_push_result() function.
 Find the hardwired signing block at lines ~322-330:
 
     if include_pqc_sig && session.config.pqc_sign_result {
@@ -443,7 +443,7 @@ Find the hardwired signing block at lines ~322-330:
 Replace this block with a registry dispatch:
 
     if include_pqc_sig && session.config.pqc_sign_result {
-        if let Ok(registry) = beam_crypto::global_registry().read() {
+        if let Ok(registry) = ajna_crypto::global_registry().read() {
             if let Some(signer) = registry.preferred() {
                 let canonical = result.canonical_bytes();
                 if let Ok(sig) = signer.sign(&canonical) {
@@ -462,16 +462,16 @@ Also add to the imports at the top of ffi.rs:
 
 Also update the ScanResult literal at line ~309 to include the 3 new fields:
     algo: String::new(),
-    beam_version: String::from("2.0"),
+    ajna_version: String::from("2.0"),
     public_key: String::new(),
 
-Also update the beam_session_get_result_json() function (~lines 387-398).
+Also update the ajna_session_get_result_json() function (~lines 387-398).
 The json!() block currently serializes:
     "pqc_signature_hex": hex::encode(&result.pqc_signature),
     "pqc_public_key_hex": hex::encode(&result.pqc_public_key)
 Add these 3 new fields to the json!() block:
     "algo": result.algo,
-    "beam_version": result.beam_version,
+    "ajna_version": result.ajna_version,
     "public_key": result.public_key,
 
 Output the COMPLETE modified core/src/ffi.rs — every line, no truncation.
@@ -479,7 +479,7 @@ Output the COMPLETE modified core/src/ffi.rs — every line, no truncation.
 ### Part B: Add dependencies to core/Cargo.toml
 
 Add these two dependencies to core/Cargo.toml [dependencies] section:
-    beam-crypto = { path = "../crates/beam-crypto" }
+    ajna-crypto = { path = "../crates/ajna-crypto" }
     base64 = "0.21"
 
 Output the COMPLETE modified core/Cargo.toml — every line, no truncation.
@@ -489,21 +489,21 @@ Output the COMPLETE modified core/Cargo.toml — every line, no truncation.
 Check each of the following and output the corrected file in full if a fix is needed,
 or "✓ [filename] — no issues" if it passes:
 
-1. crates/beam-crypto/src/signer.rs
+1. crates/ajna-crypto/src/signer.rs
    — SignerRegistry::select() returns None for unknown algo_id (no unwrap, no panic)
    — SignerRegistry::preferred() returns None if preferred_order is empty (no panic)
    — SignerError variants all have #[error("...")] attributes
 
-2. crates/beam-crypto/src/lib.rs
+2. crates/ajna-crypto/src/lib.rs
    — global_registry() is safe to call from multiple threads (OnceLock + RwLock)
    — init_registry() panics with a clear message if called twice
    — No once_cell crate import — uses only std::sync::OnceLock
 
-3. crates/beam-crypto/src/signers/ed25519_signer.rs
+3. crates/ajna-crypto/src/signers/ed25519_signer.rs
    — File name matches mod.rs declaration (ed25519_signer, NOT ed25519)
    — ed25519_dalek::Signer trait is imported for .sign() method
 
-4. crates/beam-crypto/src/signers/ml_dsa.rs
+4. crates/ajna-crypto/src/signers/ml_dsa.rs
    — Entire file content is gated by #[cfg(feature = "pqc")]
    — pqcrypto_traits imports match the trait methods used (DetachedSignature, PublicKey)
    — Uses detached_sign / verify_detached_signature (NOT sign/open which produce SignedMessage)
@@ -513,7 +513,7 @@ or "✓ [filename] — no issues" if it passes:
    — no_common_algorithm returns StatusCode::BAD_REQUEST (400, not 500)
 
 6. core/src/result.rs
-   — The 3 new fields exist: algo, beam_version, public_key (all String)
+   — The 3 new fields exist: algo, ajna_version, public_key (all String)
    — No #[serde(default)] or Serialize/Deserialize derives added
    — Existing canonical_bytes() logic is NOT broken (new fields are NOT in canonical_bytes)
 
@@ -593,7 +593,7 @@ FAILURE → apply identical fix loop as Phase 4A. Same 3-attempt limit. Same ESC
 
 Run in sequence — stop and report if any command exits non-zero:
 
-git add crates/beam-crypto/
+git add crates/ajna-crypto/
 git add core/src/ffi.rs
 git add core/src/result.rs
 git add core/src/field_parser.rs
@@ -613,15 +613,15 @@ Confirm staged files match what Phases 1-3 produced. Then:
 
 git commit -m "feat(crypto): ADR-001 cryptographic agility registry
 
-- Add beam-crypto crate: BeamSigner trait, SignerRegistry, SignerError
+- Add ajna-crypto crate: AjnaSigner trait, SignerRegistry, SignerError
 - Implement EdDsaSigner (Ed25519, default) and MlDsaSigner (Dilithium-3, pqc feature)
 - Stub EcdsaSigner and HybridSigner returning NotImplemented (Phase 2)
 - Wire SignerRegistry into core/src/ffi.rs replacing hardwired PqcSigner::generate()
 - C++ bridges (tflite_bridge.cpp, coreml_bridge.mm) unchanged — signing stays in Rust layer
 - Add POST /v1/session/init algorithm negotiation endpoint
-- Update ScanResult: add algo, beam_version, public_key fields
+- Update ScanResult: add algo, ajna_version, public_key fields
 - Update all ScanResult construction sites (tests, benches, field_parser)
-- Register beam-crypto in workspace Cargo.toml
+- Register ajna-crypto in workspace Cargo.toml
 
 Resolves: ADR-001"
 

@@ -1,10 +1,10 @@
-# Beam SDK API Reference
+# Ajna SDK API Reference
 
-This document covers all public types and functions in the Beam SDK. Read alongside [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md) and [SECURITY_MODEL.md](SECURITY_MODEL.md).
+This document covers all public types and functions in the Ajna SDK. Read alongside [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md) and [SECURITY_MODEL.md](SECURITY_MODEL.md).
 
 ---
 
-## Rust Core (`beam-core`)
+## Rust Core (`ajna-core`)
 
 ### `frame.rs`
 
@@ -210,19 +210,19 @@ All functions are `#[no_mangle] extern "C"` and safe to call from C/C++/ObjC.
 
 ```c
 // Session lifecycle
-BeamSessionHandle beam_session_create(BeamSessionConfig config);
-void              beam_session_destroy(BeamSessionHandle handle);  // null-safe
-void              beam_session_start(BeamSessionHandle, uint64_t timestamp_us);
-uint32_t          beam_session_get_state(BeamSessionHandle);       // returns SessionState
+AjnaSessionHandle ajna_session_create(AjnaSessionConfig config);
+void              ajna_session_destroy(AjnaSessionHandle handle);  // null-safe
+void              ajna_session_start(AjnaSessionHandle, uint64_t timestamp_us);
+uint32_t          ajna_session_get_state(AjnaSessionHandle);       // returns SessionState
 
 // Quality gate
-BeamGateHandle beam_gate_create(void);
-uint32_t       beam_gate_evaluate(BeamGateHandle, const BeamRawFrame*); // returns Gate discriminant
-void           beam_gate_destroy(BeamGateHandle);  // null-safe
+AjnaGateHandle ajna_gate_create(void);
+uint32_t       ajna_gate_evaluate(AjnaGateHandle, const AjnaRawFrame*); // returns Gate discriminant
+void           ajna_gate_destroy(AjnaGateHandle);  // null-safe
 
 // Result ingestion (called by C++ inference layer)
-void beam_session_push_result(
-    BeamSessionHandle, const CField*, size_t field_count,
+void ajna_session_push_result(
+    AjnaSessionHandle, const CField*, size_t field_count,
     const uint8_t* doc_type, size_t doc_type_len,
     const uint8_t* country,  size_t country_len,
     float overall_conf, bool include_pqc_sig
@@ -235,9 +235,9 @@ void beam_session_push_result(
 
 ---
 
-## Swift API (`BeamSDK.swift`)
+## Swift API (`AjnaSDK.swift`)
 
-### `struct BeamScanConfig`
+### `struct AjnaScanConfig`
 
 ```swift
 var minQualityFrames: Int   // default 3
@@ -245,10 +245,10 @@ var timeoutMs:         Int  // default 30000
 var pqcSignResult:     Bool // default true
 ```
 
-### `struct BeamScanResult : Codable`
+### `struct AjnaScanResult : Codable`
 
 ```swift
-let fields:         [BeamDocumentField]
+let fields:         [AjnaDocumentField]
 let rawMrz:         String?
 let documentType:   String
 let issuingCountry: String
@@ -257,20 +257,20 @@ let pqcSignature:   Data
 let pqcPublicKey:   Data
 ```
 
-### `class BeamScanner`
+### `class AjnaScanner`
 
 ```swift
-func configure() throws                     // throws BeamScannerError
+func configure() throws                     // throws AjnaScannerError
 func startScan(
-    config: BeamScanConfig,
-    completion: @escaping (Result<BeamScanResult, BeamScannerError>) -> Void
+    config: AjnaScanConfig,
+    completion: @escaping (Result<AjnaScanResult, AjnaScannerError>) -> Void
 )
 func stopScan()
 ```
 
 Completion is always dispatched on `DispatchQueue.main`.
 
-### `enum BeamScannerError`
+### `enum AjnaScannerError`
 
 ```swift
 case noCameraAvailable
@@ -282,9 +282,9 @@ case configurationFailed(String)
 
 ---
 
-## Kotlin API (`BeamNativeBridge.kt`)
+## Kotlin API (`AjnaNativeBridge.kt`)
 
-### `class BeamNativeBridge`
+### `class AjnaNativeBridge`
 
 ```kotlin
 fun nativeCreateInferenceEngine(modelPath: String): Long
@@ -312,4 +312,4 @@ open fun onCameraError(errorCode: Int)
 IDLE, SCANNING, INFERRING, COMPLETE, FAILED
 ```
 
-Library loaded via `System.loadLibrary("beam_sdk")` in companion object `init` block.
+Library loaded via `System.loadLibrary("ajna_sdk")` in companion object `init` block.

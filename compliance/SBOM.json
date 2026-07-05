@@ -6,10 +6,10 @@
     "timestamp": "2026-06-08T00:00:00Z",
     "component": {
       "type": "library",
-      "name": "beam-verify-sdk",
+      "name": "ajna-verify-sdk",
       "version": "0.1.0",
-      "supplier": { "name": "Surt AI", "url": ["https://surt.ai"] },
-      "licenses": [{ "license": { "id": "LicenseRef-Surt-Proprietary" } }]
+      "supplier": { "name": "Ajna AI", "url": ["https://ajna.ai"] },
+      "licenses": [{ "license": { "id": "LicenseRef-Ajna-Proprietary" } }]
     }
   },
   "components": [
@@ -71,7 +71,7 @@
       "version": "0.7",
       "purl": "pkg:cargo/axum@0.7",
       "licenses": [{ "license": { "id": "MIT" } }],
-      "description": "Web application framework for the Beam Verify backend"
+      "description": "Web application framework for the Ajna Verify backend"
     },
     {
       "type": "library",
@@ -79,7 +79,7 @@
       "version": "0.7",
       "purl": "pkg:cargo/sqlx@0.7",
       "licenses": [{ "license": { "id": "MIT" } }],
-      "description": "PostgreSQL async driver for the Beam Verify backend"
+      "description": "PostgreSQL async driver for the Ajna Verify backend"
     },
     {
       "type": "library",

@@ -1,8 +1,8 @@
-# Beam Verify SDK — FFI Fuzzing Guide
+# Ajna Verify SDK — FFI Fuzzing Guide
 
 ## Purpose
 
-This guide documents how to fuzz the Beam Verify FFI boundary — the C-callable functions in `core/src/ffi.rs` — using libFuzzer with AddressSanitizer (ASAN). The FFI boundary is the primary attack surface: it receives untrusted data from the C++ ML bridges.
+This guide documents how to fuzz the Ajna Verify FFI boundary — the C-callable functions in `core/src/ffi.rs` — using libFuzzer with AddressSanitizer (ASAN). The FFI boundary is the primary attack surface: it receives untrusted data from the C++ ML bridges.
 
 ## Prerequisites
 
@@ -17,7 +17,7 @@ cd core
 cargo fuzz init
 ```
 
-## Starter Fuzz Target: `beam_session_push_result`
+## Starter Fuzz Target: `ajna_session_push_result`
 
 This function receives raw CField pointers from C++ code. A malicious or buggy bridge could send:
 - NULL key/value pointers
@@ -35,15 +35,15 @@ mkdir -p fuzz/fuzz_targets
 // fuzz/fuzz_targets/fuzz_push_result.rs
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use beam_core::ffi::{CField, beam_session_create, beam_session_start, beam_session_push_result, beam_session_destroy};
+use ajna_core::ffi::{CField, ajna_session_create, ajna_session_start, ajna_session_push_result, ajna_session_destroy};
 
 fuzz_target!(|data: &[u8]| {
     if data.len() < 16 { return; }
 
     // Create a session
-    let session = unsafe { beam_session_create() };
+    let session = unsafe { ajna_session_create() };
     if session.is_null() { return; }
-    unsafe { beam_session_start(session, 1000); }
+    unsafe { ajna_session_start(session, 1000); }
 
     // Parse fuzz data into field-like structures
     let num_fields = (data[0] as usize).min(20);
@@ -73,7 +73,7 @@ fuzz_target!(|data: &[u8]| {
     let doc_type = b"passport";
     let country = b"USA";
     unsafe {
-        beam_session_push_result(
+        ajna_session_push_result(
             session,
             fields.as_ptr(),
             fields.len(),
@@ -84,7 +84,7 @@ fuzz_target!(|data: &[u8]| {
             0.5,
             false,
         );
-        beam_session_destroy(session);
+        ajna_session_destroy(session);
     }
 });
 ```
@@ -108,14 +108,14 @@ cargo +nightly fuzz run fuzz_push_result -- \
 
 | Target | FFI Function | Risk |
 |--------|-------------|------|
-| `fuzz_gate_evaluate` | `beam_gate_evaluate` | Malformed RawFrame with invalid pointer/stride |
+| `fuzz_gate_evaluate` | `ajna_gate_evaluate` | Malformed RawFrame with invalid pointer/stride |
 | `fuzz_field_parser` | `FieldParser::parse` | Invalid UTF-8, extreme lengths, bad date formats |
 | `fuzz_canonical_bytes` | `ScanResult::canonical_bytes` | Empty fields, maximum field count |
 
 ## Interpreting Results
 
 - **ASAN violations**: Use-after-free, buffer overflow, stack overflow → fix in FFI boundary checks
-- **Timeouts**: Algorithmic complexity issues (unlikely for Beam's O(n) pipelines)
+- **Timeouts**: Algorithmic complexity issues (unlikely for Ajna's O(n) pipelines)
 - **Panics**: Unwinding across FFI boundary is UB — ensure all FFI functions catch panics
 
 ## CI Integration

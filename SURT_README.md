@@ -1,14 +1,14 @@
-# Beam SDK
+# Ajna SDK
 
-*A technical architecture review prepared for the Surt founding team — Edwin Onyango and Philipp Tepel.*
+*A technical architecture review prepared for the Ajna founding team — Edwin Onyango and Philipp Tepel.*
 
-> Beam is Surt AI's native identity document scanning core. It replaces Scandit with a stack you own: camera pipeline, frame selection, ML inference integration, and post-quantum cryptographic result signing. This repository contains the production-ready infrastructure. The ML model is the remaining deliverable.
+> Ajna is Ajna AI's native identity document scanning core. It replaces Scandit with a stack you own: camera pipeline, frame selection, ML inference integration, and post-quantum cryptographic result signing. This repository contains the production-ready infrastructure. The ML model is the remaining deliverable.
 
 | Component | Status | Notes |
 |---|---|---|
 | Rust core (quality gates, session state, PQC signing) | Production-ready | 46 tests passing |
-| iOS platform adapter + BeamScanner API | Production-ready | Zero-copy CVPixelBuffer |
-| Android platform adapter + BeamScanner API | Production-ready | AHardwareBuffer GPU delegate |
+| iOS platform adapter + AjnaScanner API | Production-ready | Zero-copy CVPixelBuffer |
+| Android platform adapter + AjnaScanner API | Production-ready | AHardwareBuffer GPU delegate |
 | Web TypeScript SDK wrapper | Production-ready | ONNX Runtime WASM |
 | Backend verification server (Axum, PostgreSQL, Redis) | Deployable | Docker Compose included |
 | CI/CD pipeline (Android, iOS, WASM, security audits) | Active | Publishes on version tag |
@@ -60,9 +60,9 @@ flowchart TD
     ADP -->|"RawFrame non-owning pointer view"| GATES
     GATES -->|"Gate::Accepted frames only"| CL
     GATES -->|"QualityReport on rejection"| SESSION
-    TFLITE -->|"beam_session_push_result()"| PQC
-    COREML -->|"beam_session_push_result()"| PQC
-    ONNXRT -->|"beam_session_push_result()"| PQC
+    TFLITE -->|"ajna_session_push_result()"| PQC
+    COREML -->|"ajna_session_push_result()"| PQC
+    ONNXRT -->|"ajna_session_push_result()"| PQC
     PQC -->|"ScanResult + ML-DSA signature"| HOST["Host Application"]
 
     classDef rust fill:#7c2d12,stroke:#fb923c,color:#fff,font-weight:bold
@@ -97,8 +97,8 @@ flowchart LR
     end
 
     SWIFT -->|"one frame pointer\nper pipeline tick"| CPP
-    CPP -->|"beam_session_push_result()\none call per accepted frame"| RUST
-    SWIFT -->|"beam_session_get_result_json()\npull JSON when state == Complete"| RUST
+    CPP -->|"ajna_session_push_result()\none call per accepted frame"| RUST
+    SWIFT -->|"ajna_session_get_result_json()\npull JSON when state == Complete"| RUST
 
     classDef swift fill:#064e3b,stroke:#34d399,color:#fff
     classDef cpp fill:#1e3a8a,stroke:#60a5fa,color:#fff
@@ -210,7 +210,7 @@ stateDiagram-v2
 
     Scanning --> Failed : is_timed_out(now_us)\nnow_us >= start_timestamp_us + timeout_ms x 1000
 
-    Inferring --> Complete : complete(ScanResult)\ncalled by C++ bridge via beam_session_push_result()
+    Inferring --> Complete : complete(ScanResult)\ncalled by C++ bridge via ajna_session_push_result()
     Inferring --> Failed : fail(reason)\ninference error
 
     Complete --> [*]
@@ -226,7 +226,7 @@ stateDiagram-v2
 | `Scanning` | `Scanning` | gate fail, count >= `adaptive_gate_limit` | `apply_adaptive_relaxation()` called by `FramePipeline` |
 | `Scanning` | `Inferring` | `quality_frame_count >= min_quality_frames` | `consecutive_gate_fails` reset to 0 |
 | `Scanning` | `Failed` | `now_us >= start + timeout_ms * 1000` | `fail("timeout")` |
-| `Inferring` | `Complete` | `complete(result)` via FFI | PQC signature applied. Platforms retrieve via `beam_session_get_result_json()` |
+| `Inferring` | `Complete` | `complete(result)` via FFI | PQC signature applied. Platforms retrieve via `ajna_session_get_result_json()` |
 | `Inferring` | `Failed` | `fail(reason)` | inference layer error |
 | `Complete` | none | terminal | result stored in `session.result` |
 | `Failed` | none | terminal | session must be destroyed and recreated |
@@ -252,18 +252,18 @@ SessionConfig {
 ```mermaid
 sequenceDiagram
     participant ISP as Camera ISP
-    participant ADP as BeamCameraAdapter.swift
+    participant ADP as AjnaCameraAdapter.swift
     participant CPP as coreml_bridge.mm
     participant ANE as Apple Neural Engine
     participant FFI as Rust FFI
 
     ISP->>ADP: sampleBuffer (kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange)
     ADP->>ADP: CVPixelBufferLockBaseAddress(.readOnly)
-    ADP->>CPP: beam_coreml_process(session, pixelBuffer, rustSession)
+    ADP->>CPP: ajna_coreml_process(session, pixelBuffer, rustSession)
     CPP->>CPP: MLFeatureValue(pixelBuffer:) — zero-copy reference, no memcpy
     CPP->>ANE: predictionFromFeatures(provider, MLComputeUnitsAll)
     ANE-->>CPP: MLFeatureProvider — inference output
-    CPP->>FFI: beam_session_push_result(rustSession, fields, ...)
+    CPP->>FFI: ajna_session_push_result(rustSession, fields, ...)
     CPP-->>ADP: return
     ADP->>ADP: CVPixelBufferUnlockBaseAddress(.readOnly)
     Note right of ADP: Lock held for exactly one inference tick.<br/>Never retained across frames.
@@ -276,7 +276,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant ISP as Camera2 HAL
-    participant KT as BeamCameraAdapter.kt
+    participant KT as AjnaCameraAdapter.kt
     participant JNI as JNI Bridge
     participant CPP as tflite_bridge.cpp
     participant GPU as Mali-G57 GPU delegate
@@ -290,7 +290,7 @@ sequenceDiagram
     CPP->>GPU: TfLiteInterpreterSetAHardwareBufferInput()<br/>ISP DRAM to GPU tensor — no CPU copy
     CPP->>GPU: TfLiteInterpreterInvoke()
     GPU-->>CPP: output tensors
-    CPP->>FFI: beam_session_push_result()
+    CPP->>FFI: ajna_session_push_result()
     KT->>KT: image.close() — unconditional inside finally block
 ```
 
@@ -309,11 +309,11 @@ sequenceDiagram
     JS->>JS: ImageData from canvas / video element
     JS->>WH: Module._malloc(w * h * 4)
     JS->>WH: HEAPU8.set(imageData.data, ptr) — mandatory copy
-    JS->>ORT: beam_wasm_process_frame(session, ptr, w, h, rustSession)
+    JS->>ORT: ajna_wasm_process_frame(session, ptr, w, h, rustSession)
     ORT->>ORT: rgba_to_chw_float() — CHW float32 layout for model input
     ORT->>WGPU: Ort::Session::Run() via WebGPU execution provider
     WGPU-->>ORT: output tensor
-    ORT->>FFI: beam_session_push_result()
+    ORT->>FFI: ajna_session_push_result()
     JS->>WH: Module._free(ptr)
     Note right of JS: JS heap is isolated from WASM linear memory.<br/>Copy is unavoidable and documented as expected cost.<br/>Budget: ~5 MB/s at 25 fps / 1080p RGBA.
 ```
@@ -326,7 +326,7 @@ sequenceDiagram
 
 Identity verification data carries long-term compliance value. Signed `ScanResult` blobs stored today are vulnerable to **harvest-now, decrypt-later**: an adversary archives them now and forges or invalidates signatures when a Cryptographically Relevant Quantum Computer becomes available. NIST IR 8547 (2024) estimates the CRQC window at 2030 to 2040. ECDSA and RSA are broken by Shor's algorithm on a sufficiently powerful quantum computer.
 
-Beam uses lattice-based algorithms standardized by NIST in August 2024. These are computationally infeasible under both classical and quantum attack models.
+Ajna uses lattice-based algorithms standardized by NIST in August 2024. These are computationally infeasible under both classical and quantum attack models.
 
 ### ML-DSA — FIPS 204 (CRYSTALS-Dilithium)
 
@@ -345,7 +345,7 @@ Every `ScanResult` is signed with a per-session ML-DSA keypair.
 
 ### ML-KEM — FIPS 203 (CRYSTALS-Kyber)
 
-Used for quantum-safe session key encapsulation before transmitting results to the Surt backend.
+Used for quantum-safe session key encapsulation before transmitting results to the Ajna backend.
 
 | Parameter | KEM-1024 |
 |---|---|
@@ -387,7 +387,7 @@ sequenceDiagram
     participant CRYPTO as crypto.rs
     participant SESSION as session.rs
 
-    CPP->>FFI: beam_session_push_result(handle, fields, count, doc_type, country, nonce, session_id, conf, include_pqc=true)
+    CPP->>FFI: ajna_session_push_result(handle, fields, count, doc_type, country, nonce, session_id, conf, include_pqc=true)
     FFI->>FFI: unsafe slice::from_raw_parts() over CField array
     FFI->>RES: construct ScanResult — pqc_signature empty
     FFI->>CRYPTO: PqcSigner::generate(MlDsaLevel::Level3)
@@ -461,7 +461,7 @@ Every `unsafe` block in the codebase is paired with a `Safety:` comment. Complet
 
 | Platform | Lock Scope |
 |---|---|
-| iOS | `CVPixelBufferLockBaseAddress(.readOnly)` wraps the entire native call. Unlocked immediately after `beam_coreml_process()` returns. |
+| iOS | `CVPixelBufferLockBaseAddress(.readOnly)` wraps the entire native call. Unlocked immediately after `ajna_coreml_process()` returns. |
 | Android | `AHardwareBuffer_lock()` or GPU delegate import wraps the JNI call. `image.close()` is unconditional in the Camera2 callback. |
 | WASM | `OwnedFrame` owns the heap data. `as_raw()` borrows from it. Drop order is controlled by the caller; `OwnedFrame` must outlive any `RawFrame` derived from it. |
 
@@ -474,7 +474,7 @@ Every `unsafe` block in the codebase is paired with a `Safety:` comment. Complet
 ```mermaid
 flowchart TD
     subgraph CARGO["Cargo Workspace"]
-        BC["beam-core 0.1.0\nstaticlib + cdylib + rlib"]
+        BC["ajna-core 0.1.0\nstaticlib + cdylib + rlib"]
         PQCD["pqcrypto-dilithium 0.5\nML-DSA (Dilithium 2/3/5)"]
         PQCK["pqcrypto-kyber 0.8\nML-KEM (Kyber-1024)"]
         PQCT["pqcrypto-traits 0.3\nShared trait definitions"]
@@ -494,10 +494,10 @@ flowchart TD
     end
 
     subgraph CMAKE["CMake Build"]
-        AND_SO["libbeam_sdk.so\nAndroid AAR"]
-        IOS_ST["libBeamSDK.a\niOS XCFramework"]
-        WB["BeamSDK.wasm + .js + BeamScanner.ts\nnpm package"]
-        RS_A["libbeam_core.a\nIMPORTED STATIC"]
+        AND_SO["libajna_sdk.so\nAndroid AAR"]
+        IOS_ST["libAjnaSDK.a\niOS XCFramework"]
+        WB["AjnaSDK.wasm + .js + AjnaScanner.ts\nnpm package"]
+        RS_A["libajna_core.a\nIMPORTED STATIC"]
         TFL["libtensorflowlite.so\nAndroid only"]
         CML["CoreML.framework\niOS only"]
         ORT["ONNX Runtime WASM\nEmscripten only"]
@@ -537,15 +537,15 @@ flowchart TD
     PUSH["git push / pull_request"] --> MATRIX
 
     subgraph MATRIX["Parallel Jobs — github-actions"]
-        AND["android-arm64\nubuntu-latest\nNDK r26\nRust: aarch64-linux-android\nTFLite: ci/install_tflite.sh\nCMake: BEAM_TARGET=Android\nOutput: libbeam_sdk.so"]
+        AND["android-arm64\nubuntu-latest\nNDK r26\nRust: aarch64-linux-android\nTFLite: ci/install_tflite.sh\nCMake: AJNA_TARGET=Android\nOutput: libajna_sdk.so"]
         IOS["ios-arm64\nmacos-15\nRust: aarch64-apple-ios + sim\nxcodebuild: Release iphoneos\nOutput: XCFramework slices"]
-        WEB["wasm\nubuntu-latest\nEmscripten latest\nRust: wasm32-unknown-emscripten\nemmake\nAssert: BeamSDK.wasm, .js, BeamScanner.ts present"]
+        WEB["wasm\nubuntu-latest\nEmscripten latest\nRust: wasm32-unknown-emscripten\nemmake\nAssert: AjnaSDK.wasm, .js, AjnaScanner.ts present"]
         TST["rust-tests\nubuntu-latest\ncargo test --release\ncargo bench (budget verification)\nclang: required by pqcrypto-dilithium"]
     end
 
-    AND --> PKG_AND["package_android_aar.sh\nBeamSDK-0.1.0-release.aar"]
-    IOS --> PKG_IOS["package_ios_xcframework.sh\nBeamSDK.xcframework"]
-    WEB --> PKG_WEB["package_wasm_npm.sh\nsurt-beam-sdk-0.1.0.tgz"]
+    AND --> PKG_AND["package_android_aar.sh\nAjnaSDK-0.1.0-release.aar"]
+    IOS --> PKG_IOS["package_ios_xcframework.sh\nAjnaSDK.xcframework"]
+    WEB --> PKG_WEB["package_wasm_npm.sh\najna-sdk-0.1.0.tgz"]
     TST --> BENCH["Criterion benchmark results\nGate budget validation"]
 ```
 
@@ -585,11 +585,11 @@ If any of these fail, the GPU layer is receiving frames that the quality filters
 ### C++ FFI Integration Tests
 
 ```bash
-# After building libbeam_core.a for host:
+# After building libajna_core.a for host:
 clang++ -O2 tests/ffi_integration_tests.cpp \
     -I include/ \
     -L core/target/release \
-    -lbeam_core -lpthread -ldl \
+    -lajna_core -lpthread -ldl \
     -o ffi_tests
 ./ffi_tests
 
@@ -630,7 +630,7 @@ Full documentation: [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md)
 
 | Decision | Alternatives Considered | Rationale |
 |---|---|---|
-| Why native over WebView | WebView approach (current Surt production path) | WebView lacks frame control: quality gates, replay detection, and capture-layer anti-spoofing require direct ISP access. Beam replaces WebView with a native stack so every frame passes through four ordered quality gates before inference, and every result is ML-DSA signed on-device. |
+| Why native over WebView | WebView approach (current Ajna production path) | WebView lacks frame control: quality gates, replay detection, and capture-layer anti-spoofing require direct ISP access. Ajna replaces WebView with a native stack so every frame passes through four ordered quality gates before inference, and every result is ML-DSA signed on-device. |
 | Rust for business logic | Go, C++ throughout | Go introduces GC pauses incompatible with a 40 ms frame budget. C++ throughout expands the memory-unsafe surface area unnecessarily. Rust provides C-level performance with compile-time safety guarantees. |
 | C++ at ML runtime boundary | Rust with bindgen wrappers | `TfLiteInterpreterSetAHardwareBufferInput` and `MLFeatureValue(pixelBuffer:)` are C++ APIs. Bindgen wrappers cannot express the required lifetime semantics for the AHardwareBuffer import path without losing zero-copy. |
 | ML-DSA over ECDSA / Ed25519 | ECDSA P-256, Ed25519 | ECDSA and Ed25519 are broken by Shor's algorithm on a CRQC. Identity data signed today must remain verifiable beyond 2035. ML-DSA (FIPS 204) is lattice-based and quantum-resistant. |
@@ -697,7 +697,7 @@ The active strategy is selected by environment variable (`KEY_PROVIDER_STRATEGY=
 
 ## Changelog — Phase 1: Backend Persistence and Authentication
 
-- **Database Wiring**: Wired real PostgreSQL persistence into the `beam-verify-backend` using `sqlx`. The `/v1/verify` and `/v1/nonce` routes now write to the `verification_results` and `audit_logs` tables respectively, while `/v1/audit` retrieves scoped logs.
+- **Database Wiring**: Wired real PostgreSQL persistence into the `ajna-verify-backend` using `sqlx`. The `/v1/verify` and `/v1/nonce` routes now write to the `verification_results` and `audit_logs` tables respectively, while `/v1/audit` retrieves scoped logs.
 - **JWT Verification**: Upgraded the authentication middleware (`backend/src/middleware/auth.rs`) to validate HS256 JWTs using the `jsonwebtoken` crate, securing endpoints per the VR-3 remediation design.
 - **SQLx Compilation**: Added `backend/.env` containing `DATABASE_URL` and modified the Dockerfile `ENV` to ensure `sqlx::query!` macros can introspect the live PostgreSQL schema during both local host runs and Docker builds.
 - **Build Upgrades**: Bumped the backend Dockerfile base image to `rust:1.92-slim` to satisfy Rust 2024 edition requirements (`idna_adapter` transient dependency). Updated the E2E validation script (`validate_pipeline_m1.sh`) to use `uv run` for reliable Python environment isolation when generating the synthetic ML model.
@@ -726,7 +726,7 @@ The active strategy is selected by environment variable (`KEY_PROVIDER_STRATEGY=
 | `core/src/pipeline.rs` | `FramePipeline` orchestrator, critical invariant enforcement |
 | `core/src/ffi.rs` | All `#[no_mangle]` C exports, pointer safety documentation |
 | `core/src/frame.rs` | `RawFrame` (non-owning), `OwnedFrame` (WASM heap), RGBA-to-NV12 conversion |
-| `include/beam_ffi.h` | Canonical C header for the FFI boundary, consumed by all three platform bridges |
+| `include/ajna_ffi.h` | Canonical C header for the FFI boundary, consumed by all three platform bridges |
 | `build/CMakeLists.txt` | Cross-platform build: Android, iOS, WASM targets, Rust static lib linkage |
 | `platform/android/tflite_bridge.cpp` | TFLite GPU delegate, NNAPI, AHardwareBuffer zero-copy, JNI exports |
 | `platform/ios/coreml_bridge.mm` | CoreML inference, CVPixelBuffer zero-copy, ANE dispatch |

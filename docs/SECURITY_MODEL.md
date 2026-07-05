@@ -1,12 +1,12 @@
-# Beam SDK Security Model
+# Ajna SDK Security Model
 
 ## Post-Quantum Cryptography
 
 ### Why ML-DSA Replaces ECDSA
 
-Beam SDK signs every `ScanResult` with **ML-DSA** (CRYSTALS-Dilithium, FIPS 204) rather than classical ECDSA for one reason: the **harvest-now, decrypt-later threat**.
+Ajna SDK signs every `ScanResult` with **ML-DSA** (CRYSTALS-Dilithium, FIPS 204) rather than classical ECDSA for one reason: the **harvest-now, decrypt-later threat**.
 
-Surt's identity verification data carries long-term compliance value. An adversary who stores signed result blobs today can decrypt them once a Cryptographically Relevant Quantum Computer (CRQC) becomes available — estimated window: **2030–2040** per NIST IR 8547 (2024). ECDSA signatures are broken by Shor's algorithm on a sufficiently powerful quantum computer.
+Ajna's identity verification data carries long-term compliance value. An adversary who stores signed result blobs today can decrypt them once a Cryptographically Relevant Quantum Computer (CRQC) becomes available — estimated window: **2030–2040** per NIST IR 8547 (2024). ECDSA signatures are broken by Shor's algorithm on a sufficiently powerful quantum computer.
 
 ML-DSA is lattice-based and provides **128-bit post-quantum security** at Level 3 (Dilithium-3). It is computationally infeasible to forge under both classical and quantum attack models.
 
@@ -18,7 +18,7 @@ ML-DSA is lattice-based and provides **128-bit post-quantum security** at Level 
 | FIPS 204 | ML-DSA (Dilithium) | August 2024 |
 | FIPS 205 | SLH-DSA (SPHINCS+) | August 2024 |
 
-Beam uses FIPS 203 and FIPS 204. FIPS 205 is not currently used but is listed for completeness.
+Ajna uses FIPS 203 and FIPS 204. FIPS 205 is not currently used but is listed for completeness.
 
 ---
 
@@ -34,7 +34,7 @@ Beam uses FIPS 203 and FIPS 204. FIPS 205 is not currently used but is listed fo
 
 ## Hybrid Classical + PQC Transition Recommendation (2025–2028)
 
-During the transition period, Surt recommends a **hybrid signature scheme**:
+During the transition period, Ajna recommends a **hybrid signature scheme**:
 
 1. Sign with both ECDSA P-256 and ML-DSA Level 3.
 2. Include both signatures in `ScanResult.pqc_signature` (wrapped in a container).
@@ -48,8 +48,8 @@ This preserves backward compatibility with classical verifiers while establishin
 ## Transport Security
 
 - **Session key**: ML-KEM-1024 (Kyber-1024) encapsulation before transmission. Ciphertext: 1568 bytes. Shared secret: 32 bytes (AES-256-GCM key material).
-- **Transport**: TLS 1.3 minimum. TLS 1.2 is not permitted by the Beam server.
-- **Certificate pinning**: Integrators MUST pin the Surt API certificate. Use `NSURLSession` trust evaluation on iOS and `OkHttp CertificatePinner` on Android.
+- **Transport**: TLS 1.3 minimum. TLS 1.2 is not permitted by the Ajna server.
+- **Certificate pinning**: Integrators MUST pin the Ajna API certificate. Use `NSURLSession` trust evaluation on iOS and `OkHttp CertificatePinner` on Android.
 - **Result encryption**: `ScanResult` payload is encrypted with AES-256-GCM using the ML-KEM shared secret before TLS transmission.
 
 ---
@@ -62,15 +62,15 @@ This preserves backward compatibility with classical verifiers while establishin
 
 ### 2. Camera feed injection
 - **Threat**: Malicious app overlays a pre-recorded document frame onto the camera stream.
-- **Mitigation**: Motion gate (`motion_score > 0.12` rejects static/replayed frames). Liveness detection is a higher-level concern outside Beam's scope; implement at the application layer.
+- **Mitigation**: Motion gate (`motion_score > 0.12` rejects static/replayed frames). Liveness detection is a higher-level concern outside Ajna's scope; implement at the application layer.
 
 ### 3. Gralloc buffer pool starvation (Android)
 - **Threat**: Rapid acquisition of `ImageReader` buffers without releasing them causes pipeline stall.
-- **Mitigation**: `BeamCameraAdapter` uses `acquireLatestImage()` and calls `image.close()` unconditionally. Buffer count is capped at 4 (HAL pipeline depth on Helio G85 + 1).
+- **Mitigation**: `AjnaCameraAdapter` uses `acquireLatestImage()` and calls `image.close()` unconditionally. Buffer count is capped at 4 (HAL pipeline depth on Helio G85 + 1).
 
 ### 4. JNI boundary misuse (Android)
 - **Threat**: Passing NULL or stale pointers to native functions causes native crash.
-- **Mitigation**: All `#[no_mangle]` functions in `ffi.rs` perform null checks on handles. JNI handles are validated before use. `BeamNativeBridge.kt` documents lifetime requirements for all `Long` handle parameters.
+- **Mitigation**: All `#[no_mangle]` functions in `ffi.rs` perform null checks on handles. JNI handles are validated before use. `AjnaNativeBridge.kt` documents lifetime requirements for all `Long` handle parameters.
 
 ### 5. mlock bypass
 - **Threat**: OS swap of private key pages exposes key material in swap partition.
@@ -78,11 +78,11 @@ This preserves backward compatibility with classical verifiers while establishin
 
 ### 6. Signature replay
 - **Threat**: Attacker re-submits a previously signed `ScanResult` for a different user.
-- **Mitigation**: `canonical_bytes()` encodes document fields deterministically. The server must enforce nonce-or-timestamp freshness on received results. Beam does not include a nonce in the signature payload by design — this is a server responsibility.
+- **Mitigation**: `canonical_bytes()` encodes document fields deterministically. The server must enforce nonce-or-timestamp freshness on received results. Ajna does not include a nonce in the signature payload by design — this is a server responsibility.
 
 ---
 
-## Out of scope for Beam Verify v1.0
+## Out of scope for Ajna Verify v1.0
 
 The following security capabilities are explicitly excluded from the current release
 and are documented here to prevent misrepresentation in sales or compliance contexts:
@@ -96,7 +96,7 @@ and are documented here to prevent misrepresentation in sales or compliance cont
    Validation Program testing. CMVP validation is on the Phase 3 roadmap.
 
 3. **Biometric liveness detection** — Face match and liveness are provided by FaceGuard,
-   a separate Surt AI product not included in Beam Verify.
+   a separate Ajna AI product not included in Ajna Verify.
 
 4. **NFC chip reading** — ICAO 9303 NFC-based chip authentication is on the Phase 2 roadmap.
 

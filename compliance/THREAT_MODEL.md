@@ -1,13 +1,13 @@
-# Beam Verify SDK — Threat Model
+# Ajna Verify SDK — Threat Model
 
 ## Document Purpose
 
-This document catalogues security threats against the Beam Verify SDK and its backend verification service, maps each to implemented controls, and identifies residual risks.
+This document catalogues security threats against the Ajna Verify SDK and its backend verification service, maps each to implemented controls, and identifies residual risks.
 
 ## Scope
 
-- On-device Beam Verify SDK (Rust core, C++ ML bridges, platform adapters)
-- Beam Verify backend service (Axum, PostgreSQL, Redis)
+- On-device Ajna Verify SDK (Rust core, C++ ML bridges, platform adapters)
+- Ajna Verify backend service (Axum, PostgreSQL, Redis)
 - Communication between SDK and backend
 
 ## Out of Scope

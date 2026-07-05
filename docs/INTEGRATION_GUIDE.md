@@ -1,9 +1,9 @@
-# Beam SDK Integration Guide
+# Ajna SDK Integration Guide
 
 ## Overview
 
-Beam SDK is a cross-platform document scanning library built by Surt AI.
-This guide covers integrating Beam into Android, iOS, and Web (WASM) applications.
+Ajna SDK is a cross-platform document scanning library built by Ajna AI.
+This guide covers integrating Ajna into Android, iOS, and Web (WASM) applications.
 
 ---
 
@@ -11,7 +11,7 @@ This guide covers integrating Beam into Android, iOS, and Web (WASM) application
 
 ### 1. Add the AAR to your project
 
-Copy `BeamSDK-0.1.0-release.aar` into your app module's `libs/` directory, then add to `app/build.gradle`:
+Copy `AjnaSDK-0.1.0-release.aar` into your app module's `libs/` directory, then add to `app/build.gradle`:
 
 ```groovy
 dependencies {
@@ -23,13 +23,13 @@ dependencies {
 
 ```kotlin
 class MyApp : Application() {
-    val bridge = BeamNativeBridge()
+    val bridge = AjnaNativeBridge()
     var engineHandle = 0L
     var sessionHandle = 0L
 
     override fun onCreate() {
         super.onCreate()
-        val modelPath = filesDir.absolutePath + "/beam_idv.tflite"
+        val modelPath = filesDir.absolutePath + "/ajna_idv.tflite"
         engineHandle = bridge.nativeCreateInferenceEngine(modelPath)
     }
 }
@@ -44,7 +44,7 @@ app.bridge.nativeStartSession(app.sessionHandle,
     System.nanoTime() / 1000L)
 
 val cameraManager = getSystemService(CAMERA_SERVICE) as CameraManager
-val adapter = BeamCameraAdapter(cameraManager, app.bridge)
+val adapter = AjnaCameraAdapter(cameraManager, app.bridge)
 adapter.open()
 ```
 
@@ -60,7 +60,7 @@ if (app.bridge.getSessionState(app.sessionHandle) == SessionState.COMPLETE) {
 }
 ```
 
-> **Note:** The `onFrame` callback is wired automatically by `BeamCameraAdapter` via `BeamNativeBridge.onFrame(...)`.
+> **Note:** The `onFrame` callback is wired automatically by `AjnaCameraAdapter` via `AjnaNativeBridge.onFrame(...)`.
 
 ---
 
@@ -68,14 +68,14 @@ if (app.bridge.getSessionState(app.sessionHandle) == SessionState.COMPLETE) {
 
 ### 1. Add the XCFramework
 
-Drag `BeamSDK.xcframework` into your Xcode project under **Frameworks, Libraries, and Embedded Content**. Set to **Embed & Sign**.
+Drag `AjnaSDK.xcframework` into your Xcode project under **Frameworks, Libraries, and Embedded Content**. Set to **Embed & Sign**.
 
 ### 2. Scan a document
 
 ```swift
-import BeamSDK
+import AjnaSDK
 
-let scanner = BeamScanner()
+let scanner = AjnaScanner()
 
 do {
     try scanner.configure()
@@ -84,7 +84,7 @@ do {
     return
 }
 
-scanner.startScan(config: BeamScanConfig(pqcSignResult: true)) { result in
+scanner.startScan(config: AjnaScanConfig(pqcSignResult: true)) { result in
     switch result {
     case .success(let scan):
         print("Type:", scan.documentType, "Country:", scan.issuingCountry)
@@ -104,39 +104,39 @@ scanner.startScan(config: BeamScanConfig(pqcSignResult: true)) { result in
 ### 1. Install the npm package
 
 ```bash
-npm install @surt/beam-sdk
+npm install @ajna/sdk
 ```
 
 ### 2. Scan a document frame
 
 ```typescript
-import BeamModule from '@surt/beam-sdk';
+import AjnaModule from '@ajna/sdk';
 
-const Beam = await BeamModule();
+const Ajna = await AjnaModule();
 
 // Load model into WASM filesystem at init time
-const wasmSession = Beam.beam_wasm_create('/models/beam_idv.onnx');
-const rustSession = Beam.beam_session_create({
+const wasmSession = Ajna.ajna_wasm_create('/models/ajna_idv.onnx');
+const rustSession = Ajna.ajna_session_create({
     minQualityFrames: 3,
     timeoutMs: 30000,
     adaptiveGateLimit: 60,
     pqcSignResult: true,
     includeRawMrz: false,
 });
-Beam.beam_session_start(rustSession, BigInt(Date.now() * 1000));
+Ajna.ajna_session_start(rustSession, BigInt(Date.now() * 1000));
 
 // In your video frame loop:
 function processFrame(imageData: ImageData) {
     // MANDATORY COPY: ImageData lives in JS heap; must be copied to WASM heap.
     // This is an expected cost — see WASM architecture note in SECURITY_MODEL.md.
-    const ptr = Beam._malloc(imageData.width * imageData.height * 4);
-    Beam.HEAPU8.set(imageData.data, ptr);
-    Beam.beam_wasm_process_frame(
+    const ptr = Ajna._malloc(imageData.width * imageData.height * 4);
+    Ajna.HEAPU8.set(imageData.data, ptr);
+    Ajna.ajna_wasm_process_frame(
         wasmSession, ptr,
         imageData.width, imageData.height,
         rustSession
     );
-    Beam._free(ptr);
+    Ajna._free(ptr);
 }
 ```
 
@@ -160,6 +160,6 @@ scanner.stopScan()
 
 ### WASM
 ```typescript
-Beam.beam_wasm_destroy(wasmSession);
-Beam.beam_session_destroy(rustSession);
+Ajna.ajna_wasm_destroy(wasmSession);
+Ajna.ajna_session_destroy(rustSession);
 ```

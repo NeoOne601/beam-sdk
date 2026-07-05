@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# publish_npm.sh — Publish Beam Verify WASM SDK to npm.
+# publish_npm.sh — Publish Ajna Verify WASM SDK to npm.
 # Usage: ./publish_npm.sh <version>
 # Prerequisites:
 #   - WASM build completed by ci/wasm_emscripten.sh
@@ -22,23 +22,23 @@ cp -r "${WASM_DIR}"/* "${DIST_DIR}/"
 # Generate package.json
 cat > "${DIST_DIR}/package.json" <<EOF
 {
-  "name": "@surt-ai/beam-verify",
+  "name": "@ajna-ai/ajna-verify",
   "version": "${VERSION}",
   "description": "Post-quantum cryptographically signed identity verification SDK for the web",
-  "main": "beam_verify.js",
-  "types": "beam_verify.d.ts",
+  "main": "ajna_verify.js",
+  "types": "ajna_verify.d.ts",
   "files": [
-    "beam_verify.js",
-    "beam_verify.wasm",
-    "beam_verify.d.ts",
+    "ajna_verify.js",
+    "ajna_verify.wasm",
+    "ajna_verify.d.ts",
     "README.md"
   ],
   "keywords": ["identity-verification", "pqc", "wasm", "document-scanning", "ml-dsa"],
   "license": "SEE LICENSE IN LICENSE",
-  "author": "Surt AI <sdk@surt.ai>",
+  "author": "Ajna AI <sdk@ajna.ai>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/surt-ai/beam-sdk"
+    "url": "https://github.com/ajna-ai/ajna-sdk"
   },
   "engines": {
     "node": ">=18"
@@ -50,13 +50,13 @@ cat > "${DIST_DIR}/package.json" <<EOF
 EOF
 
 # Generate TypeScript declarations stub
-cat > "${DIST_DIR}/beam_verify.d.ts" <<EOF
+cat > "${DIST_DIR}/ajna_verify.d.ts" <<EOF
 /**
- * Beam Verify WASM SDK
+ * Ajna Verify WASM SDK
  * Post-quantum cryptographically signed identity verification.
  */
 
-export interface BeamConfig {
+export interface AjnaConfig {
   apiKey: string;
   backendUrl: string;
   enablePqcSigning?: boolean;
@@ -85,7 +85,7 @@ export interface QualityReport {
   edgeDensity: number;
 }
 
-export declare function initBeamVerify(config: BeamConfig): Promise<void>;
+export declare function initAjnaVerify(config: AjnaConfig): Promise<void>;
 export declare function processFrame(imageData: ImageData): Promise<QualityReport>;
 export declare function getScanResult(): Promise<ScanResult | null>;
 export declare function destroySession(): void;
@@ -93,24 +93,24 @@ EOF
 
 # Generate README
 cat > "${DIST_DIR}/README.md" <<EOF
-# @surt-ai/beam-verify
+# @ajna-ai/ajna-verify
 
 Post-quantum cryptographically signed identity verification SDK for the web.
 
 ## Installation
 
 \`\`\`bash
-npm install @surt-ai/beam-verify
+npm install @ajna-ai/ajna-verify
 \`\`\`
 
 ## Quick Start
 
 \`\`\`typescript
-import { initBeamVerify, processFrame, getScanResult } from '@surt-ai/beam-verify';
+import { initAjnaVerify, processFrame, getScanResult } from '@ajna-ai/ajna-verify';
 
-await initBeamVerify({
+await initAjnaVerify({
   apiKey: 'your-api-key',
-  backendUrl: 'https://api.surt.ai',
+  backendUrl: 'https://api.ajna.ai',
 });
 
 // Process camera frames
@@ -123,10 +123,10 @@ if (quality.gateReached === 'Accepted') {
 
 ## Documentation
 
-See the [Beam Verify documentation](https://docs.surt.ai/beam-verify) for full API reference.
+See the [Ajna Verify documentation](https://docs.ajna.ai/ajna-verify) for full API reference.
 EOF
 
 # Publish
 echo "//registry.npmjs.org/:_authToken=\${NPM_TOKEN}" > "${DIST_DIR}/.npmrc"
 cd "${DIST_DIR}" && npm publish --access public
-echo "✓ Published @surt-ai/beam-verify@${VERSION}"
+echo "✓ Published @ajna-ai/ajna-verify@${VERSION}"

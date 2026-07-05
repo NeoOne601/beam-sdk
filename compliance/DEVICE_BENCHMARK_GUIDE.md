@@ -1,8 +1,8 @@
-# Beam Verify SDK — Device Benchmark Guide
+# Ajna Verify SDK — Device Benchmark Guide
 
 ## Purpose
 
-This guide provides standard procedures for benchmarking the Beam Verify SDK on target devices. Results inform quality gate threshold tuning and determine whether a device meets the performance budget.
+This guide provides standard procedures for benchmarking the Ajna Verify SDK on target devices. Results inform quality gate threshold tuning and determine whether a device meets the performance budget.
 
 ## Performance Budget
 
@@ -49,19 +49,19 @@ Key metrics:
 
 ```bash
 # Run Rust benchmarks via JNI (requires benchmark harness in sample app)
-adb shell am instrument -w ai.surt.beam.sample/.BeamBenchmarkRunner
+adb shell am instrument -w com.ajna.sample/.AjnaBenchmarkRunner
 
 # Memory profiling
-adb shell dumpsys meminfo ai.surt.beam.sample | grep "TOTAL"
+adb shell dumpsys meminfo com.ajna.sample | grep "TOTAL"
 
 # GPU inference timing (logcat)
-adb logcat -s BeamTFLite:V | grep "inference_ms"
+adb logcat -s AjnaTFLite:V | grep "inference_ms"
 ```
 
 ### 4. iOS On-Device Benchmark
 
 Use Xcode Instruments:
-1. **Time Profiler**: Attach to BeamVerifySample, run scan flow
+1. **Time Profiler**: Attach to AjnaVerifySample, run scan flow
 2. **Allocations**: Track peak heap during pipeline
 3. **Metal System Trace**: CoreML GPU/ANE utilisation
 

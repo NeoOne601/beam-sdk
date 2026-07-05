@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="beam_purple">#BB86FC</color>
-    <color name="beam_teal">#03DAC6</color>
-    <color name="beam_error">#CF6679</color>
-    <color name="beam_bg">#121212</color>
-    <color name="beam_surface">#1E1E2E</color>
-    <color name="beam_text_primary">#FFFFFF</color>
-    <color name="beam_text_secondary">#CCCCCC</color>
-    <color name="beam_text_hint">#888888</color>
+    <color name="ajna_purple">#BB86FC</color>
+    <color name="ajna_teal">#03DAC6</color>
+    <color name="ajna_error">#CF6679</color>
+    <color name="ajna_bg">#121212</color>
+    <color name="ajna_surface">#1E1E2E</color>
+    <color name="ajna_text_primary">#FFFFFF</color>
+    <color name="ajna_text_secondary">#CCCCCC</color>
+    <color name="ajna_text_hint">#888888</color>
 </resources>

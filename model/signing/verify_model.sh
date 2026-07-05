@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# verify_model.sh — Verify a Beam model artifact's Ed25519 signature.
-# Usage: ./verify_model.sh beam_idv_v1.tflite signing_key_pub.pem
-# Reads: beam_idv_v1.tflite.sig (detached signature produced by sign_model.sh)
+# verify_model.sh — Verify a Ajna model artifact's Ed25519 signature.
+# Usage: ./verify_model.sh ajna_idv_v1.tflite signing_key_pub.pem
+# Reads: ajna_idv_v1.tflite.sig (detached signature produced by sign_model.sh)
 set -euo pipefail
 MODEL="$1"
 PUBKEY="$2"

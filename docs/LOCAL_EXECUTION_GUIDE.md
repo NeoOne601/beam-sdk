@@ -1,4 +1,4 @@
-# Beam SDK — Local Execution Guide for Technology Leads
+# Ajna SDK — Local Execution Guide for Technology Leads
 
 > **Purpose**: Get Tech Leads from zero to a running system on their local machine.
 > **Audience**: Technology Leads, Staff Engineers, Engineering Managers.
@@ -56,7 +56,7 @@ brew install node
 This validates the entire business logic layer — quality gates, session state machine, PQC cryptography, and canonical encoding.
 
 ```bash
-cd beam-sdk/core
+cd ajna-sdk/core
 cargo test --release
 ```
 
@@ -80,17 +80,17 @@ test result: ok. 46 passed; 0 failed
 This validates the C/Rust boundary — the exact interface the ML bridges will use in production.
 
 ```bash
-cd beam-sdk
+cd ajna-sdk
 
 # Build the Rust core as a static library
-cargo build --release -p beam-core
+cargo build --release -p ajna-core
 
 # Compile and run the C++ FFI tests
 cd tests
 clang++ -O2 ffi_integration_tests.cpp \
     -I../include \
     -L../target/release \
-    -lbeam_core -lpthread -ldl \
+    -lajna_core -lpthread -ldl \
     -o ffi_tests
 ./ffi_tests
 ```
@@ -98,7 +98,7 @@ clang++ -O2 ffi_integration_tests.cpp \
 **What you should see:**
 
 ```
-=== Beam SDK FFI Integration Tests ===
+=== Ajna SDK FFI Integration Tests ===
 
 [PASS] session_create_returns_non_null
 [PASS] gate_create_returns_non_null
@@ -123,17 +123,17 @@ clang++ -O2 ffi_integration_tests.cpp \
 
 ```bash
 # Create the database
-createdb beam_verify
+createdb ajna_verify
 
 # Run the schema migrations
-psql -d beam_verify -f backend/src/db/migrations/001_initial.sql
-psql -d beam_verify -f backend/src/db/migrations/002_trusted_keys.sql
+psql -d ajna_verify -f backend/src/db/migrations/001_initial.sql
+psql -d ajna_verify -f backend/src/db/migrations/002_trusted_keys.sql
 ```
 
 ### 3b. Seed a test tenant (required for authentication)
 
 ```bash
-psql -d beam_verify -c "
+psql -d ajna_verify -c "
 INSERT INTO tenants (id, name, api_key, plan)
 VALUES (
     'a0000000-0000-0000-0000-000000000001',
@@ -148,7 +148,7 @@ VALUES (
 
 ```bash
 cat > backend/.env << 'EOF'
-DATABASE_URL=postgres://$(whoami)@localhost:5432/beam_verify
+DATABASE_URL=postgres://$(whoami)@localhost:5432/ajna_verify
 REDIS_URL=redis://127.0.0.1:6379
 PORT=8080
 CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
@@ -160,17 +160,17 @@ EOF
 ### 3d. Start the server
 
 ```bash
-cd beam-sdk/backend
+cd ajna-sdk/backend
 cargo run --release
 ```
 
 **What you should see:**
 
 ```
-INFO  beam_verify_backend > Connected to PostgreSQL
-INFO  beam_verify_backend > Connected to Redis
-INFO  beam_verify_backend > CORS allowed origins: ["http://localhost:5173", "http://localhost:3000"]
-INFO  beam_verify_backend > Beam Verify Backend listening on 0.0.0.0:8080
+INFO  ajna_verify_backend > Connected to PostgreSQL
+INFO  ajna_verify_backend > Connected to Redis
+INFO  ajna_verify_backend > CORS allowed origins: ["http://localhost:5173", "http://localhost:3000"]
+INFO  ajna_verify_backend > Ajna Verify Backend listening on 0.0.0.0:8080
 ```
 
 ### 3e. Validate the server is running
@@ -218,7 +218,7 @@ curl -s -o /dev/null -w "%{http_code}" \
 This is a browser-based demo that opens the camera, simulates the quality gate pipeline, and displays a scan result with PQC signing status.
 
 ```bash
-cd beam-sdk/samples/web
+cd ajna-sdk/samples/web
 npm install
 npm run dev
 ```
@@ -233,7 +233,7 @@ VITE v5.x.x  ready in Xms
 
 **Open `http://localhost:5173` in Chrome.** You'll see:
 
-1. **Landing screen** — "Beam Verify" with SDK features listed
+1. **Landing screen** — "Ajna Verify" with SDK features listed
 2. Click **"Start Document Scan"** → Camera opens with a document guide overlay
 3. Quality gates animate through: `BlurCheck → ExposureCheck → MotionCheck → BoundaryCheck → Accepted`
 4. "Running ONNX inference..." → "Signing with ML-DSA Level 3..."
@@ -283,7 +283,7 @@ Browser (localhost:5173)
 Validate performance budgets against the Helio G85 reference device targets:
 
 ```bash
-cd beam-sdk/core
+cd ajna-sdk/core
 cargo bench
 ```
 
@@ -317,13 +317,13 @@ This runs Criterion benchmarks for:
 
 | Variable | Default | Description |
 |---|---|---|
-| `DATABASE_URL` | `postgres://beam:beam@localhost:5432/beam_verify` | PostgreSQL connection string |
+| `DATABASE_URL` | `postgres://ajna:ajna@localhost:5432/ajna_verify` | PostgreSQL connection string |
 | `REDIS_URL` | `redis://127.0.0.1:6379` | Redis connection string |
 | `PORT` | `8080` | Backend HTTP listen port |
 | `CORS_ALLOWED_ORIGINS` | (empty — blocks all CORS) | Comma-separated origin allowlist |
 | `KEY_PROVIDER_STRATEGY` | `tenant` | `tenant`, `device`, or `model` |
 | `RESULT_FRESHNESS_WINDOW_SECS` | `300` | Max age of signed results (seconds) |
-| `RUST_LOG` | `beam_verify_backend=info,tower_http=info` | Tracing filter |
+| `RUST_LOG` | `ajna_verify_backend=info,tower_http=info` | Tracing filter |
 
 ---
 
@@ -331,17 +331,17 @@ This runs Criterion benchmarks for:
 
 ```bash
 # Run all Rust tests
-cd beam-sdk/core && cargo test --release
+cd ajna-sdk/core && cargo test --release
 
 # Run FFI tests
-cd beam-sdk && cargo build --release -p beam-core
-cd tests && clang++ -O2 ffi_integration_tests.cpp -I../include -L../target/release -lbeam_core -lpthread -ldl -o ffi_tests && ./ffi_tests
+cd ajna-sdk && cargo build --release -p ajna-core
+cd tests && clang++ -O2 ffi_integration_tests.cpp -I../include -L../target/release -lajna_core -lpthread -ldl -o ffi_tests && ./ffi_tests
 
 # Start backend
-cd beam-sdk/backend && cargo run --release
+cd ajna-sdk/backend && cargo run --release
 
 # Start web sample
-cd beam-sdk/samples/web && npm install && npm run dev
+cd ajna-sdk/samples/web && npm install && npm run dev
 
 # Health check
 curl http://localhost:8080/health | jq .
@@ -353,5 +353,5 @@ curl -X POST http://localhost:8080/v1/nonce \
   -d '{"session_id":"550e8400-e29b-41d4-a716-446655440000"}' | jq .
 
 # Run benchmarks
-cd beam-sdk/core && cargo bench
+cd ajna-sdk/core && cargo bench
 ```

@@ -1,6 +1,6 @@
-# Beam Verify — Model Directory
+# Ajna Verify — Model Directory
 
-This directory contains the model pack infrastructure for Beam Verify.
+This directory contains the model pack infrastructure for Ajna Verify.
 
 ## Structure
 
@@ -36,5 +36,5 @@ model/
 
 - Model files are NOT committed to this repository (they are large binary artifacts).
 - The placeholder files exist solely to document the expected file structure.
-- Real model files are distributed via the Surt model CDN.
+- Real model files are distributed via the Ajna model CDN.
 - The `output_schema.json` is the single source of truth for the bridge ↔ model contract.

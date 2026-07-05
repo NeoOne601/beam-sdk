@@ -3,7 +3,7 @@
 //
 // WHY PQC HERE?
 // ─────────────
-// Surt's threat model: identity documents processed by Beam feed into a compliance
+// Ajna's threat model: identity documents processed by Ajna feed into a compliance
 // graph that persists for years. Classic ECDSA signatures over that data are
 // vulnerable to "harvest now, decrypt later" attacks: an adversary stores signed
 // result blobs today and decrypts them once a CRQC (Cryptographically Relevant
@@ -127,7 +127,7 @@ impl PqcSigner {
             // or platform sandbox restriction. Signing continues; this is defense-in-depth.
             // Operator action: raise RLIMIT_MEMLOCK or add --cap-add IPC_LOCK.
             eprintln!(
-                "[beam-core] WARNING: mlock failed for private key ({} bytes). \
+                "[ajna-core] WARNING: mlock failed for private key ({} bytes). \
                  Key may be swappable to disk. Raise RLIMIT_MEMLOCK to suppress. \
                  Error code: {}",
                 key.len(),
@@ -233,7 +233,7 @@ impl Drop for PqcSigner {
             );
             if rc != 0 {
                 eprintln!(
-                    "[beam-core] WARNING: munlock failed for private key ({} bytes). \
+                    "[ajna-core] WARNING: munlock failed for private key ({} bytes). \
                      Error code: {}",
                     self.private_key.len(),
                     rc
@@ -244,7 +244,7 @@ impl Drop for PqcSigner {
 }
 
 /// ML-KEM (CRYSTALS-Kyber, FIPS 203) key encapsulation for result transport.
-/// Used when transmitting ScanResult from device to Surt backend over TLS.
+/// Used when transmitting ScanResult from device to Ajna backend over TLS.
 /// Provides quantum-safe key exchange for the session key.
 pub struct MlKemSession {
     /// Ciphertext sent to the server. Length: Kyber-1024 → 1568 bytes.

@@ -39,7 +39,7 @@ pub async fn create_nonce(
     let nonce_hex = hex::encode(nonce_bytes);
 
     // VR-3: Namespace Redis key by tenant_id to prevent cross-tenant nonce collisions.
-    let redis_key = format!("beam:nonce:{}:{}", tenant.tenant_id, req.session_id);
+    let redis_key = format!("ajna:nonce:{}:{}", tenant.tenant_id, req.session_id);
     let mut conn = state.redis.get_multiplexed_async_connection().await?;
     conn.set_ex::<_, _, ()>(&redis_key, &nonce_hex, state.config.nonce_ttl_seconds)
         .await?;

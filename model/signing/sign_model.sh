@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# sign_model.sh — Sign a Beam model artifact with an Ed25519 key.
-# Usage: ./sign_model.sh beam_idv_v1.tflite signing_key.pem
-# Produces: beam_idv_v1.tflite.sig (detached Ed25519 signature)
+# sign_model.sh — Sign a Ajna model artifact with an Ed25519 key.
+# Usage: ./sign_model.sh ajna_idv_v1.tflite signing_key.pem
+# Produces: ajna_idv_v1.tflite.sig (detached Ed25519 signature)
 # NOTE: Model signing uses classical Ed25519 for the signing infrastructure itself.
-# The Beam result-level signature uses ML-DSA (NIST FIPS 204). These serve
-# different purposes: Ed25519 authenticates that Surt produced the model file;
-# ML-DSA proves that a specific scan result was produced by a genuine Beam device.
+# The Ajna result-level signature uses ML-DSA (NIST FIPS 204). These serve
+# different purposes: Ed25519 authenticates that Ajna produced the model file;
+# ML-DSA proves that a specific scan result was produced by a genuine Ajna device.
 set -euo pipefail
 MODEL="$1"
 KEY="$2"

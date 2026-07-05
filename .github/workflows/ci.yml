@@ -1,4 +1,4 @@
-name: Beam SDK CI
+name: Ajna SDK CI
 on:
   push:
     branches: [main, develop]
@@ -24,15 +24,15 @@ jobs:
         with:
           workspaces: core -> target
       - name: Format check
-        run: cargo fmt --check -p beam-core
+        run: cargo fmt --check -p ajna-core
       - name: Clippy lint
-        run: cargo clippy -p beam-core -- -D warnings
+        run: cargo clippy -p ajna-core -- -D warnings
       - name: Unit tests
-        run: cargo test --release -p beam-core
+        run: cargo test --release -p ajna-core
       - name: Benchmarks (dry run)
-        run: cargo bench --bench pipeline_bench -p beam-core -- --test
+        run: cargo bench --bench pipeline_bench -p ajna-core -- --test
       - name: Crypto benchmarks (dry run)
-        run: cargo bench --bench crypto_bench -p beam-core -- --test
+        run: cargo bench --bench crypto_bench -p ajna-core -- --test
 
   # ───────────────────────────────────────────
   # Backend — build, test, lint
@@ -43,9 +43,9 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: beam_verify_test
-          POSTGRES_USER: beam
-          POSTGRES_PASSWORD: beam
+          POSTGRES_DB: ajna_verify_test
+          POSTGRES_USER: ajna
+          POSTGRES_PASSWORD: ajna
         ports: ["5432:5432"]
         options: >-
           --health-cmd pg_isready
@@ -61,7 +61,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgres://beam:beam@localhost:5432/beam_verify_test
+      DATABASE_URL: postgres://ajna:ajna@localhost:5432/ajna_verify_test
       REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4
@@ -76,11 +76,11 @@ jobs:
           psql "$DATABASE_URL" -f backend/src/db/migrations/001_initial.sql
           psql "$DATABASE_URL" -f backend/src/db/migrations/002_trusted_keys.sql
       - name: Format check
-        run: cargo fmt --check -p beam-verify-backend
+        run: cargo fmt --check -p ajna-verify-backend
       - name: Clippy lint
-        run: cargo clippy -p beam-verify-backend -- -D warnings -A unused
+        run: cargo clippy -p ajna-verify-backend -- -D warnings -A unused
       - name: Unit tests
-        run: cargo test --release -p beam-verify-backend
+        run: cargo test --release -p ajna-verify-backend
 
   # ───────────────────────────────────────────
   # Security — banned phrases, schema validation, cargo-audit
@@ -184,7 +184,7 @@ jobs:
           CC_aarch64_linux_android: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang
           CXX_aarch64_linux_android: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang++
           AR_aarch64_linux_android: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
-        run: cargo build --release --target aarch64-linux-android -p beam-core
+        run: cargo build --release --target aarch64-linux-android -p ajna-core
 
   # ───────────────────────────────────────────
   # iOS cross-compile check (macOS runner)
@@ -203,7 +203,7 @@ jobs:
           export CFLAGS_aarch64_apple_ios="--target=arm64-apple-ios -isysroot ${SDK_PATH} -miphoneos-version-min=12.0"
           export CC_aarch64_apple_ios="$(xcrun --sdk iphoneos --find clang)"
           export AR_aarch64_apple_ios="$(xcrun --sdk iphoneos --find ar)"
-          cargo build --release --target aarch64-apple-ios -p beam-core
+          cargo build --release --target aarch64-apple-ios -p ajna-core
 
   # ───────────────────────────────────────────
   # WASM cross-compile check
@@ -222,4 +222,4 @@ jobs:
         env:
           CFLAGS: "-fPIC"
           RUSTFLAGS: "-C link-arg=--no-entry"
-        run: cargo build --release --target wasm32-unknown-emscripten -p beam-core
+        run: cargo build --release --target wasm32-unknown-emscripten -p ajna-core

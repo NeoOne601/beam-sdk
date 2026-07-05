@@ -1,6 +1,6 @@
 # Model Placeholders
 
-The three files in this directory are **intentional empty artifacts** showing the required filename pattern for Beam Verify model files. They must be replaced with real model files before release.
+The three files in this directory are **intentional empty artifacts** showing the required filename pattern for Ajna Verify model files. They must be replaced with real model files before release.
 
 ## Required Files
 

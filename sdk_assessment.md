@@ -1,4 +1,4 @@
-# Does Beam SDK Justify Being Called an SDK?
+# Does Ajna SDK Justify Being Called an SDK?
 
 > **Verdict: Not yet. It is architecturally designed to become an SDK, but today it is a monorepo containing the raw materials for four separate products, none of which are individually shippable.**
 
@@ -20,7 +20,7 @@ Every real-world SDK — Stripe, Firebase, Jumio, Onfido, Twilio — satisfies a
 
 ---
 
-## 2. Grading Beam SDK Against the Contract
+## 2. Grading Ajna SDK Against the Contract
 
 ### ✅ Property 1: Embeddable — PASS (Architecturally)
 
@@ -36,13 +36,13 @@ The three-layer architecture is textbook correct for a cross-platform embeddable
 └──────────────────────────────────────────────────┘
 ```
 
-The Rust core compiles to a static library (`.a`). The C++ bridges link against it. The platform wrappers ([BeamSDK.swift](file:///Users/macuser/beam-sdk/platform/ios/BeamSDK.swift), [BeamNativeBridge.kt](file:///Users/macuser/beam-sdk/platform/android/BeamNativeBridge.kt)) call through FFI. This is the same architecture used by Flutter's engine, Stripe's mobile SDKs, and Mozilla's application-services layer.
+The Rust core compiles to a static library (`.a`). The C++ bridges link against it. The platform wrappers ([AjnaSDK.swift](file:///Users/macuser/beam-sdk/platform/ios/AjnaSDK.swift), [AjnaNativeBridge.kt](file:///Users/macuser/beam-sdk/platform/android/AjnaNativeBridge.kt)) call through FFI. This is the same architecture used by Flutter's engine, Stripe's mobile SDKs, and Mozilla's application-services layer.
 
 **But**: There are no distributable artifacts. No `.xcframework`, no `.aar`, no npm package has ever been built. The packaging scripts exist ([package_android_aar.sh](file:///Users/macuser/beam-sdk/scripts/package_android_aar.sh), [package_ios_xcframework.sh](file:///Users/macuser/beam-sdk/scripts/package_ios_xcframework.sh), [package_wasm_npm.sh](file:///Users/macuser/beam-sdk/scripts/package_wasm_npm.sh)) but have never produced a working artifact.
 
 ### ❌ Property 2: Installable in Under 5 Minutes — FAIL
 
-Today, integrating Beam requires a developer to:
+Today, integrating Ajna requires a developer to:
 
 1. Clone the entire monorepo
 2. Install the Rust toolchain
@@ -57,10 +57,10 @@ This is a **build-from-source SDK**, which is an oxymoron. No customer will do t
 ```swift
 // What a developer should do (iOS):
 // 1. Add to Package.swift:
-.package(url: "https://github.com/surt-ai/beam-verify-ios.git", from: "1.0.0")
+.package(url: "https://github.com/ajna-ai/ajna-verify-ios.git", from: "1.0.0")
 
 // 2. Use it:
-let scanner = BeamScanner()
+let scanner = AjnaScanner()
 try scanner.configure()
 scanner.startScan { result in
     print(result.fields)
@@ -70,12 +70,12 @@ scanner.startScan { result in
 ```kotlin
 // What a developer should do (Android):
 // 1. Add to build.gradle:
-implementation 'ai.surt:beam-verify:1.0.0'
+implementation 'ai.ajna:ajna-verify:1.0.0'
 
 // 2. Use it:
-val scanner = BeamScanner(context)
+val scanner = AjnaScanner(context)
 scanner.startScan { result ->
-    Log.d("Beam", result.documentType)
+    Log.d("Ajna", result.documentType)
 }
 ```
 
@@ -83,31 +83,31 @@ Neither of these paths work today.
 
 ### ⚠️ Property 3: High-Level Public API — PARTIAL
 
-**iOS**: [BeamSDK.swift](file:///Users/macuser/beam-sdk/platform/ios/BeamSDK.swift) has a genuine developer-facing API:
+**iOS**: [AjnaSDK.swift](file:///Users/macuser/beam-sdk/platform/ios/AjnaSDK.swift) has a genuine developer-facing API:
 
 ```swift
-public class BeamScanner {
+public class AjnaScanner {
     public func configure() throws        // ✅ High-level
     public func startScan(config:completion:)  // ✅ High-level
     public func stopScan()                // ✅ High-level
 }
 ```
 
-This is the right abstraction. A developer calls `configure()`, then `startScan()`, and gets a `BeamScanResult` in the callback. They never see FFI handles, C structs, or Rust internals. **Grade: B+**.
+This is the right abstraction. A developer calls `configure()`, then `startScan()`, and gets a `AjnaScanResult` in the callback. They never see FFI handles, C structs, or Rust internals. **Grade: B+**.
 
-**Android**: [BeamNativeBridge.kt](file:///Users/macuser/beam-sdk/platform/android/BeamNativeBridge.kt) exposes **raw JNI handles**:
+**Android**: [AjnaNativeBridge.kt](file:///Users/macuser/beam-sdk/platform/android/AjnaNativeBridge.kt) exposes **raw JNI handles**:
 
 ```kotlin
-class BeamNativeBridge {
+class AjnaNativeBridge {
     external fun nativeCreateInferenceEngine(modelPath: String): Long  // ❌ Raw JNI
     external fun nativeOnFrame(engineHandle: Long, sessionHandle: Long, // ❌ Raw JNI
         yBuffer: ByteBuffer, uvBuffer: ByteBuffer, ...)
 }
 ```
 
-This is an internal implementation detail, not a public API. A customer should never see `Long` handles, `ByteBuffer` pointers, or `nativeOnFrame`. Android is missing its equivalent of `BeamScanner` — a high-level Kotlin class that hides the JNI complexity. **Grade: D**.
+This is an internal implementation detail, not a public API. A customer should never see `Long` handles, `ByteBuffer` pointers, or `nativeOnFrame`. Android is missing its equivalent of `AjnaScanner` — a high-level Kotlin class that hides the JNI complexity. **Grade: D**.
 
-**Web**: [main.ts](file:///Users/macuser/beam-sdk/samples/web/main.ts) is a sample app, not an SDK wrapper. There is no `@beam/verify` npm package with a `BeamScanner` TypeScript class. **Grade: F**.
+**Web**: [main.ts](file:///Users/macuser/beam-sdk/samples/web/main.ts) is a sample app, not an SDK wrapper. There is no `@ajna/verify` npm package with a `AjnaScanner` TypeScript class. **Grade: F**.
 
 ### ❌ Property 4: Self-Contained — FAIL
 
@@ -115,7 +115,7 @@ The ML models are placeholders. The [model/](file:///Users/macuser/beam-sdk/mode
 
 ### ❌ Property 5: Does Its Core Job — FAIL
 
-The core value proposition of Beam is: **"Point camera at a document → extract identity fields → sign them cryptographically."**
+The core value proposition of Ajna is: **"Point camera at a document → extract identity fields → sign them cryptographically."**
 
 Today:
 - ✅ Camera capture works (iOS and Android adapters are functional)
@@ -130,11 +130,11 @@ The pipeline that transforms raw camera pixels into structured identity data —
 
 ## 3. What the Project Actually IS Today
 
-The `beam-sdk` repository is not one product. It is a **monorepo containing the raw materials for four distinct products**, none of which are individually shippable:
+The `ajna-sdk` repository is not one product. It is a **monorepo containing the raw materials for four distinct products**, none of which are individually shippable:
 
 ```mermaid
 graph TB
-    subgraph "What's in the repo (beam-sdk)"
+    subgraph "What's in the repo (ajna-sdk)"
         A["🔧 SDK Core Library<br/><i>core/ + platform/ + include/</i>"]
         B["🖥️ Verification Backend<br/><i>backend/</i>"]
         C["📊 Operator Dashboard<br/><i>dashboard/</i>"]
@@ -142,9 +142,9 @@ graph TB
     end
 
     subgraph "What they should be"
-        E["📦 beam-verify-sdk<br/><i>Distributable .aar / .xcframework / npm</i>"]
-        F["🌐 beam-verify-api<br/><i>Deployable backend service</i>"]
-        G["📊 beam-verify-dashboard<br/><i>Hosted web app</i>"]
+        E["📦 ajna-verify-sdk<br/><i>Distributable .aar / .xcframework / npm</i>"]
+        F["🌐 ajna-verify-api<br/><i>Deployable backend service</i>"]
+        G["📊 ajna-verify-dashboard<br/><i>Hosted web app</i>"]
         H["📋 Internal docs<br/><i>Separate or private repo</i>"]
     end
 
@@ -179,11 +179,11 @@ graph TB
 | **No trained ML model** | 🔴 Critical | Placeholder `.tflite` | INT8-quantized models for passport/ID card OCR |
 | **No output decoder** | 🔴 Critical | `decode_output_fields()` returns hardcoded stubs | Real tensor → field parsing with vocabulary |
 | **No distributable artifacts** | 🔴 Critical | Build-from-source only | Published `.aar` on Maven, `.xcframework` on SPM, npm package |
-| **No Android high-level API** | 🟡 Major | Raw JNI bridge only | `BeamScanner` Kotlin class matching iOS parity |
-| **No Web SDK wrapper** | 🟡 Major | Sample app only | `@beam/verify` npm package with TypeScript API |
+| **No Android high-level API** | 🟡 Major | Raw JNI bridge only | `AjnaScanner` Kotlin class matching iOS parity |
+| **No Web SDK wrapper** | 🟡 Major | Sample app only | `@ajna/verify` npm package with TypeScript API |
 | **Backend not deployable** | 🟡 Major | `cargo run` on localhost | Dockerfile + k8s + managed DB/Redis |
 | **No integration test with real scan** | 🟡 Major | Simulated data only | End-to-end camera → model → verify round-trip |
-| **iOS result hydration** | 🟠 Minor | `BeamScanner` returns hardcoded fields | Wire actual Rust `ScanResult` fields back through FFI |
+| **iOS result hydration** | 🟠 Minor | `AjnaScanner` returns hardcoded fields | Wire actual Rust `ScanResult` fields back through FFI |
 
 ---
 
@@ -198,23 +198,23 @@ graph TB
 - ✅ The PQC cryptographic pipeline — production-grade ML-DSA Level 3
 - ✅ The quality gate pipeline with timing budgets
 - ✅ The session state machine with adaptive relaxation
-- ✅ The iOS public API design (BeamScanner pattern)
+- ✅ The iOS public API design (AjnaScanner pattern)
 - ✅ The backend verification server with auth, rate limiting, SSRF protection
 
 What's missing is the **last mile** — the parts that turn raw engineering into a product a developer can install and use:
 
 1. **The ML model** (the AI team's deliverable)
 2. **The packaging** (running the existing scripts to produce .aar/.xcframework/npm)
-3. **The Android API wrapper** (patterning after the iOS BeamScanner class)
+3. **The Android API wrapper** (patterning after the iOS AjnaScanner class)
 4. **The deployment infrastructure** (Dockerizing the backend)
 
 ### What should you call it right now?
 
 Until the ML model works and distributable artifacts exist, this is more accurately described as:
 
-> **"Beam Verify — Cross-Platform Identity Verification Engine"**
+> **"Ajna Verify — Cross-Platform Identity Verification Engine"**
 >
-> A monorepo containing the core engine, backend service, and platform bridges for building the Beam Verify SDK. The SDK will be distributed as platform-specific packages once the ML models are trained and the packaging pipeline is validated.
+> A monorepo containing the core engine, backend service, and platform bridges for building the Ajna Verify SDK. The SDK will be distributed as platform-specific packages once the ML models are trained and the packaging pipeline is validated.
 
 ### When can you honestly call it an SDK?
 
@@ -222,13 +222,13 @@ When a developer at a customer company can do this and have it work:
 
 ```bash
 # Android
-implementation 'ai.surt:beam-verify:1.0.0'
+implementation 'ai.ajna:ajna-verify:1.0.0'
 
 # iOS
-.package(url: "https://github.com/surt-ai/beam-verify-ios", from: "1.0.0")
+.package(url: "https://github.com/ajna-ai/ajna-verify-ios", from: "1.0.0")
 
 # Web
-npm install @beam/verify
+npm install @ajna/verify
 ```
 
 And within 15 minutes, they have a working camera scanning documents, extracting real fields, and verifying signatures against your backend — without ever cloning this repo or installing Rust.
@@ -246,8 +246,8 @@ graph LR
     end
 
     subgraph "Phase 2: Make it an SDK (Platform Team)"
-        B1["Android BeamScanner wrapper"]
-        B2["Web @beam/verify npm package"]
+        B1["Android AjnaScanner wrapper"]
+        B2["Web @ajna/verify npm package"]
         B3["Package .aar + .xcframework + npm"]
         B4["Publish to Maven/SPM/npm registries"]
     end

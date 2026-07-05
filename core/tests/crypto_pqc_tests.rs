@@ -5,8 +5,8 @@
 
 #[cfg(test)]
 mod tests {
-    use beam_core::crypto::{MlDsaLevel, MlKemSession, PqcSigner};
-    use beam_core::result::{DocumentField, ScanResult};
+    use ajna_core::crypto::{MlDsaLevel, MlKemSession, PqcSigner};
+    use ajna_core::result::{DocumentField, ScanResult};
 
     // ─── Key generation — public key length check (Level3) ───────────────────
 
@@ -28,7 +28,7 @@ mod tests {
     fn sign_level3_signature_length() {
         let signer =
             PqcSigner::generate(MlDsaLevel::Level3).expect("keypair generation must succeed");
-        let message = b"beam_sdk_test_message";
+        let message = b"ajna_sdk_test_message";
         let sig = signer.sign(message).expect("signing must succeed");
         // pqcrypto-dilithium 0.5 wraps PQClean's NIST Round-3 implementation.
         // PQClean uses 3309 bytes for Dilithium-3 (PQCLEAN_DILITHIUM3_AVX2_CRYPTO_BYTES).
@@ -111,7 +111,7 @@ mod tests {
             session_id: None,
             timestamp_iso: None,
             algo: String::new(),
-            beam_version: String::from("2.0"),
+            ajna_version: String::from("2.0"),
             public_key: String::new(),
             jws_token: None,
         };
@@ -147,7 +147,7 @@ mod tests {
             session_id: None,
             timestamp_iso: None,
             algo: String::new(),
-            beam_version: String::from("2.0"),
+            ajna_version: String::from("2.0"),
             public_key: String::new(),
             jws_token: None,
         };
@@ -174,7 +174,7 @@ mod tests {
             session_id: None,
             timestamp_iso: None,
             algo: String::new(),
-            beam_version: String::from("2.0"),
+            ajna_version: String::from("2.0"),
             public_key: String::new(),
             jws_token: None,
         };
@@ -248,7 +248,7 @@ mod tests {
 
     #[test]
     fn test_hybrid_signer_roundtrip() {
-        use beam_crypto::{BeamSigner, EdDsaSigner, HybridSigner, MlDsaSigner};
+        use ajna_crypto::{AjnaSigner, EdDsaSigner, HybridSigner, MlDsaSigner};
         let ed_signer = Box::new(EdDsaSigner::new());
         let ml_signer = Box::new(MlDsaSigner::new());
         let hybrid = HybridSigner::new("hybrid-ed25519-ml-dsa-65", ed_signer, ml_signer);

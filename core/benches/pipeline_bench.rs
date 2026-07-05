@@ -1,13 +1,13 @@
 // core/benches/pipeline_bench.rs
-// Criterion benchmarks for the Beam quality gate pipeline.
-// Targets documented in BEAM_VERIFY_PRODUCT_PROMPT.md:
+// Criterion benchmarks for the Ajna quality gate pipeline.
+// Targets documented in AJNA_VERIFY_PRODUCT_PROMPT.md:
 //   - blur_gate_1080p: p99 < 4ms (Cortex-A55 scaled from host)
 //   - full_gate_pipeline_1080p: p99 < 8ms
 //   - pipeline_rejected_at_blur: < 500µs (short-circuit)
 //   - session_state_machine: < 100µs per lifecycle
 
-use beam_core::result::{DocumentField, ScanResult};
-use beam_core::{PixelFormat, QualityGate, RawFrame, ScanSession, SessionConfig, SessionState};
+use ajna_core::result::{DocumentField, ScanResult};
+use ajna_core::{PixelFormat, QualityGate, RawFrame, ScanSession, SessionConfig, SessionState};
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use std::time::Duration;
 
@@ -135,7 +135,7 @@ pub fn bench_session_state_machine(c: &mut Criterion) {
                 session_id: None,
                 timestamp_iso: None,
                 algo: String::new(),
-                beam_version: String::from("2.0"),
+                ajna_version: String::from("2.0"),
                 public_key: String::new(),
                 jws_token: None,
             };

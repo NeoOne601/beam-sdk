@@ -1,5 +1,5 @@
 // backend/src/errors.rs
-// Application error types for the Beam Verify backend.
+// Application error types for the Ajna Verify backend.
 
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};

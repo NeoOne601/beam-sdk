@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# publish_ios_spm.sh — Generate Swift Package Manager manifest for Beam Verify iOS SDK.
+# publish_ios_spm.sh — Generate Swift Package Manager manifest for Ajna Verify iOS SDK.
 # Usage: ./publish_ios_spm.sh <version>
 # Prerequisites:
 #   - XCFramework built by scripts/package_ios_xcframework.sh
@@ -7,7 +7,7 @@
 set -euo pipefail
 
 VERSION="${1:?Usage: $0 <version>}"
-XCFRAMEWORK_PATH="build_output/BeamVerify.xcframework"
+XCFRAMEWORK_PATH="build_output/AjnaVerify.xcframework"
 DIST_DIR="build_output/spm"
 
 if [ ! -d "${XCFRAMEWORK_PATH}" ]; then
@@ -19,8 +19,8 @@ fi
 mkdir -p "${DIST_DIR}"
 
 # Zip the XCFramework
-ZIP_FILE="${DIST_DIR}/BeamVerify-${VERSION}.xcframework.zip"
-cd build_output && zip -r "../${ZIP_FILE}" BeamVerify.xcframework && cd ..
+ZIP_FILE="${DIST_DIR}/AjnaVerify-${VERSION}.xcframework.zip"
+cd build_output && zip -r "../${ZIP_FILE}" AjnaVerify.xcframework && cd ..
 CHECKSUM=$(swift package compute-checksum "${ZIP_FILE}" 2>/dev/null || shasum -a 256 "${ZIP_FILE}" | awk '{print $1}')
 
 # Generate Package.swift
@@ -29,20 +29,20 @@ cat > "${DIST_DIR}/Package.swift" <<EOF
 import PackageDescription
 
 let package = Package(
-    name: "BeamVerify",
+    name: "AjnaVerify",
     platforms: [
         .iOS(.v14)
     ],
     products: [
         .library(
-            name: "BeamVerify",
-            targets: ["BeamVerify"]
+            name: "AjnaVerify",
+            targets: ["AjnaVerify"]
         ),
     ],
     targets: [
         .binaryTarget(
-            name: "BeamVerify",
-            url: "https://github.com/surt-ai/beam-sdk/releases/download/v${VERSION}/BeamVerify-${VERSION}.xcframework.zip",
+            name: "AjnaVerify",
+            url: "https://github.com/ajna-ai/ajna-sdk/releases/download/v${VERSION}/AjnaVerify-${VERSION}.xcframework.zip",
             checksum: "${CHECKSUM}"
         ),
     ]
@@ -56,4 +56,4 @@ echo "Integration instructions:"
 echo "  1. Upload ${ZIP_FILE} to GitHub release v${VERSION}"
 echo "  2. Copy ${DIST_DIR}/Package.swift to repo root"
 echo "  3. Tag release: git tag v${VERSION} && git push --tags"
-echo "  4. Users add: .package(url: \"https://github.com/surt-ai/beam-sdk\", from: \"${VERSION}\")"
+echo "  4. Users add: .package(url: \"https://github.com/ajna-ai/ajna-sdk\", from: \"${VERSION}\")"

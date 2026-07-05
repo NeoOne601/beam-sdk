@@ -1,5 +1,5 @@
--- Beam Verify Backend — Initial Schema
--- Run with: psql -d beam_verify -f 001_initial.sql
+-- Ajna Verify Backend — Initial Schema
+-- Run with: psql -d ajna_verify -f 001_initial.sql
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 

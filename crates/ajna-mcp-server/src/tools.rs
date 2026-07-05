@@ -202,9 +202,14 @@ fn backend_config(state: &ServerState) -> Result<(&str, &str), ToolError> {
     Ok((url, key))
 }
 
-fn backend_post(state: &ServerState, path: &str, payload: Option<&Value>) -> Result<Value, ToolError> {
+fn backend_post(
+    state: &ServerState,
+    path: &str,
+    payload: Option<&Value>,
+) -> Result<Value, ToolError> {
     let (base, key) = backend_config(state)?;
-    let payload = payload.ok_or_else(|| ToolError::execution("missing required argument: payload"))?;
+    let payload =
+        payload.ok_or_else(|| ToolError::execution("missing required argument: payload"))?;
     let client = http_client()?;
     let response = client
         .post(format!("{}{path}", base.trim_end_matches('/')))
@@ -241,6 +246,8 @@ fn read_backend_response(response: reqwest::blocking::Response) -> Result<Value,
     if status.is_success() {
         Ok(body)
     } else {
-        Err(ToolError::execution(format!("backend returned {status}: {body}")))
+        Err(ToolError::execution(format!(
+            "backend returned {status}: {body}"
+        )))
     }
 }

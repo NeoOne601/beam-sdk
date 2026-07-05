@@ -147,6 +147,29 @@ static bool test_gate_destroy_null_no_crash() {
     return res == 0;
 }
 
+// ─── Declarative UI config validation (ajna_ui_config_validate) ───────────────
+
+static bool test_ui_config_valid_accepted() {
+    // A minimal valid document ("{}" is the stock config) must return AJNA_OK.
+    const char* json = "{\"mode\":\"custom\",\"theme\":{\"primary_color\":\"#FF5733\"}}";
+    int32_t res = ajna_ui_config_validate(
+        reinterpret_cast<const uint8_t*>(json), std::strlen(json));
+    return res == 0; // AJNA_OK
+}
+
+static bool test_ui_config_malformed_rejected() {
+    // A non-hex color must be rejected with AJNA_ERR_INVALID_CONFIG (-5).
+    const char* json = "{\"theme\":{\"primary_color\":\"purple\"}}";
+    int32_t res = ajna_ui_config_validate(
+        reinterpret_cast<const uint8_t*>(json), std::strlen(json));
+    return res == -5; // AJNA_ERR_INVALID_CONFIG
+}
+
+static bool test_ui_config_null_guarded() {
+    // Null pointer must be guarded, not dereferenced.
+    return ajna_ui_config_validate(nullptr, 16) == -2; // AJNA_ERR_NULL_PTR
+}
+
 // ─── Gate timing benchmark (must complete < 4ms on budget hardware) ───────────
 // On a developer machine this will be much faster. The benchmark establishes
 // that the gate code is O(n) and demonstrates the performance profile.
@@ -203,6 +226,9 @@ int main() {
     RUN_TEST(session_destroy_no_crash);
     RUN_TEST(session_destroy_null_no_crash);
     RUN_TEST(gate_destroy_null_no_crash);
+    RUN_TEST(ui_config_valid_accepted);
+    RUN_TEST(ui_config_malformed_rejected);
+    RUN_TEST(ui_config_null_guarded);
     RUN_TEST(gate_evaluate_timing_1080p);
 
     printf("\n=== test result: %d/%d passed ===\n", tests_passed, tests_run);

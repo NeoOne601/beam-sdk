@@ -67,8 +67,7 @@ pub fn compute_entry_hash(
     detail: &serde_json::Value,
 ) -> String {
     let session = session_id.map(|s| s.to_string()).unwrap_or_default();
-    let material =
-        format!("{prev_hash}|{tenant_id}|{session}|{event_type}|{outcome}|{detail}");
+    let material = format!("{prev_hash}|{tenant_id}|{session}|{event_type}|{outcome}|{detail}");
     hex::encode(Sha256::digest(material.as_bytes()))
 }
 
@@ -143,8 +142,9 @@ pub async fn record_audit_event(
         _ => GENESIS_HASH.to_owned(),
     };
 
-    let entry_hash =
-        compute_entry_hash(&prev_hash, tenant_id, session_id, event_type, outcome, &detail);
+    let entry_hash = compute_entry_hash(
+        &prev_hash, tenant_id, session_id, event_type, outcome, &detail,
+    );
 
     sqlx::query(
         r#"
@@ -202,9 +202,30 @@ mod tests {
     fn entry_hash_is_deterministic_and_input_sensitive() {
         let tenant = Uuid::nil();
         let detail = serde_json::json!({ "k": "v" });
-        let a = compute_entry_hash(GENESIS_HASH, tenant, None, "verification", "success", &detail);
-        let b = compute_entry_hash(GENESIS_HASH, tenant, None, "verification", "success", &detail);
-        let c = compute_entry_hash(GENESIS_HASH, tenant, None, "verification", "failure", &detail);
+        let a = compute_entry_hash(
+            GENESIS_HASH,
+            tenant,
+            None,
+            "verification",
+            "success",
+            &detail,
+        );
+        let b = compute_entry_hash(
+            GENESIS_HASH,
+            tenant,
+            None,
+            "verification",
+            "success",
+            &detail,
+        );
+        let c = compute_entry_hash(
+            GENESIS_HASH,
+            tenant,
+            None,
+            "verification",
+            "failure",
+            &detail,
+        );
         assert_eq!(a, b);
         assert_ne!(a, c);
         assert_eq!(a.len(), 64); // SHA-256 hex
@@ -236,7 +257,10 @@ mod tests {
         let forged = entry(2, Uuid::nil(), &chain[0].entry_hash, "success");
         chain[1] = forged;
         let report = verify_chain_entries(&chain);
-        assert!(!report.valid, "entry 3 must no longer link to forged entry 2");
+        assert!(
+            !report.valid,
+            "entry 3 must no longer link to forged entry 2"
+        );
         assert_eq!(report.first_broken_seq, Some(3));
     }
 

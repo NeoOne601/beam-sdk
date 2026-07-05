@@ -27,11 +27,10 @@ pub struct ServerState {
 
 impl ServerState {
     pub fn from_env() -> Self {
-        let signer: Arc<dyn AjnaSigner> =
-            match std::env::var("AJNA_MCP_SIGN_ALGO").as_deref() {
-                Ok("ml-dsa-65") => Arc::new(MlDsaSigner::new()),
-                _ => Arc::new(EdDsaSigner::new()),
-            };
+        let signer: Arc<dyn AjnaSigner> = match std::env::var("AJNA_MCP_SIGN_ALGO").as_deref() {
+            Ok("ml-dsa-65") => Arc::new(MlDsaSigner::new()),
+            _ => Arc::new(EdDsaSigner::new()),
+        };
         Self {
             backend_url: std::env::var("AJNA_BACKEND_URL").ok(),
             api_key: std::env::var("AJNA_API_KEY").ok(),
@@ -40,6 +39,7 @@ impl ServerState {
     }
 
     /// Test/local constructor with explicit configuration.
+    #[cfg(test)]
     pub fn new(backend_url: Option<String>, api_key: Option<String>) -> Self {
         Self {
             backend_url,
@@ -69,9 +69,7 @@ pub fn handle_message(state: &mut ServerState, line: &str) -> Option<String> {
     };
 
     // Notifications (no id) get no response, whatever the method.
-    let Some(id) = id else {
-        return None;
-    };
+    let id = id?;
 
     let params = message.get("params").cloned().unwrap_or(Value::Null);
     let response = match method {
@@ -170,10 +168,7 @@ mod tests {
             json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list" }),
         );
         let tools = response["result"]["tools"].as_array().expect("tools array");
-        let names: Vec<&str> = tools
-            .iter()
-            .filter_map(|t| t["name"].as_str())
-            .collect();
+        let names: Vec<&str> = tools.iter().filter_map(|t| t["name"].as_str()).collect();
         assert_eq!(
             names,
             vec![
@@ -192,8 +187,7 @@ mod tests {
     #[test]
     fn notifications_get_no_response() {
         let mut state = local_state();
-        let line =
-            json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }).to_string();
+        let line = json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }).to_string();
         assert!(handle_message(&mut state, &line).is_none());
     }
 
@@ -240,8 +234,7 @@ mod tests {
         assert_eq!(response["result"]["isError"], false);
         let text = response["result"]["content"][0]["text"].as_str().unwrap();
         let output: Value = serde_json::from_str(text).unwrap();
-        let report: Value =
-            serde_json::from_str(output["report_json"].as_str().unwrap()).unwrap();
+        let report: Value = serde_json::from_str(output["report_json"].as_str().unwrap()).unwrap();
         assert_eq!(report["verdict"], "compromised");
         assert_eq!(output["algorithm"], "ed25519");
         assert!(!output["signature_b64"].as_str().unwrap().is_empty());
@@ -270,8 +263,7 @@ mod tests {
         assert_eq!(response["result"]["isError"], false);
         let text = response["result"]["content"][0]["text"].as_str().unwrap();
         let output: Value = serde_json::from_str(text).unwrap();
-        let result: Value =
-            serde_json::from_str(output["result_json"].as_str().unwrap()).unwrap();
+        let result: Value = serde_json::from_str(output["result_json"].as_str().unwrap()).unwrap();
         assert_eq!(result["verdict"], "verified");
         assert_eq!(result["liveness_passed"], true);
     }

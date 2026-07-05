@@ -16,7 +16,7 @@ use std::time::Duration;
 fn make_checkerboard_frame(w: u32, h: u32) -> (Vec<u8>, Vec<u8>) {
     let y: Vec<u8> = (0..(w * h) as usize)
         .map(|i| {
-            if (i / w as usize + i % w as usize) % 2 == 0 {
+            if (i / w as usize + i % w as usize).is_multiple_of(2) {
                 220
             } else {
                 30

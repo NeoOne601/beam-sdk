@@ -76,7 +76,9 @@ impl Default for AttestationSigner {
 
 impl AttestationSigner {
     pub fn new() -> Self {
-        Self { signer: MlDsaSigner::new() }
+        Self {
+            signer: MlDsaSigner::new(),
+        }
     }
 
     /// Counter-sign one verification outcome.

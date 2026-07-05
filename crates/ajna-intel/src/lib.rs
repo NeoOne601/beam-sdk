@@ -152,11 +152,19 @@ pub fn evaluate(indicators: &DeviceIndicators, evaluated_at_unix: u64) -> Postur
 
     for (key, value) in &indicators.build_properties {
         if checks::is_emulator_property(key, value) {
-            findings.push(Finding::EmulatorProperty { key: key.clone(), value: value.clone() });
+            findings.push(Finding::EmulatorProperty {
+                key: key.clone(),
+                value: value.clone(),
+            });
         }
     }
     let debuggable = checks::DEBUGGABLE_PROPERTY;
-    if indicators.build_properties.get(debuggable.0).map(String::as_str) == Some(debuggable.1) {
+    if indicators
+        .build_properties
+        .get(debuggable.0)
+        .map(String::as_str)
+        == Some(debuggable.1)
+    {
         findings.push(Finding::DebuggableBuild);
     }
 
@@ -172,15 +180,14 @@ pub fn evaluate(indicators: &DeviceIndicators, evaluated_at_unix: u64) -> Postur
         .fold(0u16, |acc, f| acc + u16::from(f.weight()))
         .min(100) as u8;
 
-    let verdict = if findings.iter().any(Finding::is_critical)
-        || risk_score >= COMPROMISED_SCORE_THRESHOLD
-    {
-        Verdict::Compromised
-    } else if risk_score >= SUSPICIOUS_SCORE_THRESHOLD {
-        Verdict::Suspicious
-    } else {
-        Verdict::Trusted
-    };
+    let verdict =
+        if findings.iter().any(Finding::is_critical) || risk_score >= COMPROMISED_SCORE_THRESHOLD {
+            Verdict::Compromised
+        } else if risk_score >= SUSPICIOUS_SCORE_THRESHOLD {
+            Verdict::Suspicious
+        } else {
+            Verdict::Trusted
+        };
 
     PostureReport {
         platform: indicators.platform,
@@ -271,7 +278,9 @@ mod tests {
     #[test]
     fn frida_gadget_is_detected_case_insensitively() {
         let mut indicators = DeviceIndicators::clean(Platform::Ios);
-        indicators.loaded_libraries.push("FridaGadget.dylib".to_owned());
+        indicators
+            .loaded_libraries
+            .push("FridaGadget.dylib".to_owned());
         let report = evaluate(&indicators, NOW);
         assert_eq!(report.verdict, Verdict::Compromised);
         assert!(matches!(

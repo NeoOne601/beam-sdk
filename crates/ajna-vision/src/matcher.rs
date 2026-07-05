@@ -117,8 +117,14 @@ mod tests {
     #[test]
     fn invalid_embeddings_are_rejected_at_construction() {
         assert_eq!(FaceEmbedding::new(vec![]), Err(MatchError::EmptyEmbedding));
-        assert_eq!(FaceEmbedding::new(vec![f32::NAN]), Err(MatchError::NonFiniteValue));
-        assert_eq!(FaceEmbedding::new(vec![0.0, 0.0]), Err(MatchError::ZeroNorm));
+        assert_eq!(
+            FaceEmbedding::new(vec![f32::NAN]),
+            Err(MatchError::NonFiniteValue)
+        );
+        assert_eq!(
+            FaceEmbedding::new(vec![0.0, 0.0]),
+            Err(MatchError::ZeroNorm)
+        );
     }
 
     #[test]

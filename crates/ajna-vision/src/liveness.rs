@@ -68,10 +68,14 @@ pub enum SubmitOutcome {
     /// Challenge cleared; the next one is now current.
     Advanced,
     /// Observation did not clear the challenge; attempts remain.
-    Retry { attempts_left: u32 },
+    Retry {
+        attempts_left: u32,
+    },
     /// All challenges cleared — liveness passed.
     Passed,
-    Failed { reason: FailReason },
+    Failed {
+        reason: FailReason,
+    },
     /// Observation ignored: non-monotonic timestamp (replay suspect).
     RejectedReplay,
 }
@@ -132,7 +136,9 @@ impl LivenessSession {
 
     pub fn submit(&mut self, observation: ChallengeObservation) -> SubmitOutcome {
         let LivenessState::InProgress { challenge_index } = self.state else {
-            return SubmitOutcome::Failed { reason: FailReason::NotStarted };
+            return SubmitOutcome::Failed {
+                reason: FailReason::NotStarted,
+            };
         };
 
         // Anti-replay: observations must move strictly forward in time.
@@ -144,18 +150,22 @@ impl LivenessSession {
         // Session wall-clock budget.
         if observation.timestamp_us >= self.started_at_us + self.config.session_timeout_us {
             self.state = LivenessState::Failed;
-            return SubmitOutcome::Failed { reason: FailReason::TimedOut };
+            return SubmitOutcome::Failed {
+                reason: FailReason::TimedOut,
+            };
         }
 
         let expected = self.config.challenges[challenge_index];
-        let cleared =
-            observation.challenge == expected && observation.confidence >= self.config.min_confidence;
+        let cleared = observation.challenge == expected
+            && observation.confidence >= self.config.min_confidence;
 
         if !cleared {
             self.attempts_used += 1;
             if self.attempts_used >= self.config.max_attempts_per_challenge {
                 self.state = LivenessState::Failed;
-                return SubmitOutcome::Failed { reason: FailReason::AttemptsExhausted };
+                return SubmitOutcome::Failed {
+                    reason: FailReason::AttemptsExhausted,
+                };
             }
             return SubmitOutcome::Retry {
                 attempts_left: self.config.max_attempts_per_challenge - self.attempts_used,
@@ -169,7 +179,9 @@ impl LivenessSession {
             self.state = LivenessState::Passed;
             SubmitOutcome::Passed
         } else {
-            self.state = LivenessState::InProgress { challenge_index: next };
+            self.state = LivenessState::InProgress {
+                challenge_index: next,
+            };
             SubmitOutcome::Advanced
         }
     }
@@ -189,8 +201,16 @@ impl LivenessSession {
 mod tests {
     use super::*;
 
-    fn observation(challenge: Challenge, confidence: f32, timestamp_us: u64) -> ChallengeObservation {
-        ChallengeObservation { challenge, confidence, timestamp_us }
+    fn observation(
+        challenge: Challenge,
+        confidence: f32,
+        timestamp_us: u64,
+    ) -> ChallengeObservation {
+        ChallengeObservation {
+            challenge,
+            confidence,
+            timestamp_us,
+        }
     }
 
     fn started_session() -> LivenessSession {
@@ -234,7 +254,9 @@ mod tests {
         ));
         assert_eq!(
             session.submit(observation(Challenge::Blink, 0.30, 4_000)),
-            SubmitOutcome::Failed { reason: FailReason::AttemptsExhausted }
+            SubmitOutcome::Failed {
+                reason: FailReason::AttemptsExhausted
+            }
         );
         assert_eq!(session.state(), LivenessState::Failed);
     }
@@ -255,7 +277,9 @@ mod tests {
         let late = 1_000 + LivenessConfig::default().session_timeout_us + 1;
         assert_eq!(
             session.submit(observation(Challenge::Blink, 0.95, late)),
-            SubmitOutcome::Failed { reason: FailReason::TimedOut }
+            SubmitOutcome::Failed {
+                reason: FailReason::TimedOut
+            }
         );
     }
 
@@ -264,13 +288,18 @@ mod tests {
         let mut session = LivenessSession::new(LivenessConfig::default()).unwrap();
         assert_eq!(
             session.submit(observation(Challenge::Blink, 0.95, 2_000)),
-            SubmitOutcome::Failed { reason: FailReason::NotStarted }
+            SubmitOutcome::Failed {
+                reason: FailReason::NotStarted
+            }
         );
     }
 
     #[test]
     fn empty_challenge_list_is_rejected() {
-        let config = LivenessConfig { challenges: vec![], ..Default::default() };
+        let config = LivenessConfig {
+            challenges: vec![],
+            ..Default::default()
+        };
         assert_eq!(
             LivenessSession::new(config).unwrap_err(),
             LivenessConfigError::NoChallenges

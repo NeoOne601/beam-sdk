@@ -1,6 +1,31 @@
-# Ajna SDK
+# Ajna
 
-Cross-platform native document scanning SDK with post-quantum cryptographic result integrity.
+Ajna is a three-pillar GTM security platform with post-quantum cryptographic
+result integrity at the edge:
+
+| Pillar | Crate | What it does |
+|---|---|---|
+| **Ajna IDV** | `ajna-idv` | Document scanning and identity verification — product facade over the `ajna-core` engine, with a fully **headless mode** and a **declarative UI configuration layer** (`UiConfig`) for total client control of the capture UI |
+| **Ajna Intel** | `ajna-intel` | Device posture and integrity: root/jailbreak artifacts, hooking frameworks (Frida/Xposed/Substrate), emulator and debugger detection → risk-scored, PQC-signed posture reports |
+| **Ajna Vision** | `ajna-vision` | Facial liveness (challenge-response FSM with anti-replay) and model-agnostic face embedding verification → PQC-signed vision results |
+
+All pillars share the `ajna-crypto` foundation (Ed25519 + ML-DSA-65 signer
+registry, FIPS 204). The platform is agentic out of the box: `ajna-mcp-server`
+exposes posture evaluation, face verification, document verification, and
+audit queries as MCP tools for any AI agent runtime. The `dashboard/`
+React/Vite portal drives the 60-minute integration flow (onboarding wizard,
+UI customizer bound to the `UiConfig` schema, SOC2 audit viewer).
+
+Compliance is built in: the backend writes every verification to a
+**hash-chained, append-only audit log** (SOC2 Type 2 tamper-evidence, DB
+trigger enforced, `GET /v1/audit/verify-chain`), applies a **Country-Specific
+Rules Engine** (dynamic IDV thresholds by ISO country code), and counter-signs
+every outcome with **ML-DSA-65 server attestation** per Indian National
+Quantum Mission (NQM) crypto-agility requirements.
+
+## Scanning Engine
+
+Cross-platform native document scanning with post-quantum cryptographic result integrity.
 Shared C++ and Rust core. Thin Swift and Kotlin platform adapters. No third-party scanning dependency.
 
 The language split is determined by constraints, not preference:

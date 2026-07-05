@@ -19,7 +19,10 @@ impl fmt::Display for HeadlessError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::BufferTooSmall { expected, actual } => {
-                write!(f, "RGBA buffer too small: expected {expected} bytes, got {actual}")
+                write!(
+                    f,
+                    "RGBA buffer too small: expected {expected} bytes, got {actual}"
+                )
             }
             Self::Frame(e) => write!(f, "invalid frame: {e:?}"),
         }
@@ -67,7 +70,10 @@ impl HeadlessScanner {
             .saturating_mul(height as usize)
             .saturating_mul(4);
         if rgba.len() < expected || expected == 0 {
-            return Err(HeadlessError::BufferTooSmall { expected, actual: rgba.len() });
+            return Err(HeadlessError::BufferTooSmall {
+                expected,
+                actual: rgba.len(),
+            });
         }
 
         let owned = OwnedFrame::from_rgba(rgba, width, height, timestamp_us);
@@ -123,7 +129,10 @@ mod tests {
         let result = scanner.push_rgba_frame(&[0u8; 16], 128, 128, 1);
         assert_eq!(
             result.unwrap_err(),
-            HeadlessError::BufferTooSmall { expected: 128 * 128 * 4, actual: 16 }
+            HeadlessError::BufferTooSmall {
+                expected: 128 * 128 * 4,
+                actual: 16
+            }
         );
     }
 

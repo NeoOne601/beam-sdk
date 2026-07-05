@@ -41,7 +41,7 @@ mod tests {
             .map(|i| {
                 let row = i / width as usize;
                 let col = i % width as usize;
-                if (row + col) % 2 == 0 {
+                if (row + col).is_multiple_of(2) {
                     240
                 } else {
                     10
@@ -97,7 +97,7 @@ mod tests {
             .map(|i| {
                 let row = i / width as usize;
                 let col = i % width as usize;
-                if (row + col) % 2 == 0 {
+                if (row + col).is_multiple_of(2) {
                     30
                 } else {
                     10
@@ -161,7 +161,7 @@ mod tests {
             .map(|i| {
                 let row = i / width as usize;
                 let col = i % width as usize;
-                if (row + col) % 2 == 0 {
+                if (row + col).is_multiple_of(2) {
                     200
                 } else {
                     50

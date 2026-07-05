@@ -37,7 +37,10 @@ fn main() {
         if let Some(response) = server::handle_message(&mut state, &line) {
             let mut out = stdout.lock();
             // A write failure means the client is gone; exit quietly.
-            if writeln!(out, "{response}").and_then(|()| out.flush()).is_err() {
+            if writeln!(out, "{response}")
+                .and_then(|()| out.flush())
+                .is_err()
+            {
                 break;
             }
         }

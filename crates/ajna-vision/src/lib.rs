@@ -157,9 +157,14 @@ mod tests {
     #[test]
     fn same_face_with_passed_liveness_is_verified() {
         let embedding = FaceEmbedding::new(vec![0.2, 0.4, 0.6]).unwrap();
-        let result =
-            verify_face(&passed_session(), &embedding, &embedding, DEFAULT_MATCH_THRESHOLD, NOW)
-                .unwrap();
+        let result = verify_face(
+            &passed_session(),
+            &embedding,
+            &embedding,
+            DEFAULT_MATCH_THRESHOLD,
+            NOW,
+        )
+        .unwrap();
         assert_eq!(result.verdict, VisionVerdict::Verified);
         assert!(result.match_score.unwrap() > 0.99);
     }
@@ -168,9 +173,14 @@ mod tests {
     fn different_face_is_a_mismatch() {
         let probe = FaceEmbedding::new(vec![1.0, 0.0]).unwrap();
         let reference = FaceEmbedding::new(vec![0.0, 1.0]).unwrap();
-        let result =
-            verify_face(&passed_session(), &probe, &reference, DEFAULT_MATCH_THRESHOLD, NOW)
-                .unwrap();
+        let result = verify_face(
+            &passed_session(),
+            &probe,
+            &reference,
+            DEFAULT_MATCH_THRESHOLD,
+            NOW,
+        )
+        .unwrap();
         assert_eq!(result.verdict, VisionVerdict::FaceMismatch);
     }
 
@@ -178,8 +188,14 @@ mod tests {
     fn failed_liveness_never_reaches_face_comparison() {
         let session = LivenessSession::new(LivenessConfig::default()).unwrap(); // never started
         let embedding = FaceEmbedding::new(vec![1.0, 0.0]).unwrap();
-        let result =
-            verify_face(&session, &embedding, &embedding, DEFAULT_MATCH_THRESHOLD, NOW).unwrap();
+        let result = verify_face(
+            &session,
+            &embedding,
+            &embedding,
+            DEFAULT_MATCH_THRESHOLD,
+            NOW,
+        )
+        .unwrap();
         assert_eq!(result.verdict, VisionVerdict::LivenessFailed);
         assert_eq!(result.match_score, None);
     }
@@ -188,9 +204,14 @@ mod tests {
     fn signed_result_verifies_and_tamper_is_rejected() {
         let signer = EdDsaSigner::new();
         let embedding = FaceEmbedding::new(vec![0.2, 0.4, 0.6]).unwrap();
-        let result =
-            verify_face(&passed_session(), &embedding, &embedding, DEFAULT_MATCH_THRESHOLD, NOW)
-                .unwrap();
+        let result = verify_face(
+            &passed_session(),
+            &embedding,
+            &embedding,
+            DEFAULT_MATCH_THRESHOLD,
+            NOW,
+        )
+        .unwrap();
         let mut signed = result.sign(&signer).expect("signing must succeed");
         assert!(signed.verify_with(&signer).expect("verify must run"));
 

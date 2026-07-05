@@ -72,7 +72,10 @@ impl RulesEngine {
             }
             packs.insert(canonical.clone(), (canonical, pack));
         }
-        Ok(Self { default: document.default, packs })
+        Ok(Self {
+            default: document.default,
+            packs,
+        })
     }
 
     /// Engine honoring `AJNA_COUNTRY_RULES_PATH` when set, embedded otherwise.
@@ -186,7 +189,11 @@ mod tests {
             "ed25519",
         );
         assert!(!outcome.passed);
-        assert!(outcome.violations[0].contains("post-quantum"), "{:?}", outcome.violations);
+        assert!(
+            outcome.violations[0].contains("post-quantum"),
+            "{:?}",
+            outcome.violations
+        );
 
         let outcome = engine().evaluate(
             "IND",

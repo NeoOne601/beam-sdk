@@ -141,6 +141,19 @@ int32_t ajna_session_get_result_json(
     size_t            out_buf_len
 );
 
+/**
+ * Validate a declarative UI configuration JSON document (UTF-8, not
+ * necessarily NUL-terminated). Platform shells call this once before applying
+ * a client-supplied capture-UI theme.
+ *
+ * Return values:
+ *    0 (AJNA_OK)                 = config parses and passes validation
+ *   -2 (AJNA_ERR_NULL_PTR)       = json_utf8 is null
+ *   -3 (AJNA_ERR_OUT_OF_RANGE)   = len is zero or exceeds 64 KiB
+ *   -5 (AJNA_ERR_INVALID_CONFIG) = malformed JSON, bad color, or value out of range
+ */
+int32_t ajna_ui_config_validate(const uint8_t* json_utf8, size_t len);
+
 #ifdef __cplusplus
 }
 #endif

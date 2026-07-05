@@ -448,10 +448,12 @@ const MAX_UI_CONFIG_LEN: usize = 64 * 1024;
 /// AJNA_ERR_INVALID_CONFIG (-5) for malformed JSON, bad colors, or values
 /// outside product limits.
 ///
-/// FFI contract: `json_utf8` must be valid for `len` bytes for the duration
-/// of the call only; the buffer may be freed immediately after return.
+/// # Safety
+///
+/// `json_utf8` must be valid for `len` bytes for the duration of the call
+/// only; the buffer may be freed immediately after return.
 #[no_mangle]
-pub extern "C" fn ajna_ui_config_validate(json_utf8: *const u8, len: usize) -> i32 {
+pub unsafe extern "C" fn ajna_ui_config_validate(json_utf8: *const u8, len: usize) -> i32 {
     if json_utf8.is_null() {
         return AJNA_ERR_NULL_PTR;
     }

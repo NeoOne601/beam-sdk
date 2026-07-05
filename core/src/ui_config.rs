@@ -158,7 +158,10 @@ impl fmt::Display for UiConfigError {
         match self {
             Self::Json(msg) => write!(f, "invalid UI config JSON: {msg}"),
             Self::InvalidColor { field, value } => {
-                write!(f, "invalid color for {field}: {value:?} (expected #RRGGBB or #AARRGGBB)")
+                write!(
+                    f,
+                    "invalid color for {field}: {value:?} (expected #RRGGBB or #AARRGGBB)"
+                )
             }
             Self::OutOfRange { field } => write!(f, "value out of range for {field}"),
         }
@@ -203,30 +206,44 @@ impl UiConfig {
         validate_color("theme.error_color", &self.theme.error_color)?;
 
         if !(0.0..=MAX_CORNER_RADIUS_DP).contains(&self.theme.corner_radius_dp) {
-            return Err(UiConfigError::OutOfRange { field: "theme.corner_radius_dp" });
+            return Err(UiConfigError::OutOfRange {
+                field: "theme.corner_radius_dp",
+            });
         }
         if !(0.0..=MAX_STROKE_WIDTH_DP).contains(&self.overlay.stroke_width_dp) {
-            return Err(UiConfigError::OutOfRange { field: "overlay.stroke_width_dp" });
+            return Err(UiConfigError::OutOfRange {
+                field: "overlay.stroke_width_dp",
+            });
         }
         if !(0.0..=1.0).contains(&self.overlay.mask_opacity) {
-            return Err(UiConfigError::OutOfRange { field: "overlay.mask_opacity" });
+            return Err(UiConfigError::OutOfRange {
+                field: "overlay.mask_opacity",
+            });
         }
         if self.animations.duration_ms > MAX_ANIMATION_DURATION_MS {
-            return Err(UiConfigError::OutOfRange { field: "animations.duration_ms" });
+            return Err(UiConfigError::OutOfRange {
+                field: "animations.duration_ms",
+            });
         }
         if let Some(name) = &self.branding.company_name {
             if name.len() > MAX_NAME_LEN {
-                return Err(UiConfigError::OutOfRange { field: "branding.company_name" });
+                return Err(UiConfigError::OutOfRange {
+                    field: "branding.company_name",
+                });
             }
         }
         if let Some(asset) = &self.branding.logo_asset {
             if asset.len() > MAX_NAME_LEN {
-                return Err(UiConfigError::OutOfRange { field: "branding.logo_asset" });
+                return Err(UiConfigError::OutOfRange {
+                    field: "branding.logo_asset",
+                });
             }
         }
         if let Some(font) = &self.theme.font_family {
             if font.len() > MAX_NAME_LEN {
-                return Err(UiConfigError::OutOfRange { field: "theme.font_family" });
+                return Err(UiConfigError::OutOfRange {
+                    field: "theme.font_family",
+                });
             }
         }
         if self.strings.len() > MAX_STRING_OVERRIDES {
@@ -245,13 +262,19 @@ fn validate_color(field: &'static str, value: &str) -> Result<(), UiConfigError>
     let hex = match value.strip_prefix('#') {
         Some(h) if h.len() == 6 || h.len() == 8 => h,
         _ => {
-            return Err(UiConfigError::InvalidColor { field, value: value.to_owned() });
+            return Err(UiConfigError::InvalidColor {
+                field,
+                value: value.to_owned(),
+            });
         }
     };
     if hex.chars().all(|c| c.is_ascii_hexdigit()) {
         Ok(())
     } else {
-        Err(UiConfigError::InvalidColor { field, value: value.to_owned() })
+        Err(UiConfigError::InvalidColor {
+            field,
+            value: value.to_owned(),
+        })
     }
 }
 
@@ -284,7 +307,13 @@ mod tests {
     fn rejects_malformed_color() {
         let json = r##"{"theme": {"primary_color": "purple"}}"##;
         let err = UiConfig::from_json(json).expect_err("non-hex color must fail");
-        assert!(matches!(err, UiConfigError::InvalidColor { field: "theme.primary_color", .. }));
+        assert!(matches!(
+            err,
+            UiConfigError::InvalidColor {
+                field: "theme.primary_color",
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -297,12 +326,20 @@ mod tests {
     fn rejects_mask_opacity_above_one() {
         let json = r#"{"overlay": {"mask_opacity": 1.5}}"#;
         let err = UiConfig::from_json(json).expect_err("opacity > 1 must fail");
-        assert_eq!(err, UiConfigError::OutOfRange { field: "overlay.mask_opacity" });
+        assert_eq!(
+            err,
+            UiConfigError::OutOfRange {
+                field: "overlay.mask_opacity"
+            }
+        );
     }
 
     #[test]
     fn rejects_invalid_json_syntax() {
-        assert!(matches!(UiConfig::from_json("{nope"), Err(UiConfigError::Json(_))));
+        assert!(matches!(
+            UiConfig::from_json("{nope"),
+            Err(UiConfigError::Json(_))
+        ));
     }
 
     #[test]

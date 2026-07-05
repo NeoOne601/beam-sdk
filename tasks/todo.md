@@ -63,4 +63,26 @@ capture are wired to exact integration points and documented for you to run.
 - [ ] Final report: done-and-verified vs blocked-on-your-resources.
 
 ## Review
-(appended at end)
+
+### Built & verified here
+- **Edge ML (cond 1,2,3):** ajna-idv `ocr` (Aadhaar/Verhoeff, passport MRZ/ICAO
+  check digits, US-DL/AAMVA) + `scan_and_sign` → ML-DSA-65. ajna-vision
+  `landmarks` (EAR blink, yaw turn, MAR smile) → liveness FSM. 37 tests pass.
+- **DB pooling (cond 7):** backend `db::pool` env-tuned for Neon/Supabase,
+  wired into main.rs. 3 pool tests pass.
+- **Docker/compose (cond 6):** dashboard Dockerfile, backend Dockerfile fixed
+  for repo-root context, root docker-compose.yml @ 256m limits.
+- **Deploy configs (cond 8):** fly.toml, render.yaml, vercel.json, DEPLOYMENT.md.
+- **Palantir dashboard (cond 9):** tactical HUD theme, hash chips, progressive
+  disclosure drawers, F-pattern. `npm run build` clean; verified in preview.
+- **Mobile source (cond 4,5):** Android Compose + iOS SwiftUI scaffolds.
+- **Tests (cond 12):** `cargo test --release -j 2` — 145 pass, 0 warnings,
+  clippy clean.
+
+### Blocked on user resources (cannot be done in an autonomous shell)
+- **cond 8/10 actual deploy + live server:** needs your Fly/Render/Vercel/Neon
+  accounts + interactive OAuth. Run `deploy/DEPLOYMENT.md`.
+- **cond 11 device run + live face/doc:** needs a physical device, camera, a
+  human face, and real Aadhaar/Passport/DL. Build via the example READMEs.
+- **cond 1 "real documents" end-to-end:** the parsing is verified against real
+  layouts; the pixel→text OCR model runs on-device (native engine seam).

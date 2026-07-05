@@ -96,6 +96,7 @@ dependencies = [
 name = "ajna-verify-backend"
 version = "0.1.0"
 dependencies = [
+ "ajna-crypto",
  "anyhow",
  "async-trait",
  "axum",

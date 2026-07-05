@@ -86,6 +86,12 @@ pub struct VerifyResponse {
     pub timestamp: String,
     /// VR-2: Echoes back the key_id used for verification, for audit purposes.
     pub key_id: String,
+    /// Country-Specific Rules Engine outcome (dynamic thresholds by ISO code).
+    pub country_rules: crate::rules::RuleOutcome,
+    /// NQM crypto-agility envelope describing the client payload signature.
+    pub nqm_compliance: crate::nqm::NqmCompliance,
+    /// Quantum-safe (ML-DSA-65) server counter-signature over this outcome.
+    pub server_attestation: crate::nqm::ServerAttestation,
 }
 
 pub async fn verify_result(
@@ -216,6 +222,31 @@ pub async fn verify_result(
         "is_printed_fake": 0.0,
     });
 
+    // ── Step 10.5: Country-Specific Rules Engine ─────────────────────────────────
+    // Dynamic IDV thresholds keyed by the document's ISO country code:
+    // confidence floor, permitted document types, mandatory fields, and
+    // (NQM deployments) whether a post-quantum signature is required.
+    let field_keys: Vec<&str> = req
+        .scan_result
+        .fields
+        .iter()
+        .map(|f| f.key.as_str())
+        .collect();
+    let country_rules = state.rules.evaluate(
+        &req.scan_result.issuing_country,
+        &req.scan_result.document_type,
+        req.scan_result.confidence,
+        &field_keys,
+        &req.scan_result.algo,
+    );
+
+    // ── Step 10.6: NQM envelope + quantum-safe server attestation ────────────────
+    let nqm_compliance = crate::nqm::envelope_for(&req.scan_result.algo);
+    let server_attestation = state
+        .attestation
+        .attest(verification_id, verified, &timestamp)
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e.to_string())))?;
+
     // ── Step 11: Persist verification result (VR-3: scoped to tenant_id) ─────────
     sqlx::query!(
         r#"
@@ -239,16 +270,13 @@ pub async fn verify_result(
     .await
     .map_err(AppError::Database)?;
 
-    // ── Step 12: Write audit log (VR-3: scoped to tenant_id) ────────────────────
-    sqlx::query!(
-        r#"
-        INSERT INTO audit_logs
-            (id, tenant_id, session_id, event_type, outcome, detail)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        "#,
-        Uuid::new_v4(),
+    // ── Step 12: Write audit log (VR-3: tenant-scoped; SOC2: hash-chained) ──────
+    // record_audit_event links this entry into the tenant's tamper-evident
+    // chain and relies on the DB append-only trigger (migration 003).
+    crate::models::audit_log::record_audit_event(
+        &state.db_pool,
         tenant.tenant_id,
-        req.session_id,
+        Some(req.session_id),
         "verification",
         if verified { "success" } else { "failure" },
         serde_json::json!({
@@ -256,10 +284,11 @@ pub async fn verify_result(
             "issuing_country": req.scan_result.issuing_country,
             "confidence": req.scan_result.confidence,
             "key_id": trusted_key.key_id,
-            "verification_id": verification_id.to_string()
-        })
+            "verification_id": verification_id.to_string(),
+            "country_rules": serde_json::to_value(&country_rules).unwrap_or_default(),
+            "nqm_profile": nqm_compliance.profile,
+        }),
     )
-    .execute(&state.db_pool)
     .await
     .map_err(AppError::Database)?;
 
@@ -279,6 +308,9 @@ pub async fn verify_result(
         fraud_signals,
         timestamp,
         key_id: trusted_key.key_id,
+        country_rules,
+        nqm_compliance,
+        server_attestation,
     }))
 }
 

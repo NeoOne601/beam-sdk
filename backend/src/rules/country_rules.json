@@ -1,0 +1,66 @@
+{
+  "default": {
+    "min_confidence": 0.7,
+    "allowed_document_types": ["passport", "id_card", "driving_license", "residence_permit"],
+    "required_fields": ["document_number"],
+    "pqc_required": false
+  },
+  "countries": {
+    "IND": {
+      "aliases": ["IN"],
+      "min_confidence": 0.9,
+      "allowed_document_types": ["passport", "id_card"],
+      "required_fields": ["document_number", "date_of_birth"],
+      "pqc_required": true
+    },
+    "USA": {
+      "aliases": ["US"],
+      "min_confidence": 0.8,
+      "allowed_document_types": ["passport", "id_card", "driving_license"],
+      "required_fields": ["document_number", "date_of_birth"],
+      "pqc_required": false
+    },
+    "GBR": {
+      "aliases": ["GB", "UK"],
+      "min_confidence": 0.8,
+      "allowed_document_types": ["passport", "id_card", "driving_license", "residence_permit"],
+      "required_fields": ["document_number"],
+      "pqc_required": false
+    },
+    "DEU": {
+      "aliases": ["DE"],
+      "min_confidence": 0.85,
+      "allowed_document_types": ["passport", "id_card", "residence_permit"],
+      "required_fields": ["document_number", "date_of_birth"],
+      "pqc_required": false
+    },
+    "BRA": {
+      "aliases": ["BR"],
+      "min_confidence": 0.75,
+      "allowed_document_types": ["passport", "id_card", "driving_license"],
+      "required_fields": ["document_number"],
+      "pqc_required": false
+    },
+    "NGA": {
+      "aliases": ["NG"],
+      "min_confidence": 0.75,
+      "allowed_document_types": ["passport", "id_card"],
+      "required_fields": ["document_number"],
+      "pqc_required": false
+    },
+    "SGP": {
+      "aliases": ["SG"],
+      "min_confidence": 0.85,
+      "allowed_document_types": ["passport", "id_card"],
+      "required_fields": ["document_number", "date_of_birth"],
+      "pqc_required": false
+    },
+    "ARE": {
+      "aliases": ["AE"],
+      "min_confidence": 0.85,
+      "allowed_document_types": ["passport", "id_card", "residence_permit"],
+      "required_fields": ["document_number"],
+      "pqc_required": false
+    }
+  }
+}

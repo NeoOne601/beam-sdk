@@ -26,6 +26,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/v1/nonce", post(nonce::create_nonce))
         .route("/v1/verify", post(verify::verify_result))
         .route("/v1/audit", get(audit::list_audit_logs))
+        .route("/v1/audit/verify-chain", get(audit::verify_chain))
         .route("/v1/webhooks", post(webhook::register_webhook))
         .route("/v1/session/init", post(session::session_init))
 }

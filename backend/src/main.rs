@@ -26,7 +26,9 @@ mod db;
 mod errors;
 mod middleware;
 mod models;
+mod nqm;
 mod routes;
+mod rules;
 
 use config::AppConfig;
 use middleware::key_provider::KeyProvider;
@@ -38,6 +40,10 @@ pub struct AppState {
     pub config: AppConfig,
     /// VR-2: Active key provider strategy (selected at startup via KEY_PROVIDER_STRATEGY).
     pub key_provider: Box<dyn KeyProvider>,
+    /// Country-Specific Rules Engine: dynamic IDV thresholds by ISO country code.
+    pub rules: rules::RulesEngine,
+    /// NQM: ML-DSA-65 server attestation key (ephemeral, process lifetime).
+    pub attestation: nqm::AttestationSigner,
 }
 
 #[tokio::main]
@@ -70,11 +76,20 @@ async fn main() -> anyhow::Result<()> {
     // VR-3: Build CORS layer from configured origin allowlist.
     let cors_layer = build_cors_layer(&config.cors_origins);
 
+    // Country rules: embedded defaults, or AJNA_COUNTRY_RULES_PATH override.
+    let rules = rules::RulesEngine::from_env();
+
+    // NQM: generate the process-lifetime ML-DSA-65 attestation keypair.
+    let attestation = nqm::AttestationSigner::new();
+    tracing::info!("NQM server attestation key generated (ml-dsa-65)");
+
     let state = Arc::new(AppState {
         db_pool,
         redis,
         config: config.clone(),
         key_provider,
+        rules,
+        attestation,
     });
 
     // VR-3: Authenticated + rate-limited routes.

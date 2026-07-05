@@ -81,6 +81,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ajna-mcp-server"
+version = "0.1.0"
+dependencies = [
+ "ajna-crypto",
+ "ajna-intel",
+ "ajna-vision",
+ "reqwest",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "ajna-verify-backend"
 version = "0.1.0"
 dependencies = [
@@ -1967,7 +1979,9 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "encoding_rs",
+ "futures-channel",
  "futures-core",
+ "futures-util",
  "h2",
  "http",
  "http-body",

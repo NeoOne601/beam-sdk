@@ -41,13 +41,18 @@ pub enum Platform {
 pub struct DeviceIndicators {
     pub platform: Platform,
     /// Artifact paths the shell confirmed exist on the filesystem.
+    #[serde(default)]
     pub present_paths: Vec<String>,
     /// Names of libraries loaded into the host process.
+    #[serde(default)]
     pub loaded_libraries: Vec<String>,
     /// Android build properties (empty map on iOS/Web).
+    #[serde(default)]
     pub build_properties: BTreeMap<String, String>,
+    #[serde(default)]
     pub debugger_attached: bool,
     /// `None` where SELinux does not apply (iOS/Web).
+    #[serde(default)]
     pub selinux_enforcing: Option<bool>,
 }
 

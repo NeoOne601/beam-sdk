@@ -79,10 +79,20 @@ capture are wired to exact integration points and documented for you to run.
 - **Tests (cond 12):** `cargo test --release -j 2` — 145 pass, 0 warnings,
   clippy clean.
 
-### Blocked on user resources (cannot be done in an autonomous shell)
-- **cond 8/10 actual deploy + live server:** needs your Fly/Render/Vercel/Neon
-  accounts + interactive OAuth. Run `deploy/DEPLOYMENT.md`.
-- **cond 11 device run + live face/doc:** needs a physical device, camera, a
-  human face, and real Aadhaar/Passport/DL. Build via the example READMEs.
-- **cond 1 "real documents" end-to-end:** the parsing is verified against real
-  layouts; the pixel→text OCR model runs on-device (native engine seam).
+### Live run — genuinely executed (2nd pass)
+- Stood up Postgres 16 + Redis locally, applied schema via `provision-db.sh`,
+  booted the **real backend** against the tuned pool → `/health` db:ok redis:ok.
+- Drove a **real Ed25519-signed `/v1/verify`** (via `backend/examples/sign_demo`)
+  → `verified:true`, country-rules + NQM envelopes, **ML-DSA-65 server
+  attestation**, persisted to the SHA-256 audit chain (`verify-chain` valid).
+- **React dashboard rendered the live transaction + INTACT chain** (screenshots).
+- cond 8 hardened: executable `deploy/{provision-db,deploy-backend,deploy-dashboard}.sh`.
+
+### Still blocked on user resources (genuinely impossible in an autonomous shell)
+- **cond 10 public free-tier URL:** the server runs + serves the full pipeline
+  locally (proven); publishing to Fly/Render/Vercel + Neon needs your accounts +
+  interactive OAuth. Scripts written & the DB one tested.
+- **cond 11 physical capture:** no camera, no human face, no physical
+  Aadhaar/Passport/DL. The demo signed a fixed passport specimen instead of a
+  photographed document — the transaction/dashboard half is real; the physical
+  capture half cannot be produced here.

@@ -1,5 +1,39 @@
 # Ajna — $0 Deployment Runbook
 
+> **Verified live run (local):** the full stack was brought up and exercised
+> end-to-end — Postgres + Redis + the Axum backend booting against the tuned
+> pool (`max_connections=5`), `/health` → `{"status":"ok","db":"ok","redis":"ok"}`,
+> a real Ed25519-signed `/v1/verify` returning `verified:true` with an
+> **ML-DSA-65 server attestation**, the country-rules + NQM envelopes applied,
+> the transaction persisted to the tamper-evident SHA-256 audit chain
+> (`/v1/audit/verify-chain` → `valid:true`), and the React dashboard rendering
+> that live transaction + chain-integrity status. Reproduce it below.
+>
+> Publishing to a *public* free-tier URL (Fly/Render/Vercel + Neon) needs your
+> accounts and one-time interactive logins — the scripts below do it.
+
+## Reproduce the verified local run
+```bash
+brew install postgresql@16 redis
+export LC_ALL=en_US.UTF-8
+brew services start postgresql@16 && brew services start redis
+createdb ajna_verify 2>/dev/null; psql -d postgres -c "CREATE ROLE ajna LOGIN PASSWORD 'ajna' SUPERUSER" 2>/dev/null
+export DATABASE_URL="postgres://ajna:ajna@localhost:5432/ajna_verify?sslmode=disable"
+./deploy/provision-db.sh
+# seed a demo tenant + trusted key (see backend/examples/sign_demo.rs header)
+DB_REQUIRE_TLS=false REDIS_URL=redis://127.0.0.1:6379 \
+  CORS_ALLOWED_ORIGINS=http://localhost:5173 ./target/release/ajna-verify-backend &
+curl -s localhost:8080/health
+# drive a signed verification:
+SID=$(uuidgen); TS=$(date +%s)
+NONCE=$(curl -s -XPOST localhost:8080/v1/nonce -H "X-Api-Key: ajna_live_sk_demo_0000" \
+  -H 'Content-Type: application/json' -d "{\"session_id\":\"$SID\"}" | jq -r .nonce)
+cargo run --example sign_demo -- "$NONCE" "$SID" "$TS" \
+  | curl -s -XPOST localhost:8080/v1/verify -H "X-Api-Key: ajna_live_sk_demo_0000" \
+    -H 'Content-Type: application/json' -d @- | jq .verified   # → true
+```
+
+
 Everything here runs on free tiers. Config files live beside this doc
 (`deploy/fly.toml`, `deploy/render.yaml`, `dashboard/vercel.json`); the actual
 deploy commands need **your** accounts and interactive logins, so they can't be

@@ -428,6 +428,289 @@ Synthetic metadata fields appended with reserved prefix:
 
 ---
 
+## Ajna IDV — Edge Document OCR
+
+The `ajna-idv` crate provides the product-level identity document verification facade. It separates the pixel-to-text step (a pluggable native engine) from the structured parsing and validation step (pure Rust, fully testable without a camera).
+
+### Architecture
+
+```mermaid
+flowchart LR
+    CAM["Camera Frame\nNV12 Y-plane"] -->|"OcrEngine trait"| OCR["Native Engine\nTesseract / PaddleOCR\nGoogle ML Kit"]
+    OCR -->|"OcrText (lines + confidence)"| PARSE["DocumentParser\nLayout detection\nField extraction"]
+    PARSE -->|"ScanResult"| SIGN["ajna-crypto\nML-DSA-65 sign"]
+    SIGN --> HOST["Signed payload\nto backend"]
+```
+
+### Pluggable OCR Engine
+
+The native OCR engine implements a single trait:
+
+```rust
+pub trait OcrEngine {
+    fn recognize(&self, y_plane: &[u8], width: u32, height: u32) -> Result<OcrText, OcrError>;
+}
+```
+
+On-device, this is fulfilled by Tesseract Mobile, PaddleOCR-Mobile, or Google ML Kit. In tests, a `FixtureEngine` returns canned text lines for deterministic validation.
+
+### Supported Document Types
+
+| Document | Detection Heuristic | Validation | Fields Extracted |
+|---|---|---|---|
+| **Indian Aadhaar** | `AADHAAR` / `UNIQUE IDENTIFICATION` keyword or 12-digit UID pattern | **Verhoeff checksum** on the 12-digit UID | `document_number`, `aadhaar_checksum_valid`, `sex`, `date_of_birth` |
+| **ICAO Passport (TD3)** | Two 44-char MRZ lines starting with `P` | **ICAO 9303 check digits** (cyclical 7,3,1 weighting) on passport number, DOB, expiry | `surname`, `given_names`, `document_number`, `nationality`, `date_of_birth`, `sex`, `expiry_date`, raw MRZ |
+| **US Driver's License** | `ANSI` header or AAMVA element IDs (`DAQ`, `DCS`) | AAMVA date normalization (MMDDCCYY → CCYY-MM-DD) | `document_number`, `surname`, `given_names`, `date_of_birth`, `expiry_date`, `sex` |
+
+### Full Edge Path
+
+`DocumentParser::scan_and_sign()` chains the entire flow: native engine recognition → layout detection → field extraction → ML-DSA-65 signing via `ajna-crypto`. The signed `ScanResult` carries post-quantum provenance from the moment of capture.
+
+---
+
+## Ajna Vision — Facial Liveness
+
+The `ajna-vision` crate provides challenge-response facial liveness verification. It contains two modules:
+
+- **`liveness.rs`** — the state machine (FSM) enforcing gesture order, attempt budgets, timeouts, and anti-replay.
+- **`landmarks.rs`** — the geometric engine converting 468-point MediaPipe FaceMesh landmarks into gesture observations.
+
+### Liveness FSM
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> InProgress : start(timestamp_us)
+    InProgress --> InProgress : submit() — wrong gesture or low confidence (Retry)
+    InProgress --> InProgress : submit() — correct gesture cleared (Advanced to next)
+    InProgress --> Passed : all challenges cleared
+    InProgress --> Failed : AttemptsExhausted / TimedOut / RejectedReplay
+    Passed --> [*]
+    Failed --> [*]
+```
+
+The session is configured with:
+- An ordered challenge sequence (e.g., `[Blink, TurnLeft, Smile]`)
+- A minimum gesture confidence threshold (default: `0.85`)
+- A per-challenge attempt budget (default: `3`)
+- A session wall-clock timeout (default: `30s`)
+
+### Anti-Replay Protection
+
+Every `ChallengeObservation` carries a monotonic `timestamp_us`. Observations with timestamps ≤ the last accepted timestamp are rejected as `RejectedReplay`. This prevents pre-recorded gesture video injection.
+
+### Landmark Geometry
+
+The `landmarks` module receives 468 3D face landmarks from MediaPipe FaceMesh and derives gesture observations:
+
+| Gesture | Algorithm | Threshold |
+|---|---|---|
+| **Blink** | Eye Aspect Ratio (EAR): vertical / horizontal eye distances, averaged across both eyes | EAR ≤ `0.18` |
+| **Smile** | Mouth Aspect Ratio (MAR): mouth width / height, normalized | MAR ≥ `0.55` |
+| **Turn Left/Right** | Yaw Ratio: nose-tip horizontal offset from cheek midpoint, scaled by cheek span | \|yaw\| ≥ `0.15` |
+
+The derived observations feed directly into the liveness FSM via `LivenessSession::submit()`.
+
+---
+
+## Ajna Intel — Device Posture
+
+The `ajna-intel` crate evaluates device integrity by separating data collection from trust decisions.
+
+### Split of Responsibilities
+
+```mermaid
+flowchart LR
+    subgraph SHELL["Platform Shell (Swift / Kotlin / JS)"]
+        FACTS["Gather raw facts:\n• Filesystem artifact paths\n• Loaded libraries\n• Build properties\n• Debugger state\n• SELinux status"]
+    end
+    subgraph RUST["ajna-intel (Rust)"]
+        EVAL["evaluate()\nCheck catalogs\nWeight findings\nDerive verdict"]
+        SIGN_R["PostureReport.sign()\najna-crypto ML-DSA-65"]
+    end
+    FACTS -->|"DeviceIndicators"| EVAL
+    EVAL -->|"PostureReport"| SIGN_R
+    SIGN_R --> BACKEND["SignedPostureReport\nto backend"]
+```
+
+The platform shells make **no trust decisions** — they only report what they observe. The Rust crate evaluates those facts against known-compromise catalogs.
+
+### Finding Categories and Weights
+
+| Finding | Weight | Verdict-Critical? |
+|---|---|---|
+| Root artifact (e.g., `/system/bin/su`, `/data/adb/magisk`) | 60 | Yes — forces `Compromised` |
+| Jailbreak artifact (e.g., Cydia paths) | 60 | Yes |
+| Hooking framework (Frida, Xposed, Substrate) | 50 | Yes |
+| Debugger attached | 30 | No |
+| Emulator (e.g., `ro.kernel.qemu=1`) | 25 | No |
+| SELinux permissive | 20 | No |
+| Debuggable build | 15 | No |
+
+### Verdict Resolution
+
+- **`Trusted`** — risk score < 25, no critical findings.
+- **`Suspicious`** — risk score ≥ 25 but < 60, no critical findings.
+- **`Compromised`** — any critical finding present OR risk score ≥ 60.
+
+The `PostureReport` is deterministic: identical `DeviceIndicators` + timestamp always produce identical canonical JSON, ensuring reproducible PQC signatures.
+
+---
+
+## Headless Mode & Declarative UI Configuration
+
+The SDK exposes a `UiConfig` schema that controls the capture UI appearance across all platforms. Client businesses can:
+
+1. **Default mode** — use the stock Ajna capture UI as-is.
+2. **Custom mode** — re-skin the stock UI with their branding (colors, overlays, animations, corner radii, company name, watermark toggle).
+3. **Headless mode** — render no Ajna UI at all; the host application provides its own camera view and feeds raw RGBA frames into the `HeadlessScanner` API.
+
+### UiConfig Schema
+
+```rust
+pub struct UiConfig {
+    pub mode: UiMode,                    // default | custom | headless
+    pub theme: ThemeConfig,              // primary_color, background_color, corner_radius_dp
+    pub overlay: OverlayConfig,          // shape (rounded_rect/rect/oval/none), mask_opacity, stroke_width
+    pub branding: BrandingConfig,        // company_name, show_ajna_watermark
+    pub animations: AnimationConfig,     // capture_animation_enabled, success_haptic
+    pub strings: StringOverrides,        // scan_prompt, success_message (localization)
+}
+```
+
+The schema is defined once in `core/src/ui_config.rs`, validated over FFI via `ajna_ui_config_validate`, and mirrored in the dashboard's TypeScript types for the visual UI Customizer.
+
+### HeadlessScanner
+
+`HeadlessScanner` in `crates/ajna-idv/src/headless.rs` provides a safe RGBA-in/verdict-out API:
+
+```rust
+impl HeadlessScanner {
+    pub fn feed_frame(&mut self, rgba: &[u8], width: u32, height: u32) -> FrameOutcome;
+    pub fn result(&self) -> Option<&ScanResult>;
+}
+```
+
+The host application owns the camera lifecycle entirely; the scanner has no UI thread dependency.
+
+---
+
+## Country-Specific Rules Engine
+
+The backend resolves ISO alpha-2/alpha-3 country codes to rule packs that control verification behavior per jurisdiction.
+
+### Resolution Flow
+
+```mermaid
+flowchart LR
+    REQ["POST /v1/verify\nissuing_country: IND"] --> RESOLVE["rules::resolve(country)"]
+    RESOLVE --> PACK["RulePack for IND:\n• confidence_floor: 0.80\n• allowed_doc_types: [aadhaar, passport]\n• required_fields: [document_number]\n• pqc_required: true (NQM)"]
+    PACK --> APPLY["Apply to verification:\n• Reject if confidence < floor\n• Reject classical signatures\n• Enforce required fields"]
+```
+
+### Shipped Rule Packs
+
+| Country | `pqc_required` | Confidence Floor | Notes |
+|---|---|---|---|
+| IND (India) | **true** | 0.80 | NQM: classical signatures rejected |
+| USA | false | 0.75 | AAMVA DL + passport |
+| GBR, DEU, FRA, BRA, NGA, ARE | false | 0.75–0.85 | Per-country doc types |
+| DEFAULT | false | 0.70 | Fallback for unlisted countries |
+
+Rule packs are embedded as `country_rules.json` and overridable at runtime via `AJNA_COUNTRY_RULES_PATH`.
+
+---
+
+## SOC2 Type 2 Audit Chain
+
+The backend writes every verification outcome to a **hash-chained, append-only audit log** in PostgreSQL.
+
+### Tamper-Evidence Model
+
+```mermaid
+flowchart LR
+    E1["Entry 1\nhash = SHA256(payload₁ + '∅')"]
+    E2["Entry 2\nhash = SHA256(payload₂ + hash₁)"]
+    E3["Entry 3\nhash = SHA256(payload₃ + hash₂)"]
+    E1 -->|"prev_hash"| E2
+    E2 -->|"prev_hash"| E3
+```
+
+- **Hash chaining:** Each audit entry's hash includes the previous entry's hash, creating a per-tenant blockchain. Tampering with any entry breaks the chain for all subsequent entries.
+- **Database trigger:** A PostgreSQL trigger on the `audit_logs` table blocks all `UPDATE` and `DELETE` operations (migration `003_audit_chain.sql`). The only write path is `INSERT`.
+- **Advisory locking:** Audit appends serialize on a per-tenant Postgres advisory lock to prevent concurrent writes from producing a fork in the chain.
+- **Integrity endpoint:** `GET /v1/audit/verify-chain` replays the chain from genesis, recomputing hashes and comparing. Returns `valid: true` or identifies the first broken link.
+
+### NQM Server Attestation
+
+Every `/v1/verify` response includes an **ML-DSA-65 server counter-signature** (`backend/src/nqm.rs`). This provides:
+- Server-side proof that the verification was processed by an authorized Ajna backend.
+- A crypto-agility envelope declaring the algorithm used, enabling future algorithm rotation without breaking existing attestations.
+
+---
+
+## MCP Server — Agentic Integration
+
+The `ajna-mcp-server` crate is a hand-rolled stdio JSON-RPC 2.0 server implementing the Model Context Protocol. It allows AI agent runtimes to invoke Ajna verification tools directly.
+
+### Exposed Tools
+
+| Tool | Input | Output |
+|---|---|---|
+| `ajna_evaluate_device_posture` | `DeviceIndicators` JSON | Signed `PostureReport` with verdict + risk score |
+| `ajna_verify_face` | Session config + liveness observations | Liveness FSM outcome (passed/failed + challenge progress) |
+| `ajna_verify_document` | OCR text lines + confidence | Parsed `ScanResult` with check-digit validation |
+| `ajna_query_audit_log` | Tenant ID + date range + API key | Filtered audit entries + chain integrity status |
+
+### Integration
+
+```bash
+# Launch the MCP server over stdio
+cargo run --release -p ajna-mcp-server
+
+# In your AI agent config (e.g., claude_desktop_config.json):
+{
+  "mcpServers": {
+    "ajna": {
+      "command": "cargo",
+      "args": ["run", "--release", "-p", "ajna-mcp-server"],
+      "cwd": "/path/to/beam-sdk"
+    }
+  }
+}
+```
+
+Local tools (`evaluate_device_posture`, `verify_face`, `verify_document`) call into `ajna-intel`, `ajna-vision`, and `ajna-idv` directly and sign with `ajna-crypto`. Backend tools (`query_audit_log`) proxy to the Axum backend with `X-Api-Key` authentication.
+
+---
+
+## Dashboard & Integration Portal
+
+The `dashboard/` directory contains a React 18 + Vite + TypeScript portal designed with a **Palantir-style tactical defense aesthetic**.
+
+### Design System
+
+- **Theme:** Deep charcoal/slate backgrounds (`#0a0d14`), high-contrast state indicators (military greens for trust, amber for warnings, cyber red for threats), monospaced telemetry fonts (JetBrains Mono / SF Mono) for cryptographic hashes.
+- **Layout:** F-pattern reading flow — status signals and navigation on top/left, critical telemetry center, actions right.
+- **Progressive Disclosure:** Hash chips and raw JSON payloads are hidden behind collapsible `<details>` drawers to keep the interface clean.
+
+### Pages
+
+| Page | Purpose |
+|---|---|
+| **60-Minute Setup** | Step-by-step onboarding wizard guiding new integrators through SDK installation, backend connection, and first verification |
+| **UI Customizer** | Visual editor for `UiConfig` with a live mobile preview mockup — sliders, color pickers, shape selectors, instant JSON export |
+| **Audit Log** | SOC2 audit chain viewer with hash-chain integrity verification button and transaction detail drawers |
+| **API Keys** | Tenant API key management (demo-local; production key issuance is a backend concern) |
+
+### Build
+
+```bash
+cd dashboard && npm run build   # TypeScript strict, zero errors
+```
+
+---
+
 ## Performance Budget
 
 Reference device: **MediaTek Helio G85** — Cortex-A75 x2 @ 2.0 GHz + Cortex-A55 x6 @ 1.8 GHz, Mali-G57 MP2, 4 MB L3 cache, LPDDR4x, 2 GB RAM.
@@ -486,24 +769,25 @@ Every `unsafe` block in the codebase is paired with a `Safety:` comment. Complet
 
 ```mermaid
 flowchart TD
-    subgraph CARGO["Cargo Workspace"]
-        BC["ajna-core 0.1.0\nstaticlib + cdylib + rlib"]
-        PQCD["pqcrypto-dilithium 0.5\nML-DSA (Dilithium 2/3/5)"]
-        PQCK["pqcrypto-kyber 0.8\nML-KEM (Kyber-1024)"]
-        PQCT["pqcrypto-traits 0.3\nShared trait definitions"]
-        LIBC["libc 0.2\nmlock / munlock (non-WASM)"]
-        WBIND["wasm-bindgen 0.2\nwasm32 target only"]
-        GETR["getrandom 0.2\nEntropy — js feature for WASM"]
-        CRIT["criterion 0.5\nBenchmarks (dev)"]
+    subgraph CARGO["Cargo Workspace (8 members)"]
+        BC["ajna-core\nstaticlib + cdylib + rlib\nQuality gates, session FSM, FFI"]
+        CRYPTO["ajna-crypto\nEd25519 + ML-DSA-65\nSignerRegistry, FIPS 204"]
+        IDV["ajna-idv\nOcrEngine trait, DocumentParser\nAadhaar/Passport/DL, HeadlessScanner"]
+        INTEL["ajna-intel\nDeviceIndicators → PostureReport\nWeighted findings, PQC-signed"]
+        VISION["ajna-vision\nLiveness FSM, FaceMesh landmarks\nEAR/MAR/Yaw geometry"]
+        MCP["ajna-mcp-server\nstdio JSON-RPC 2.0\n4 MCP tools"]
+        BACKEND["ajna-verify-backend\nAxum, SOC2 audit chain\nCountry rules, NQM attestation"]
+        FUZZ["ajna-core-fuzz\nFuzz targets"]
 
-        BC --> PQCD
-        BC --> PQCK
-        PQCD --> PQCT
-        PQCK --> PQCT
-        BC --> LIBC
-        BC --> WBIND
-        BC --> GETR
-        BC -.-> CRIT
+        IDV --> BC
+        IDV --> CRYPTO
+        INTEL --> CRYPTO
+        VISION --> CRYPTO
+        MCP --> IDV
+        MCP --> INTEL
+        MCP --> VISION
+        BACKEND --> CRYPTO
+        FUZZ -.-> BC
     end
 
     subgraph CMAKE["CMake Build"]
@@ -523,7 +807,12 @@ flowchart TD
         WB --> ORT
     end
 
-    BC -.->|"cargo build --release --target TARGET"| RS_A
+    subgraph WEB["Web Stack"]
+        DASH["dashboard/\nReact 18 + Vite + TypeScript\nPalantir tactical UI"]
+        DOCKER["docker-compose.yml\nbackend + dashboard + postgres + redis\n256 MB caps"]
+    end
+
+    BC -.-|"cargo build --release --target TARGET"| RS_A
 ```
 
 ### Rust Cross-Compilation Targets
@@ -779,8 +1068,26 @@ The active strategy is selected by environment variable (`KEY_PROVIDER_STRATEGY=
 | `core/src/pipeline.rs` | `FramePipeline` orchestrator, critical invariant enforcement |
 | `core/src/ffi.rs` | All `#[no_mangle]` C exports, pointer safety documentation |
 | `core/src/frame.rs` | `RawFrame` (non-owning), `OwnedFrame` (WASM heap), RGBA-to-NV12 conversion |
+| `core/src/ui_config.rs` | `UiConfig` schema — mode/theme/overlay/branding/animations, validation |
+| `crates/ajna-crypto/src/lib.rs` | `SignerRegistry`, `AjnaSigner` trait, Ed25519 + ML-DSA-65 implementations |
+| `crates/ajna-idv/src/ocr.rs` | `OcrEngine` trait, `DocumentParser`, Aadhaar/Passport/DL parsing, Verhoeff/ICAO validation |
+| `crates/ajna-idv/src/headless.rs` | `HeadlessScanner` — RGBA-in/verdict-out API, no UI dependency |
+| `crates/ajna-intel/src/lib.rs` | `DeviceIndicators` → `PostureReport`, weighted finding evaluation, PQC signing |
+| `crates/ajna-intel/src/checks.rs` | Known root/jailbreak artifact catalogs, hooking framework markers, emulator property detection |
+| `crates/ajna-vision/src/liveness.rs` | Challenge-response liveness FSM, anti-replay, attempt budgets, timeout |
+| `crates/ajna-vision/src/landmarks.rs` | MediaPipe FaceMesh → EAR/MAR/Yaw gesture derivation |
+| `crates/ajna-mcp-server/src/main.rs` | stdio JSON-RPC 2.0 MCP server, 4 tools |
+| `backend/src/rules/mod.rs` | Country-specific rules engine, ISO code resolution, NQM enforcement |
+| `backend/src/nqm.rs` | ML-DSA-65 server attestation, crypto-agility envelope |
+| `backend/src/models/audit_log.rs` | SOC2 hash-chained audit log, SHA-256 chain verification |
+| `backend/src/db/pool.rs` | Env-tuned sqlx PgPool for Neon/Supabase serverless compatibility |
+| `dashboard/src/App.tsx` | React shell — sidebar navigation, page routing |
+| `dashboard/src/pages/UiCustomizer.tsx` | Visual `UiConfig` editor with live device preview |
+| `dashboard/src/pages/AuditViewer.tsx` | SOC2 audit chain viewer with integrity verification |
 | `include/ajna_ffi.h` | Canonical C header for the FFI boundary, consumed by all three platform bridges |
 | `build/CMakeLists.txt` | Cross-platform build: Android, iOS, WASM targets, Rust static lib linkage |
+| `docker-compose.yml` | Full-stack local dev: backend + dashboard + postgres + redis (256 MB caps) |
+| `deploy/DEPLOYMENT.md` | $0 deployment runbook: Neon + Fly.io + Vercel free tiers |
 | `platform/android/tflite_bridge.cpp` | TFLite GPU delegate, NNAPI, AHardwareBuffer zero-copy, JNI exports |
 | `platform/ios/coreml_bridge.mm` | CoreML inference, CVPixelBuffer zero-copy, ANE dispatch |
 | `platform/wasm/onnx_bridge.cpp` | ONNX Runtime WebGPU EP, WASM mandatory copy path |

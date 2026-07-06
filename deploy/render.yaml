@@ -37,4 +37,4 @@ services:
       - key: JWT_SECRET
         sync: false            # assistant-generated 32-byte hex (see chat)
       - key: CORS_ALLOWED_ORIGINS
-        sync: false            # your Vercel dashboard origin
+        value: https://ajna-platform.vercel.app

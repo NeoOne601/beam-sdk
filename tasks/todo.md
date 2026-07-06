@@ -1,98 +1,42 @@
-# Ajna Live Demo — Deploy, Mobile, Edge ML Spec
+# Ajna Cloud Deploy — $0 Infrastructure Plan
 
-Goal: take the verified Ajna workspace to a deployable, demonstrable state — edge
-ML seams, mobile sample source, free-tier hosting configs, Palantir dashboard.
+## Architecture (all free tier)
 
-## Environment reality (what this autonomous shell can vs cannot do)
+```
+[iPhone/Android app] ──► Backend (Rust/Axum container)         ── Render free web service
+                              │  DATABASE_URL ────────────────► Supabase Postgres (connector ✓)
+                              │  REDIS_URL ───────────────────► Upstash Redis (needs signup)
+                              │  JWT_SECRET / CORS env
+[Browser] ───────────────► Dashboard (Vite SPA) ─────────────── Vercel (connector ✓)
+                              VITE_API_BASE → backend URL
+```
 
-Verified locally (build + test here):
-- Rust edge-ML logic, connection pooling, dashboard build, config/YAML validity.
+Decoupling: identical binary everywhere; only env vars change
+(backend/src/db/pool.rs reads DB_* + DATABASE_URL at boot).
 
-CANNOT be done in this non-interactive shell — needs the user's machine/accounts:
-- **Actual cloud deploy** (cond 8/10): no docker/flyctl/vercel CLIs, no accounts,
-  no interactive OAuth. → Deliver configs + scripts + exact runbook instead.
-- **Run mobile app on a device** (cond 11): no Android SDK, no physical device,
-  no camera, no human. → Deliver buildable source + on-device run instructions.
-- **Real Aadhaar/Passport/DL scan + live face** (cond 1/11): no camera, no
-  physical documents, no human face. → Deliver the parsing + landmark→gesture
-  logic (the verifiable half) behind a pluggable native OCR/landmark engine.
+## Hosting decision (backend)
+- **Render free web service — chosen.** No CLI required (Blueprint from a
+  GitHub repo, deploy/render.yaml already written), free tier is $0 with
+  sleep-after-idle. Acceptable for a demo.
+- Fly.io — rejected: requires a payment card on file (not "completely free").
+- Koyeb — viable fallback (free instance, GitHub deploy), same pattern.
+- Redis: Upstash free (10k cmd/day) — nonce store + rate limiter.
 
-The honest split: I build and verify all the **software seams**; the pixel→text
-OCR model, the MediaPipe landmark extractor, the cloud deploy, and the physical
-capture are wired to exact integration points and documented for you to run.
+## Steps
+- [ ] 1. Supabase (connector): discover project → apply migrations 001/002/003
+        → verify tables → seed demo tenant + trusted key → record project ref
+        + connection-string TEMPLATE (password stays with user).
+- [ ] 2. Vercel (connector): deploy dashboard/ to production. VITE_API_BASE
+        injected once backend URL exists (redeploy is one call).
+- [ ] 3. Backend on Render: needs USER signup + GitHub repo connect →
+        STOP and give numbered instructions (per goal rules).
+- [ ] 4. Upstash Redis: needs USER signup → included in same instructions.
+- [ ] 5. After user provides: backend env vars set in Render dashboard,
+        /health returns {"status":"ok","db":"ok","redis":"ok"}, dashboard
+        redeployed with final VITE_API_BASE, audit tab verified against
+        live backend.
 
-## Assumptions
-- `-j 2` on every cargo call; no release LTO rebuild loops; no heavy installs
-  (Tesseract/Docker/Android SDK) — they can't be verified here anyway.
-- Edge ML = pluggable trait + real parsing/derivation logic. Native engines
-  (Tesseract/Paddle, MediaPipe FaceMesh) implement the trait on-device.
-
-## Tasks
-
-### Part 1 — Edge ML seams (cond 1,2,3)
-- [ ] ajna-idv `ocr` module: `OcrEngine` trait (pixels→text lines) + `DocumentParser`
-      that structures lines into fields for Aadhaar / Passport-MRZ / US-DL (AAMVA),
-      → `ScanResult`, signed via ajna-crypto ML-DSA-65. Real, tested parsing.
-- [ ] ajna-vision `landmarks` module: FaceLandmarks → gesture observations
-      (blink via eye-aspect-ratio, turn via yaw, smile via mouth-aspect-ratio)
-      feeding the existing liveness FSM. Real, tested derivation.
-- [ ] Sign OCR result + liveness verdict with ML-DSA-65 (reuse pillar signing).
-- [ ] Gate: `cargo test -p ajna-idv -p ajna-vision -j 2`
-
-### Part 3 — Hosting & DB (cond 6,7,8,9)  [before Part 2: infra unblocks nothing downstream]
-- [ ] backend `db::pool`: env-configurable sqlx PgPool (max/min conns, acquire/
-      idle timeouts, sslmode) for Neon/Supabase serverless; wire into main.rs.
-- [ ] Dashboard Dockerfile (multi-stage build → static serve).
-- [ ] Root `docker-compose.yml`: api + dashboard + db + redis, `mem_limit: 256m`.
-- [ ] Deploy configs: `deploy/fly.toml`, `deploy/render.yaml`, `dashboard/vercel.json`,
-      `deploy/DEPLOYMENT.md` runbook (Neon + Fly/Render + Vercel, $0 tier).
-- [ ] Dashboard Palantir restyle: deep-slate HUD theme, monospaced hashes,
-      F-pattern layout, progressive-disclosure `<details>` drawers for hashes/JSON.
-- [ ] Gate: `cd dashboard && npm run build`
-
-### Part 2 — Mobile sample source (cond 4,5)
-- [ ] `examples/android-sample`: Kotlin/Compose scaffold — CameraX, UiConfig overlay,
-      liveness FSM call sites, JNI seam to ajna-core, backend POST. Source only.
-- [ ] `examples/ios-sample`: SwiftUI scaffold — AVFoundation, UiConfig overlay,
-      ajna-core FFI seam, backend POST. Source only.
-- [ ] READMEs with on-device build/run steps (the parts needing SDK + device).
-
-### Part 4 — Verify (cond 12 + honest status)
-- [ ] `cargo test --release -j 2` full workspace, zero warnings; clippy clean.
-- [ ] Dashboard builds; screenshot the Palantir UI via preview.
-- [ ] Final report: done-and-verified vs blocked-on-your-resources.
-
-## Review
-
-### Built & verified here
-- **Edge ML (cond 1,2,3):** ajna-idv `ocr` (Aadhaar/Verhoeff, passport MRZ/ICAO
-  check digits, US-DL/AAMVA) + `scan_and_sign` → ML-DSA-65. ajna-vision
-  `landmarks` (EAR blink, yaw turn, MAR smile) → liveness FSM. 37 tests pass.
-- **DB pooling (cond 7):** backend `db::pool` env-tuned for Neon/Supabase,
-  wired into main.rs. 3 pool tests pass.
-- **Docker/compose (cond 6):** dashboard Dockerfile, backend Dockerfile fixed
-  for repo-root context, root docker-compose.yml @ 256m limits.
-- **Deploy configs (cond 8):** fly.toml, render.yaml, vercel.json, DEPLOYMENT.md.
-- **Palantir dashboard (cond 9):** tactical HUD theme, hash chips, progressive
-  disclosure drawers, F-pattern. `npm run build` clean; verified in preview.
-- **Mobile source (cond 4,5):** Android Compose + iOS SwiftUI scaffolds.
-- **Tests (cond 12):** `cargo test --release -j 2` — 145 pass, 0 warnings,
-  clippy clean.
-
-### Live run — genuinely executed (2nd pass)
-- Stood up Postgres 16 + Redis locally, applied schema via `provision-db.sh`,
-  booted the **real backend** against the tuned pool → `/health` db:ok redis:ok.
-- Drove a **real Ed25519-signed `/v1/verify`** (via `backend/examples/sign_demo`)
-  → `verified:true`, country-rules + NQM envelopes, **ML-DSA-65 server
-  attestation**, persisted to the SHA-256 audit chain (`verify-chain` valid).
-- **React dashboard rendered the live transaction + INTACT chain** (screenshots).
-- cond 8 hardened: executable `deploy/{provision-db,deploy-backend,deploy-dashboard}.sh`.
-
-### Still blocked on user resources (genuinely impossible in an autonomous shell)
-- **cond 10 public free-tier URL:** the server runs + serves the full pipeline
-  locally (proven); publishing to Fly/Render/Vercel + Neon needs your accounts +
-  interactive OAuth. Scripts written & the DB one tested.
-- **cond 11 physical capture:** no camera, no human face, no physical
-  Aadhaar/Passport/DL. The demo signed a fixed passport specimen instead of a
-  photographed document — the transaction/dashboard half is real; the physical
-  capture half cannot be produced here.
+## Credentials policy
+Secrets (Supabase DB password, Upstash URL) are never pasted into chat: user
+puts them in Render's env-var UI directly; local testing uses a gitignored
+.env file.

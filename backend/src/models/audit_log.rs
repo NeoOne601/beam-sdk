@@ -130,17 +130,19 @@ pub async fn record_audit_event(
         .execute(&mut *tx)
         .await?;
 
+    // Link to the latest *chained* entry, skipping unhashed rows. Other event
+    // types (e.g. nonce_created) are written unhashed by their routes and get
+    // interleaved between verifications by seq; selecting the latest row
+    // outright would reset a live chain to genesis whenever such a row is the
+    // head, breaking linkage. verify_chain_entries skips the same unhashed rows.
     let prev_hash: Option<String> = sqlx::query_scalar(
-        "SELECT entry_hash FROM audit_logs WHERE tenant_id = $1 ORDER BY seq DESC LIMIT 1",
+        "SELECT entry_hash FROM audit_logs \
+         WHERE tenant_id = $1 AND entry_hash <> '' ORDER BY seq DESC LIMIT 1",
     )
     .bind(tenant_id)
     .fetch_optional(&mut *tx)
     .await?;
-    let prev_hash = match prev_hash {
-        // A legacy head (pre-chain row, empty hash) restarts from genesis.
-        Some(hash) if !hash.is_empty() => hash,
-        _ => GENESIS_HASH.to_owned(),
-    };
+    let prev_hash = prev_hash.unwrap_or_else(|| GENESIS_HASH.to_owned());
 
     let entry_hash = compute_entry_hash(
         &prev_hash, tenant_id, session_id, event_type, outcome, &detail,
@@ -285,5 +287,42 @@ mod tests {
         assert!(report.valid);
         assert_eq!(report.entries_checked, 2);
         assert_eq!(report.legacy_entries_skipped, 1);
+    }
+
+    /// Regression (found via the live demo): unhashed rows (e.g. nonce_created)
+    /// interleaved *between* hashed verification entries by seq must not break
+    /// the chain. Each hashed entry links to the previous HASHED entry, and the
+    /// writer's prev_hash lookup skips unhashed rows — mirrored here.
+    fn unhashed_row(seq: i64, tenant: Uuid) -> ChainEntry {
+        ChainEntry {
+            seq,
+            tenant_id: tenant,
+            session_id: None,
+            event_type: "nonce_created".into(),
+            outcome: "success".into(),
+            detail: serde_json::json!({}),
+            prev_hash: String::new(),
+            entry_hash: String::new(),
+        }
+    }
+
+    #[test]
+    fn hashed_entries_interleaved_with_unhashed_rows_stay_valid() {
+        let tenant = Uuid::nil();
+        // Timeline by seq: nonce, verify, nonce, verify — the real DB pattern.
+        let mut prev = GENESIS_HASH.to_owned();
+        let v2 = entry(2, tenant, &prev, "success");
+        prev = v2.entry_hash.clone();
+        let v4 = entry(4, tenant, &prev, "success"); // links to v2, NOT to seq-3 nonce
+        let chain = vec![
+            unhashed_row(1, tenant),
+            v2,
+            unhashed_row(3, tenant),
+            v4,
+        ];
+        let report = verify_chain_entries(&chain);
+        assert!(report.valid, "interleaved unhashed rows must not break linkage");
+        assert_eq!(report.entries_checked, 2);
+        assert_eq!(report.legacy_entries_skipped, 2);
     }
 }

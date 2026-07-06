@@ -1,6 +1,1 @@
-{
-  "version": "0.0.1",
-  "configurations": [
-    { "name": "ajna-dashboard", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "dashboard", "run", "dev", "--", "--host", "127.0.0.1", "--port", "5173"], "port": 5173 }
-  ]
-}
+{ "version":"0.0.1","configurations":[{"name":"ajna-dash-static","runtimeExecutable":"python3","runtimeArgs":["-m","http.server","5173","--bind","127.0.0.1","--directory","dashboard/dist"],"port":5173}]}

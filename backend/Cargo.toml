@@ -12,7 +12,7 @@ tower-http = { version = "0.5", features = ["cors", "trace", "limit"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sqlx = { version = "0.7", features = ["postgres", "runtime-tokio", "tls-rustls", "uuid", "time"] }
-redis = { version = "0.24", features = ["tokio-comp"] }
+redis = { version = "0.24", features = ["tokio-comp", "tokio-rustls-comp"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 time = { version = "0.3", features = ["serde"] }
 tracing = "0.1"

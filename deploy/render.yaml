@@ -1,12 +1,20 @@
 # Ajna backend on Render free tier (Blueprint).
-# Render → New → Blueprint → point at this repo. Set DATABASE_URL / REDIS_URL /
-# JWT_SECRET as secret env vars in the dashboard (not committed here).
+# Render → New → Blueprint → point at this repo. Provisions the API + a free
+# Key Value (Redis) instance in one shot. You only set DATABASE_URL, JWT_SECRET,
+# and CORS_ALLOWED_ORIGINS in the dashboard — REDIS_URL is wired automatically.
 services:
+  # Free managed Redis (Key Value) — removes the need for a separate Upstash acct.
+  - type: keyvalue
+    name: ajna-redis
+    plan: free
+    ipAllowList: []            # internal-only; the API connects over Render's network
+    maxmemoryPolicy: allkeys-lru
+
   - type: web
     name: ajna-verify
     runtime: docker
     dockerfilePath: backend/Dockerfile
-    dockerContext: .            # repo root — backend has path deps on crates/
+    dockerContext: .           # repo root — backend has path deps on crates/
     plan: free
     healthCheckPath: /health
     envVars:
@@ -18,11 +26,15 @@ services:
         value: "true"
       - key: RUST_LOG
         value: "ajna_verify_backend=info"
-      - key: DATABASE_URL
-        sync: false            # set in Render dashboard (Neon/Supabase URL)
+      # REDIS_URL auto-injected from the Key Value service above — no signup.
       - key: REDIS_URL
-        sync: false
+        fromService:
+          name: ajna-redis
+          type: keyvalue
+          property: connectionString
+      - key: DATABASE_URL
+        sync: false            # Supabase Session-pooler URI (you paste this)
       - key: JWT_SECRET
-        sync: false
+        sync: false            # assistant-generated 32-byte hex (see chat)
       - key: CORS_ALLOWED_ORIGINS
         sync: false            # your Vercel dashboard origin

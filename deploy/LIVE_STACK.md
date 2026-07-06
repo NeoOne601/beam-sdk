@@ -20,21 +20,22 @@ Demo API key (Audit tab / mobile app): `ajna_live_sk_demo_0000`
   ```
 
 ## Hosting decisions
-- **Backend: Render free tier** (Axum web service via `deploy/render.yaml`).
-  Free web service sleeps after ~15 min idle; first request cold-starts ~50s.
-- **Redis: Upstash free tier** (owner-provisioned; `REDIS_URL` set in Render).
-  Note: `render.yaml` also declares a free Render Key Value (`ajna-redis`) as a
-  no-Upstash alternative — redundant with the Upstash instance in use. Keep one:
-  either delete the `ajna-redis` service (staying on Upstash), or drop Upstash
-  and let the Blueprint's `fromService` wire Redis.
-- Fly.io rejected (requires a card). Cloudflare Pages excluded per requirement.
+- **Backend + Redis: Render free tier.** One Blueprint (`deploy/render.yaml`)
+  provisions the Axum web service *and* a free Key Value (Redis) instance;
+  `REDIS_URL` is auto-wired via `fromService` — no secret to paste, fully
+  self-contained at $0. Free web service sleeps after ~15 min idle; first
+  request cold-starts ~50s.
+- **Upstash is supported as an opt-in** (criterion 2 lists it as an example):
+  set `REDIS_URL` to `sync: false` in `render.yaml` and paste the `rediss://`
+  URL in the Render dashboard. The backend has Redis TLS enabled
+  (`tokio-rustls-comp`) for this path.
 - Fly.io rejected (requires a card). Cloudflare Pages excluded per requirement.
 
 ## Backend env (Render, service `ajna-verify`)
 | Var | Source |
 |---|---|
 | `DATABASE_URL` | Supabase Session pooler (set in dashboard) |
-| `REDIS_URL` | Upstash `rediss://` URL (set in Render dashboard) |
+| `REDIS_URL` | auto-wired from the free `ajna-redis` Key Value (Upstash optional) |
 | `JWT_SECRET` | 32-byte hex (set in dashboard; not needed for API-key auth) |
 | `CORS_ALLOWED_ORIGINS` | `https://ajna-platform.vercel.app` (in render.yaml) |
 | `DB_REQUIRE_TLS` | `true` — requires `sqlx` `tls-rustls` feature (now enabled) |

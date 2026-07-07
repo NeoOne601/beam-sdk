@@ -23,7 +23,7 @@ mkdir -p "${NPM_DIR}"
 # ─── Build WASM (if not already built) ───────────────────────────────────────
 
 echo "--- Building WASM module ---"
-bash "${REPO_ROOT}/ci/wasm_emscripten.sh"
+# bash "${REPO_ROOT}/ci/wasm_emscripten.sh"
 
 # ─── Copy WASM artifacts ─────────────────────────────────────────────────────
 

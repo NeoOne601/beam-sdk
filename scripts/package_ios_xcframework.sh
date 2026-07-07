@@ -1,64 +1,52 @@
 #!/usr/bin/env bash
 # scripts/package_ios_xcframework.sh
-# Package the Ajna SDK as an XCFramework for iOS distribution.
+# Package the Ajna SDK (Rust core) as an XCFramework for iOS distribution.
 #
-# Output: dist/AjnaSDK.xcframework/
+# Output: dist/AjnaSDK.xcframework/  — the compiled Rust core static library
+# (libajna_core.a) per slice, plus the C FFI header (ajna_ffi.h) + module map
+# an iOS app imports to call the engine. The SDK *is* the Rust core; no
+# CMake / CoreML Xcode build is required (the CoreML ML bridge is separate).
 #
-# Prerequisites:
-#   - Xcode with xcodebuild on PATH
-#   - ci/ios_xcodebuild.sh must have been run or will be invoked here
+# Prerequisites: Xcode (xcodebuild) + `rustup target add aarch64-apple-ios
+# aarch64-apple-ios-sim`.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="${REPO_ROOT}/dist"
 XCF_OUT="${DIST_DIR}/AjnaSDK.xcframework"
-BUILD_IOS="${REPO_ROOT}/build_ios"
-SCHEME="AjnaSDK"
+DEVICE_TARGET="aarch64-apple-ios"
+SIM_TARGET="aarch64-apple-ios-sim"
 
 echo "=== Ajna SDK iOS XCFramework Packaging ==="
 mkdir -p "${DIST_DIR}"
 
-# ─── Invoke CI build script ───────────────────────────────────────────────────
+# ─── Compile the Rust core for both iOS slices (-j 2 per M1 RAM rule) ──────────
+for T in "${DEVICE_TARGET}" "${SIM_TARGET}"; do
+  echo "--- cargo build --release --target ${T} -p ajna-core ---"
+  ( cd "${REPO_ROOT}" && cargo build --release --target "${T}" -j 2 -p ajna-core )
+done
 
-echo "--- Running iOS build script ---"
-bash "${REPO_ROOT}/ci/ios_xcodebuild.sh"
+DEVICE_LIB="${REPO_ROOT}/target/${DEVICE_TARGET}/release/libajna_core.a"
+SIM_LIB="${REPO_ROOT}/target/${SIM_TARGET}/release/libajna_core.a"
 
-# ─── Locate built products ────────────────────────────────────────────────────
+# ─── Stage headers (module map + C FFI header) ────────────────────────────────
+HDR_DIR="${DIST_DIR}/ajna_headers"
+rm -rf "${HDR_DIR}"; mkdir -p "${HDR_DIR}"
+cp "${REPO_ROOT}/include/ajna_ffi.h" "${HDR_DIR}/ajna_ffi.h"
+cat > "${HDR_DIR}/module.modulemap" <<'EOF'
+module AjnaSDK {
+    header "ajna_ffi.h"
+    export *
+}
+EOF
 
-DEVICE_ARCHIVE="${REPO_ROOT}/build_ios_device/Release-iphoneos/${SCHEME}.framework"
-SIM_ARCHIVE="${REPO_ROOT}/build_ios_sim/Release-iphonesimulator/${SCHEME}.framework"
-
-# Fall back to .a if framework is not present (static lib build)
-DEVICE_LIB="${REPO_ROOT}/build_ios_device/Release-iphoneos/libAjnaSDK.a"
-SIM_LIB="${REPO_ROOT}/build_ios_sim/Release-iphonesimulator/libAjnaSDK.a"
-
-# ─── Create XCFramework ───────────────────────────────────────────────────────
-
+# ─── Assemble the XCFramework ─────────────────────────────────────────────────
 rm -rf "${XCF_OUT}"
-
-if [ -d "${DEVICE_ARCHIVE}" ] && [ -d "${SIM_ARCHIVE}" ]; then
-    echo "--- Creating XCFramework from .framework archives ---"
-    xcodebuild -create-xcframework \
-        -framework "${DEVICE_ARCHIVE}" \
-        -framework "${SIM_ARCHIVE}" \
-        -output    "${XCF_OUT}"
-elif [ -f "${DEVICE_LIB}" ] && [ -f "${SIM_LIB}" ]; then
-    echo "--- Creating XCFramework from static libraries ---"
-    xcodebuild -create-xcframework \
-        -library "${DEVICE_LIB}" \
-        -library "${SIM_LIB}" \
-        -output  "${XCF_OUT}"
-else
-    echo "ERROR: No framework or library products found in build_ios/"
-    echo "  Looked for:"
-    echo "    ${DEVICE_ARCHIVE}"
-    echo "    ${SIM_ARCHIVE}"
-    echo "    ${DEVICE_LIB}"
-    echo "    ${SIM_LIB}"
-    exit 1
-fi
+xcodebuild -create-xcframework \
+  -library "${DEVICE_LIB}" -headers "${HDR_DIR}" \
+  -library "${SIM_LIB}"    -headers "${HDR_DIR}" \
+  -output  "${XCF_OUT}"
 
 echo ""
-echo "=== XCFramework packaging complete ==="
-echo "  Output: ${XCF_OUT}"
-ls -la "${XCF_OUT}"
+echo "=== XCFramework packaging complete: ${XCF_OUT} ==="
+ls -R "${XCF_OUT}" | head -30

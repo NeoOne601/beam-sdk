@@ -1,42 +1,40 @@
-# Ajna Cloud Deploy — $0 Infrastructure Plan
+# Ajna Mobile Compile & Wire — Plan
 
-## Architecture (all free tier)
+## Toolchain reality (recon done)
+| Need | Status | Blocker |
+|---|---|---|
+| Rust apple + android targets | ✅ installed | — |
+| Xcode 26.6 | ✅ | — |
+| Android NDK | ❌ missing | ~1GB install (needs permission) |
+| Android SDK + Gradle | ❌ missing | multi-GB (needs permission; 8GB RAM risk) |
+| emscripten (WASM) | ❌ missing | ~1GB install (needs permission) |
+| ngrok | ❌ missing | install + authtoken signup |
+| local Postgres/Redis | ✅ installed | — |
+| Supabase (migrated+seeded) | ✅ done prior goal | verify only |
 
-```
-[iPhone/Android app] ──► Backend (Rust/Axum container)         ── Render free web service
-                              │  DATABASE_URL ────────────────► Supabase Postgres (connector ✓)
-                              │  REDIS_URL ───────────────────► Upstash Redis (needs signup)
-                              │  JWT_SECRET / CORS env
-[Browser] ───────────────► Dashboard (Vite SPA) ─────────────── Vercel (connector ✓)
-                              VITE_API_BASE → backend URL
-```
+## Do now (NO new installs)
+- [ ] 1. Download MediaPipe `face_landmarker.task` → `samples/android/app/src/main/assets/` (criterion 1a).
+- [ ] 2. iOS: build Rust core for aarch64-apple-ios + aarch64-apple-ios-sim (`-j 2`),
+      package `dist/AjnaSDK.xcframework` via scripts/package_ios_xcframework.sh (criterion 2b). VERIFY it builds.
+- [ ] 3. iOS: wire liveness to Vision (VNDetectFaceLandmarksRequest), OCR to Vision
+      (VNRecognizeTextRequest), AVFoundation frames; replace simulated ScanView.swift flow
+      with real AjnaSDK.swift / AjnaCameraAdapter.swift calls (criterion 1b, 4).
+- [ ] 4. Android SOURCE wiring (compiles once NDK/SDK present): ML Kit Text Recognition
+      dep, MediaPipe landmarker, real JNI calls in ScanActivity.kt → AjnaNativeBridge (criterion 3).
+      (APK build itself gated on SDK install.)
+- [ ] 5. Supabase: verify migrations + `ajna_live_sk_demo_0000` seed (criterion 5a).
+- [ ] 6. Local backend on :8080 (criterion 5b, partial — WASM gated on emscripten).
+- [ ] 7. iOS compile verification: swiftc typecheck of sample against the xcframework headers
+      (full Xcode build needs an .xcodeproj + signing — state steps, pause) (criterion 6b).
 
-Decoupling: identical binary everywhere; only env vars change
-(backend/src/db/pool.rs reads DB_* + DATABASE_URL at boot).
+## Needs your permission (install) — will ask, then resume
+- Android NDK (r26) — for android Rust targets + AAR (criterion 2a).
+- Android SDK cmdline-tools + platform + build-tools + Gradle — for APK (criterion 6a).
+- emscripten — for WASM/JS adapter (criterion 5b WASM).
+- ngrok — to expose backend+web to your phone (criterion 5c); also needs your authtoken.
 
-## Hosting decision (backend)
-- **Render free web service — chosen.** No CLI required (Blueprint from a
-  GitHub repo, deploy/render.yaml already written), free tier is $0 with
-  sleep-after-idle. Acceptable for a demo.
-- Fly.io — rejected: requires a payment card on file (not "completely free").
-- Koyeb — viable fallback (free instance, GitHub deploy), same pattern.
-- Redis: Upstash free (10k cmd/day) — nonce store + rate limiter.
+## Needs your manual setup (state + pause)
+- Xcode signing / provisioning profile for physical iPhone deploy (criterion 6).
+- Android Studio open + USB device for APK install (criterion 6).
 
-## Steps
-- [ ] 1. Supabase (connector): discover project → apply migrations 001/002/003
-        → verify tables → seed demo tenant + trusted key → record project ref
-        + connection-string TEMPLATE (password stays with user).
-- [ ] 2. Vercel (connector): deploy dashboard/ to production. VITE_API_BASE
-        injected once backend URL exists (redeploy is one call).
-- [ ] 3. Backend on Render: needs USER signup + GitHub repo connect →
-        STOP and give numbered instructions (per goal rules).
-- [ ] 4. Upstash Redis: needs USER signup → included in same instructions.
-- [ ] 5. After user provides: backend env vars set in Render dashboard,
-        /health returns {"status":"ok","db":"ok","redis":"ok"}, dashboard
-        redeployed with final VITE_API_BASE, audit tab verified against
-        live backend.
-
-## Credentials policy
-Secrets (Supabase DB password, Upstash URL) are never pasted into chat: user
-puts them in Render's env-var UI directly; local testing uses a gitignored
-.env file.
+## -j 2 on every cargo build (M1 RAM rule).

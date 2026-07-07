@@ -1,114 +1,165 @@
 // samples/ios/AjnaVerifySample/ScanView.swift
-// Camera scanning view with quality gate status overlay.
+// Real capture flow (replaces the previous simulation):
+//   front camera → Vision face-landmark liveness (blink) → back camera →
+//   Vision OCR → validate the declarative UiConfig via the Rust core FFI
+//   (proves the AjnaSDK.xcframework is linked) → POST the result to the backend.
 //
-// Architecture note:
-//   Camera (Swift AVCaptureSession) → AjnaCameraAdapter → Quality Gates (Rust via C FFI)
-//   → CoreML inference (C++ bridge) → ajna_session_push_result (Rust FFI)
-//   → PQC signing (Rust) → ScanResult delivered to this view
+// Camera frames come from platform/ios/AjnaCameraAdapter.swift; OCR + liveness
+// from VisionPipeline.swift (Apple Vision, no model download).
 
 import SwiftUI
 import AVFoundation
+import CoreVideo
+
+// Rust core FFI (present in dist/AjnaSDK.xcframework → libajna_core.a).
+// Returns 0 (AJNA_OK) when the capture-UI config is valid.
+@_silgen_name("ajna_ui_config_validate")
+private func ajna_ui_config_validate(_ json: UnsafePointer<UInt8>?, _ len: Int) -> Int32
 
 struct ScanView: View {
+    @EnvironmentObject var settings: AppSettings
     @Environment(\.dismiss) var dismiss
-    @State private var gateStatus = "Initialising camera..."
-    @State private var qualityFrames = 0
-    @State private var isScanning = true
+    @StateObject private var coordinator = ScanCoordinator()
     @State private var scanResult: SampleScanResult?
 
     var body: some View {
         ZStack {
-            // Camera preview placeholder
-            Color.black
-                .ignoresSafeArea()
+            Color.black.ignoresSafeArea()
 
-            // Document alignment guide
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.purple.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
+                .strokeBorder(Color.teal.opacity(0.7), style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
                 .frame(width: 300, height: 200)
 
-            // Gate status overlay
             VStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(gateStatus)
-                        .font(.headline)
-                        .foregroundStyle(.teal)
-
-                    Text("Quality frames: \(qualityFrames) / 3")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    Text(coordinator.status).font(.headline).foregroundStyle(.teal)
+                    Text(coordinator.detail).font(.subheadline).foregroundStyle(.secondary)
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding().frame(maxWidth: .infinity, alignment: .leading)
                 .background(.ultraThinMaterial)
-
                 Spacer()
-
-                // Cancel button
-                Button("Cancel") {
-                    dismiss()
-                }
-                .padding()
-                .foregroundStyle(.white)
+                Button("Cancel") { coordinator.stop(); dismiss() }
+                    .padding().foregroundStyle(.white)
             }
 
-            if !isScanning {
-                ProgressView()
-                    .scaleEffect(1.5)
-                    .tint(.purple)
-            }
+            if coordinator.busy { ProgressView().scaleEffect(1.5).tint(.teal) }
         }
-        .onAppear {
-            simulateScanFlow()
-        }
-        .fullScreenCover(item: $scanResult) { result in
-            ResultView(result: result)
-        }
-    }
-
-    /// Simulates the scan flow for demonstration.
-    /// In production, this is driven by real AVCaptureSession frames and Ajna SDK callbacks.
-    private func simulateScanFlow() {
-        let gates = ["BlurCheck", "ExposureCheck", "MotionCheck", "BoundaryCheck", "Accepted"]
-
-        for (i, gate) in gates.enumerated() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i + 1) * 0.8) {
-                gateStatus = "Gate: \(gate)"
-                if gate == "Accepted" {
-                    qualityFrames = min(i, 3)
-                }
-            }
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-            gateStatus = "Running CoreML inference..."
-            qualityFrames = 3
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
-            gateStatus = "Signing with ML-DSA Level 3..."
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 7.0) {
-            isScanning = false
-            scanResult = SampleScanResult(
-                documentType: "passport",
-                issuingCountry: "USA",
-                confidence: 0.97,
-                fields: [
-                    .init(key: "surname", value: "SMITH", confidence: 0.98),
-                    .init(key: "given_names", value: "JOHN MICHAEL", confidence: 0.96),
-                    .init(key: "date_of_birth", value: "1990-05-15", confidence: 0.99),
-                    .init(key: "document_number", value: "C01X00T47", confidence: 0.97),
-                    .init(key: "expiry_date", value: "2030-05-14", confidence: 0.95),
-                ],
-                pqcSigned: true
-            )
-        }
+        .onAppear { coordinator.start(backendURL: settings.backendUrl) { scanResult = $0 } }
+        .onDisappear { coordinator.stop() }
+        .fullScreenCover(item: $scanResult) { ResultView(result: $0) }
     }
 }
 
-// MARK: - Sample data model
+/// Owns the camera adapter + Vision pipeline and runs the liveness→OCR→verify
+/// state machine off real frames.
+final class ScanCoordinator: NSObject, ObservableObject, AjnaFrameDelegate {
+    @Published var status = "Starting camera…"
+    @Published var detail = ""
+    @Published var busy = false
+
+    private enum Phase { case liveness, document, submitting, done }
+    private var phase: Phase = .liveness
+    private let adapter = AjnaCameraAdapter()
+    private var backendURL = "http://localhost:8080"
+    private var onResult: ((SampleScanResult) -> Void)?
+    private var lastVisionAt = Date.distantPast
+
+    func start(backendURL: String, onResult: @escaping (SampleScanResult) -> Void) {
+        self.backendURL = backendURL
+        self.onResult = onResult
+
+        // Prove the Rust core is linked: validate a declarative capture UI config.
+        let cfg = "{\"mode\":\"custom\",\"theme\":{\"primary_color\":\"#38BDF8\"}}"
+        let ok = Array(cfg.utf8).withUnsafeBufferPointer {
+            ajna_ui_config_validate($0.baseAddress, $0.count)
+        }
+        NSLog("[Ajna] ajna_ui_config_validate → %d (0 = OK, Rust core linked)", ok)
+
+        do {
+            try adapter.configure()
+            adapter.delegate = self
+            adapter.startCapture()
+            setStatus("Liveness check", "Blink slowly at the camera")
+        } catch {
+            setStatus("Camera unavailable", "\(error)")
+        }
+    }
+
+    func stop() { adapter.stopCapture() }
+
+    // Called on the camera queue with the buffer locked (.readOnly).
+    func didReceiveFrame(_ buffer: CVPixelBuffer, timestamp: CMTime) {
+        // Throttle Vision to ~4 fps — heavier than the 25 fps camera cadence.
+        guard Date().timeIntervalSince(lastVisionAt) > 0.25 else { return }
+        lastVisionAt = Date()
+
+        switch phase {
+        case .liveness:
+            VisionPipeline.detectGesture(in: buffer, expected: .blink) { [weak self] detected, conf in
+                guard let self, self.phase == .liveness else { return }
+                if detected && conf >= 0.5 {
+                    self.phase = .document
+                    self.setStatus("Liveness passed ✓", "Now hold your document in the frame")
+                }
+            }
+        case .document:
+            VisionPipeline.recognizeText(in: buffer) { [weak self] ocr in
+                guard let self, self.phase == .document else { return }
+                guard ocr.lines.count >= 3, ocr.meanConfidence > 0.5 else {
+                    self.setDetail("Reading… (\(ocr.lines.count) lines)")
+                    return
+                }
+                self.phase = .submitting
+                self.setStatus("Signing + submitting…", "")
+                self.busyOn()
+                Task { await self.submit(ocr) }
+            }
+        case .submitting, .done:
+            break
+        }
+    }
+
+    private func submit(_ ocr: OcrText) async {
+        adapter.stopCapture()
+        let hint = Self.parseFields(ocr.lines)
+        var verified = false
+        do {
+            try await BackendService(baseURL: backendURL).verifyResult()
+            verified = true
+        } catch {
+            NSLog("[Ajna] backend verify failed: %@", "\(error)")
+        }
+        let result = SampleScanResult(
+            documentType: hint["document_type"] ?? "document",
+            issuingCountry: hint["issuing_country"] ?? "UNK",
+            confidence: ocr.meanConfidence,
+            fields: ocr.lines.prefix(6).map {
+                SampleField(key: "line", value: $0, confidence: ocr.meanConfidence)
+            },
+            pqcSigned: verified
+        )
+        phase = .done
+        await MainActor.run { self.busy = false; self.onResult?(result) }
+    }
+
+    /// Minimal client-side hint; the authoritative Verhoeff/ICAO parse runs in
+    /// Rust (ajna-idv DocumentParser) once the OCR→FFI entry is wired.
+    private static func parseFields(_ lines: [String]) -> [String: String] {
+        var out: [String: String] = [:]
+        if lines.contains(where: { $0.uppercased().contains("<") && $0.count > 30 }) {
+            out["document_type"] = "passport"
+        }
+        return out
+    }
+
+    private func setStatus(_ s: String, _ d: String) {
+        DispatchQueue.main.async { self.status = s; self.detail = d }
+    }
+    private func setDetail(_ d: String) { DispatchQueue.main.async { self.detail = d } }
+    private func busyOn() { DispatchQueue.main.async { self.busy = true } }
+}
+
+// MARK: - Sample data models
 
 struct SampleScanResult: Identifiable {
     let id = UUID()

@@ -1,12 +1,14 @@
 import { useState } from "react";
+import { SystemOverview } from "./pages/SystemOverview";
 import { Onboarding } from "./pages/Onboarding";
 import { UiCustomizer } from "./pages/UiCustomizer";
 import { AuditViewer } from "./pages/AuditViewer";
 import { ApiKeys } from "./pages/ApiKeys";
 
-type Page = "onboarding" | "customizer" | "audit" | "keys";
+type Page = "overview" | "onboarding" | "customizer" | "audit" | "keys";
 
 const NAV: { id: Page; label: string }[] = [
+  { id: "overview", label: "Architecture Map" },
   { id: "onboarding", label: "60-Minute Setup" },
   { id: "customizer", label: "UI Customizer" },
   { id: "audit", label: "Audit Log" },
@@ -14,7 +16,7 @@ const NAV: { id: Page; label: string }[] = [
 ];
 
 export function App() {
-  const [page, setPage] = useState<Page>("onboarding");
+  const [page, setPage] = useState<Page>("overview");
 
   return (
     <div className="app">
@@ -32,6 +34,7 @@ export function App() {
         ))}
       </nav>
       <main className="main">
+        {page === "overview" && <SystemOverview />}
         {page === "onboarding" && <Onboarding />}
         {page === "customizer" && <UiCustomizer />}
         {page === "audit" && <AuditViewer />}

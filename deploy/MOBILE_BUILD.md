@@ -1,38 +1,60 @@
 # Ajna Mobile — Build & Deploy to Your Phone
 
-## What's already done (verified on this machine)
-- **MediaPipe model**: `samples/android/app/src/main/assets/face_landmarker.task` (3.75 MB).
-- **iOS SDK**: `dist/AjnaSDK.xcframework` built (device + simulator slices) from the
-  Rust core via `scripts/package_ios_xcframework.sh`. Verified: Rust core cross-compiles
-  for `aarch64-apple-ios` + `aarch64-apple-ios-sim`; the iOS sample **typechecks clean**
-  against the iOS SDK.
-- **iOS app wired**: `ScanView.swift` now runs the real camera (`AjnaCameraAdapter`),
-  Apple **Vision** liveness (`VNDetectFaceLandmarksRequest`) + OCR (`VNRecognizeTextRequest`),
-  calls the Rust core FFI (`ajna_ui_config_validate`), and POSTs to the backend.
-- **Android app wired** (source): `ScanActivity.kt` runs CameraX → MediaPipe blink
-  liveness → ML Kit OCR → Ajna JNI (`AjnaSDK.kt`) → `ResultActivity`. Gradle deps in
-  `samples/android/app/build.gradle.kts`.
-- **Backend**: live locally at `http://localhost:8080/health` → `{"status":"ok",...}`.
-- **Supabase**: migrated + seeded (`ajna_live_sk_demo_0000`).
+## Built & verified on this machine
+| Artifact | Path | Status |
+|---|---|---|
+| MediaPipe model | `samples/android/app/src/main/assets/face_landmarker.task` | ✅ 3.75 MB |
+| Android AAR (Rust core, 3 ABIs) | `dist/AjnaSDK-0.1.0-release.aar` | ✅ built via NDK |
+| **Android APK** | `samples/android/app/build/outputs/apk/debug/app-debug.apk` | ✅ **64 MB, built** |
+| iOS XCFramework | `dist/AjnaSDK.xcframework` | ✅ device + simulator |
+| WASM core | `target/wasm32-unknown-emscripten/release/libajna_core.a` | ✅ compiles |
+| Backend (local) | `http://localhost:8080/health` | ✅ live |
+| Backend (public) | `https://ajna-verify.onrender.com/health` | ✅ live (prior deploy) |
+| Supabase | migrated + seeded `ajna_live_sk_demo_0000` | ✅ |
 
-## iOS — open in Xcode & deploy (needs your Mac/Apple ID)
-1. Create the app project (one-time): Xcode → New → App → SwiftUI, name `AjnaVerifySample`,
-   then add the `samples/ios/AjnaVerifySample/*.swift` + `platform/ios/AjnaCameraAdapter.swift`
-   files, and set `Info.plist` `NSCameraUsageDescription`.
-2. **Link the SDK**: drag `dist/AjnaSDK.xcframework` into the target → *Frameworks, Libraries,
-   and Embedded Content* → Embed & Sign.
-3. **Signing** (physical device): Target → Signing & Capabilities → check *Automatically
-   manage signing* → select your Apple ID team. Connect your iPhone, select it as the run
-   destination, press ⌘R. (Free Apple ID works for 7-day dev builds.)
+The APK bundles `libajna_sdk.so` (our Rust core) for arm64-v8a / armeabi-v7a /
+x86_64, plus MediaPipe + ML Kit native libs and the face-landmarker model.
 
-## Android — open in Android Studio & deploy (needs the SDK/NDK — see below)
-1. Build the AAR first (needs NDK — gated):
-   `bash scripts/package_android_aar.sh` → `dist/AjnaSDK-0.1.0-release.aar`.
-2. Open `samples/android/` in Android Studio (it will prompt to install the matching SDK).
-3. Enable USB debugging on your phone, plug it in, press **Run ▶**. Gradle produces the APK
-   and installs it.
+## Reproduce the builds
+```bash
+# iOS SDK
+bash scripts/package_ios_xcframework.sh          # → dist/AjnaSDK.xcframework
 
-## Local dev URL for your phone
-Once `ngrok` is set up: `ngrok http 8080` → put the `https://…ngrok…` URL into the app's
-Settings → Backend URL (iOS) / `Config.BACKEND_URL` (Android). Your phone then reaches the
-local backend over the internet.
+# Android SDK (set your NDK)
+export ANDROID_NDK="/Volumes/Apple/Android/sdk/ndk/29.0.14206865"
+bash scripts/package_android_aar.sh              # → dist/AjnaSDK-0.1.0-release.aar
+
+# Android APK (uses external SDK + Android Studio's JBR)
+export ANDROID_HOME="/Volumes/Apple/Android/sdk"
+export JAVA_HOME="/Volumes/Apple/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+cd samples/android && ./gradlew :app:assembleDebug    # (or use the cached gradle 8.14)
+```
+
+## Android — install on your phone (adb, no Android Studio needed)
+```bash
+export ANDROID_HOME="/Volumes/Apple/Android/sdk"
+"$ANDROID_HOME/platform-tools/adb" devices          # confirm your phone (USB debugging on)
+"$ANDROID_HOME/platform-tools/adb" install -r \
+  samples/android/app/build/outputs/apk/debug/app-debug.apk
+```
+Or open `samples/android/` in **Android Studio** → select your device → Run ▶.
+Set the backend URL in Settings (defaults can point at `https://ajna-verify.onrender.com`).
+
+## iOS — open in Xcode & deploy (needs your Apple ID for signing)
+1. Xcode → New → App (SwiftUI), name `AjnaVerifySample`. Add the
+   `samples/ios/AjnaVerifySample/*.swift` + `platform/ios/AjnaCameraAdapter.swift`
+   files. Add `NSCameraUsageDescription` to Info.plist.
+2. Drag `dist/AjnaSDK.xcframework` into the target → *Frameworks, Libraries, and
+   Embedded Content* → **Embed & Sign**.
+3. **Signing (device):** Target → Signing & Capabilities → *Automatically manage
+   signing* → pick your Apple ID team. Connect iPhone, select it, ⌘R.
+   (A free Apple ID gives 7-day dev builds.)
+
+## Point the phone at your LOCAL backend (optional — ngrok)
+The apps can use the live Render URL directly. To instead expose the local
+`:8080` backend to your phone:
+```bash
+ngrok config add-authtoken <YOUR_NGROK_AUTHTOKEN>   # from dashboard.ngrok.com
+ngrok http 8080                                      # copy the https://…ngrok URL
+```
+Put that URL into the app's backend setting.

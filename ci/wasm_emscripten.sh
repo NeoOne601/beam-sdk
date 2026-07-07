@@ -21,7 +21,11 @@ rustup target add wasm32-unknown-emscripten
 echo "--- Building Rust core for wasm32-unknown-emscripten ---"
 export CFLAGS="-fPIC"
 export RUSTFLAGS="-C relocation-model=pic"
-(cd "${REPO_ROOT}/core" && cargo build --release --target wasm32-unknown-emscripten)
+# Build the staticlib: emscripten's std is panic=unwind (workspace release is
+# panic=abort, so override here), and a staticlib avoids the executable link
+# that would demand a `main`. Produces libajna_core.a for the WASM bridge.
+(cd "${REPO_ROOT}" && cargo rustc --release --target wasm32-unknown-emscripten -j 2 \
+   -p ajna-core --crate-type staticlib --config 'profile.release.panic="unwind"')
 
 # ─── CMake configure via Emscripten ──────────────────────────────────────────
 

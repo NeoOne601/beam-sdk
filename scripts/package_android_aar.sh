@@ -1,20 +1,19 @@
 #!/usr/bin/env bash
 # scripts/package_android_aar.sh
-# Package the Ajna SDK as an Android AAR for distribution.
+# Package the Ajna SDK (Rust core) as an Android AAR.
 #
 # Output: dist/AjnaSDK-0.1.0-release.aar
-#
-# AAR structure:
-#   jni/arm64-v8a/libajna_sdk.so
-#   jni/armeabi-v7a/libajna_sdk.so
-#   classes.jar  (compiled AjnaNativeBridge.kt)
+#   jni/<abi>/libajna_sdk.so   (the compiled Rust core, one per ABI)
+#   classes.jar                (compiled AjnaSDK.kt JNI bridge, if kotlinc present)
 #   AndroidManifest.xml
+#   R.txt (empty)
+#
+# The SDK *is* the Rust core (business logic, quality gates, PQC signing, FFI).
+# No CMake / TFLite C++ build required — the app links libajna_sdk.so via JNI.
 #
 # Prerequisites:
-#   - Android NDK r26 at $ANDROID_NDK
-#   - cmake, kotlinc on PATH
-#   - cargo with aarch64-linux-android and armv7-linux-androideabi targets
-
+#   ANDROID_NDK set to an NDK with the aarch64/armv7/x86_64 android26 clangs.
+#   rustup targets: aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -22,181 +21,61 @@ DIST_DIR="${REPO_ROOT}/dist"
 AAR_WORK="${DIST_DIR}/.aar_work"
 AAR_OUT="${DIST_DIR}/AjnaSDK-0.1.0-release.aar"
 NDK="${ANDROID_NDK:-${ANDROID_NDK_ROOT:-/opt/android/ndk}}"
-VERSION="0.1.0"
+
+HOST_TAG="darwin-x86_64"
+[ "$(uname -s)" = "Linux" ] && HOST_TAG="linux-x86_64"
+TC="${NDK}/toolchains/llvm/prebuilt/${HOST_TAG}/bin"
 
 echo "=== Ajna SDK Android AAR Packaging ==="
 echo "NDK: ${NDK}"
-mkdir -p "${DIST_DIR}" "${AAR_WORK}/jni/arm64-v8a" "${AAR_WORK}/jni/armeabi-v7a" "${AAR_WORK}/jni/x86_64"
+rm -rf "${AAR_WORK}"; mkdir -p "${DIST_DIR}"
 
-# ─── Build native .so for each ABI ───────────────────────────────────────────
-
+# ABI → (rust target, clang prefix, linker env var, cc env var)
 build_abi() {
-    local ABI="$1"
-    local RUST_TARGET="$2"
-    local BUILD_DIR="${REPO_ROOT}/build_${ABI}"
-
-    # Check if a prebuilt .so exists from a download-artifact step
-    local PREBUILT_SO="${REPO_ROOT}/dist_libs/libajna_sdk-${ABI}/libajna_sdk.so"
-    if [ -f "${PREBUILT_SO}" ]; then
-        echo "Using prebuilt .so for ${ABI} from ${PREBUILT_SO}"
-        mkdir -p "${AAR_WORK}/jni/${ABI}"
-        cp "${PREBUILT_SO}" "${AAR_WORK}/jni/${ABI}/libajna_sdk.so"
-        echo "  ✓ ${ABI} (prebuilt): $(ls -lh ${PREBUILT_SO} | awk '{print $5}')"
-        return 0
-    fi
-
-    # Check if rustup has the target installed. If not, skip (unless we are in CI where we fail)
-    if command -v rustup &>/dev/null; then
-        if ! rustup target list --installed | grep -q "${RUST_TARGET}"; then
-            if [ "${CI:-false}" = "true" ]; then
-                echo "ERROR: Rust target ${RUST_TARGET} is required in CI but not installed."
-                exit 1
-            else
-                echo "WARNING: Rust target ${RUST_TARGET} not installed. Skipping build for ${ABI}."
-                return 0
-            fi
-        fi
-    fi
-
-    # Set up Android cross-compilation environment variables for cargo
-    local OS_NAME
-    OS_NAME="$(uname -s | tr '[:upper:]' '[:lower:]')"
-    local HOST_TAG
-    if [ "${OS_NAME}" = "darwin" ]; then
-        HOST_TAG="darwin-x86_64"
-    elif [ "${OS_NAME}" = "linux" ]; then
-        HOST_TAG="linux-x86_64"
-    else
-        HOST_TAG="windows-x86_64"
-    fi
-    local TOOLCHAIN="${NDK}/toolchains/llvm/prebuilt/${HOST_TAG}/bin"
-    
-    local CLANG_PREFIX=""
-    local LINKER_VAR=""
-    local CC_VAR=""
-    local CXX_VAR=""
-    local AR_VAR=""
-    
-    if [ "${ABI}" = "arm64-v8a" ]; then
-        CLANG_PREFIX="aarch64-linux-android26-clang"
-        LINKER_VAR="CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"
-        CC_VAR="CC_aarch64_linux_android"
-        CXX_VAR="CXX_aarch64_linux_android"
-        AR_VAR="AR_aarch64_linux_android"
-    elif [ "${ABI}" = "armeabi-v7a" ]; then
-        CLANG_PREFIX="armv7a-linux-androideabi26-clang"
-        LINKER_VAR="CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER"
-        CC_VAR="CC_armv7_linux_androideabi"
-        CXX_VAR="CXX_armv7_linux_androideabi"
-        AR_VAR="AR_armv7_linux_androideabi"
-    elif [ "${ABI}" = "x86_64" ]; then
-        CLANG_PREFIX="x86_64-linux-android26-clang"
-        LINKER_VAR="CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER"
-        CC_VAR="CC_x86_64_linux_android"
-        CXX_VAR="CXX_x86_64_linux_android"
-        AR_VAR="AR_x86_64_linux_android"
-    fi
-
-    echo "--- Building Rust core for ${RUST_TARGET} ---"
-    (
-        export PATH="${TOOLCHAIN}:${PATH}"
-        if [ -n "${CLANG_PREFIX}" ]; then
-            export "${LINKER_VAR}=${CLANG_PREFIX}"
-            export "${CC_VAR}=${CLANG_PREFIX}"
-            export "${CXX_VAR}=${CLANG_PREFIX}"
-            export "${AR_VAR}=llvm-ar"
-        fi
-        cd "${REPO_ROOT}/core" && cargo build --release --target "${RUST_TARGET}"
-    )
-
-    echo "--- CMake build for ${ABI} ---"
-    mkdir -p "${BUILD_DIR}"
-    (
-        export PATH="${TOOLCHAIN}:${PATH}"
-        if [ -n "${CLANG_PREFIX}" ]; then
-            export "${LINKER_VAR}=${CLANG_PREFIX}"
-            export "${CC_VAR}=${CLANG_PREFIX}"
-            export "${CXX_VAR}=${CLANG_PREFIX}"
-            export "${AR_VAR}=llvm-ar"
-        fi
-        cmake \
-          -S "${REPO_ROOT}/build" \
-          -B "${BUILD_DIR}" \
-          -DCMAKE_TOOLCHAIN_FILE="${NDK}/build/cmake/android.toolchain.cmake" \
-          -DCMAKE_MODULE_PATH="${REPO_ROOT}/build" \
-          -DANDROID_ABI="${ABI}" \
-          -DANDROID_PLATFORM="android-26" \
-          -DAJNA_TARGET=Android \
-          -DCMAKE_BUILD_TYPE=Release
-        cmake --build "${BUILD_DIR}" --config Release
-    )
-
-    local SO="${BUILD_DIR}/libajna_sdk.so"
-    if [ ! -f "${SO}" ]; then
-        echo "ERROR: libajna_sdk.so not found for ${ABI}"
-        exit 1
-    fi
-    cp "${SO}" "${AAR_WORK}/jni/${ABI}/libajna_sdk.so"
-    echo "  ✓ ${ABI}: $(ls -lh ${SO} | awk '{print $5}')"
+  local ABI="$1" RUST_TARGET="$2" CLANG="$3" LINKER_VAR="$4" CC_VAR="$5"
+  mkdir -p "${AAR_WORK}/jni/${ABI}"
+  echo "--- cargo build --release --target ${RUST_TARGET} -p ajna-core ---"
+  (
+    export PATH="${TC}:${PATH}"
+    export "${LINKER_VAR}=${CLANG}" "${CC_VAR}=${CLANG}"
+    cd "${REPO_ROOT}" && cargo build --release --target "${RUST_TARGET}" -j 2 -p ajna-core
+  )
+  # The JNI class calls System.loadLibrary("ajna_sdk"); ship the core under that name.
+  cp "${REPO_ROOT}/target/${RUST_TARGET}/release/libajna_core.so" \
+     "${AAR_WORK}/jni/${ABI}/libajna_sdk.so"
+  echo "  ✓ ${ABI}"
 }
 
-build_abi "arm64-v8a"   "aarch64-linux-android"
-build_abi "armeabi-v7a" "armv7-linux-androideabi"
-build_abi "x86_64"      "x86_64-linux-android"
+build_abi arm64-v8a   aarch64-linux-android    aarch64-linux-android26-clang \
+          CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER CC_aarch64_linux_android
+build_abi armeabi-v7a armv7-linux-androideabi  armv7a-linux-androideabi26-clang \
+          CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER CC_armv7_linux_androideabi
+build_abi x86_64      x86_64-linux-android      x86_64-linux-android26-clang \
+          CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER CC_x86_64_linux_android
 
-# ─── Compile AjnaNativeBridge.kt → classes.jar ───────────────────────────────
-
-KOTLIN_SRC="${REPO_ROOT}/platform/android/AjnaNativeBridge.kt"
-KOTLIN_OUT="${AAR_WORK}/kotlin_classes"
-mkdir -p "${KOTLIN_OUT}"
-
-echo "--- Compiling Kotlin bridge ---"
+# ─── classes.jar from the Kotlin JNI bridge (optional) ────────────────────────
+mkdir -p "${AAR_WORK}/kotlin_classes"
 if command -v kotlinc &>/dev/null; then
-    kotlinc "${KOTLIN_SRC}" -d "${KOTLIN_OUT}" 2>/dev/null || true
-    # Pack into classes.jar
-    (cd "${KOTLIN_OUT}" && jar cf "${AAR_WORK}/classes.jar" .)
-else
-    echo "WARNING: kotlinc not found; creating empty classes.jar"
-    (cd "${AAR_WORK}" && echo "" | jar cf classes.jar -C . .)
+  echo "--- compiling AjnaSDK.kt → classes.jar ---"
+  kotlinc "${REPO_ROOT}/platform/android/AjnaSDK.kt" -d "${AAR_WORK}/kotlin_classes" 2>/dev/null || true
 fi
+(cd "${AAR_WORK}/kotlin_classes" && jar cf "${AAR_WORK}/classes.jar" . 2>/dev/null || jar cf "${AAR_WORK}/classes.jar" -C "${AAR_WORK}/kotlin_classes" .)
 
-# ─── AndroidManifest.xml ─────────────────────────────────────────────────────
-
+# ─── AAR metadata ─────────────────────────────────────────────────────────────
 cat > "${AAR_WORK}/AndroidManifest.xml" <<'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.ajna.sdk"
-    android:versionCode="1"
-    android:versionName="0.1.0">
+    package="com.ajna.sdk" android:versionCode="1" android:versionName="0.1.0">
+    <uses-sdk android:minSdkVersion="26" />
 </manifest>
 EOF
+: > "${AAR_WORK}/R.txt"
 
-# ─── Create AAR (zip) ────────────────────────────────────────────────────────
-
-echo "--- Creating AAR ---"
-(cd "${AAR_WORK}" && zip -r "${AAR_OUT}" .)
-
-# ─── Sign with debug keystore if KEYSTORE_PATH not set ───────────────────────
-
-if [ -z "${KEYSTORE_PATH:-}" ]; then
-    echo "--- Signing with debug keystore ---"
-    DEBUG_KS="${HOME}/.android/debug.keystore"
-    if [ -f "${DEBUG_KS}" ] && command -v jarsigner &>/dev/null; then
-        jarsigner -keystore "${DEBUG_KS}" \
-                  -storepass android \
-                  -keypass   android \
-                  "${AAR_OUT}" androiddebugkey 2>/dev/null || true
-    else
-        echo "WARNING: debug keystore or jarsigner not available; AAR is unsigned"
-    fi
-else
-    echo "--- Signing with provided keystore ---"
-    jarsigner -keystore "${KEYSTORE_PATH}" \
-              -storepass "${KEYSTORE_PASS:-changeit}" \
-              "${AAR_OUT}" "${KEY_ALIAS:-ajna}"
-fi
+# ─── Zip the AAR ──────────────────────────────────────────────────────────────
+rm -f "${AAR_OUT}"
+(cd "${AAR_WORK}" && zip -rq "${AAR_OUT}" AndroidManifest.xml classes.jar R.txt jni)
 
 echo ""
 echo "=== AAR packaging complete ==="
-echo "  Output: ${AAR_OUT}"
 ls -lh "${AAR_OUT}"
+unzip -l "${AAR_OUT}" | grep -E "\.so|classes.jar|Manifest"

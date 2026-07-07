@@ -97,9 +97,17 @@ class ScanActivity : AppCompatActivity() {
                         val lines = text.textBlocks.flatMap { b -> b.lines.map { it.text } }
                         if (phase == Phase.DOCUMENT && lines.size >= 3) {
                             phase = Phase.DONE
-                            // Run quality gates over the frame in Rust; the parsed
-                            // fields go to Rust for Verhoeff/ICAO validation + signing.
-                            ajna.onFrame(image, System.nanoTime() / 1000)
+                            // Run quality gates over the raw YUV frame in Rust; the
+                            // parsed fields go to Rust for Verhoeff/ICAO validation + signing.
+                            val y = image.planes[0]
+                            val uv = image.planes[1]
+                            ajna.onFrame(
+                                y.buffer, uv.buffer,
+                                image.width, image.height,
+                                y.rowStride, uv.rowStride,
+                                uv.pixelStride == 2,
+                                System.nanoTime() / 1000
+                            )
                             finishWith(lines)
                         }
                         image.close()

@@ -1,7 +1,6 @@
 // Ajna Android sample — app module.
-// Requires Android SDK + NDK + Gradle (see deploy/MOBILE_BUILD.md). Links the
-// Rust core via dist/AjnaSDK-0.1.0-release.aar; OCR via ML Kit; liveness via
-// MediaPipe FaceLandmarker (assets/face_landmarker.task).
+// Links the Rust core via app/libs/AjnaSDK-0.1.0-release.aar; OCR via ML Kit;
+// liveness via MediaPipe FaceLandmarker (assets/face_landmarker.task).
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -26,21 +25,17 @@ android {
     kotlinOptions { jvmTarget = "17" }
     // MediaPipe .task assets must not be compressed.
     androidResources { noCompress += "task" }
-}
-
-repositories {
-    google()
-    mavenCentral()
-    // The Ajna SDK AAR is consumed from dist/ as a flat-dir artifact.
-    flatDir { dirs("${rootProject.projectDir}/../../dist") }
+    buildTypes {
+        release { isMinifyEnabled = false }
+    }
 }
 
 dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
 
-    // Ajna SDK (Rust core JNI) — dist/AjnaSDK-0.1.0-release.aar
-    implementation(name = "AjnaSDK-0.1.0-release", ext = "aar")
+    // Ajna SDK (Rust core JNI) — local AAR under app/libs/
+    implementation(files("libs/AjnaSDK-0.1.0-release.aar"))
 
     // CameraX
     val camerax = "1.3.4"

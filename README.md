@@ -23,6 +23,82 @@ Rules Engine** (dynamic IDV thresholds by ISO country code), and counter-signs
 every outcome with **ML-DSA-65 server attestation** per Indian National
 Quantum Mission (NQM) crypto-agility requirements.
 
+---
+
+## Platform at a Glance (for reviewers & CTOs)
+
+Ajna is a Rust-first, multi-crate workspace with a hosted verification backend,
+a React integration portal, and native mobile SDKs. The value proposition in
+one line: **verifiable identity, device, and liveness signals whose integrity
+holds under a post-quantum threat model, deployable for $0 and scalable to
+enterprise by changing environment variables — not code.**
+
+### Build & maturity status (what is real, honestly)
+
+| Component | Path | Status |
+|---|---|---|
+| Scanning engine — quality gates, session FSM, PQC signing, C FFI | `core/` | **Built & tested.** FFI boundary leak-checked (0 bytes). |
+| Crypto foundation — Ed25519 + ML-DSA-65 signer registry (FIPS 204) | `crates/ajna-crypto` | **Built & tested.** |
+| Ajna IDV / Intel / Vision pillars | `crates/ajna-{idv,intel,vision}` | **Built & tested** — OCR parsers unit-tested against real Aadhaar/passport-MRZ/US-DL formats; liveness geometry & posture scoring covered. |
+| MCP server (4 agent tools, stdio JSON-RPC) | `crates/ajna-mcp-server` | **Built & smoke-tested** end to end. |
+| Verification backend — country rules, SOC2 hash-chained audit, NQM attestation, pooling | `backend/` | **Built, tested & deployed.** |
+| Integration dashboard (onboarding, UI customizer, audit viewer) | `dashboard/` | **Built & deployed.** |
+| Mobile SDKs — iOS XCFramework, Android AAR/APK (3 ABIs), WASM core | `dist/`, `scripts/` | **Compile & package.** On-device ML wired to Apple Vision / ML Kit / MediaPipe; physical-device field testing is the current milestone. |
+| Test suite | workspace | `cargo test --release -j 2` — **~146 tests, zero warnings, clippy clean.** |
+
+> **Honest scope note:** this is an architecturally complete, test-green
+> platform with a live reference deployment and compiling mobile SDKs. It is
+> not yet a product hardened against real documents at scale — the on-device
+> capture path is integrated at clean seams and its trust logic is unit-tested,
+> but a physical-device pass with real IDs across a device matrix is future
+> work. See [`docs/PRINCIPAL_ENGINEER_HANDOVER.md`](docs/PRINCIPAL_ENGINEER_HANDOVER.md) §8 for the roadmap and known debt.
+
+### Live reference deployment (free tier)
+
+| Tier | Provider | Notes |
+|---|---|---|
+| Backend (Axum) | Render (Docker Blueprint) | `/health` → `{"status":"ok","db":"ok","redis":"ok"}`. Free instance sleeps after ~15 min idle (first request cold-starts ~50s). |
+| Database | Supabase Postgres | Migrations applied; demo tenant seeded (`ajna_live_sk_demo_0000`). Connection is env-driven (`DATABASE_URL`) — swap to any Postgres with no code change. |
+| Redis | Render Key Value (or Upstash) | Nonce store + rate limiter; `REDIS_URL` env-driven. |
+| Dashboard (React/Vite) | Vercel | `VITE_API_BASE` points at the backend. |
+
+Deployment is **decoupled by configuration**: the same binary runs locally, on
+Render, or on any enterprise Postgres by changing env vars only. Runbooks:
+[`deploy/DEPLOYMENT.md`](deploy/DEPLOYMENT.md) · [`deploy/LIVE_STACK.md`](deploy/LIVE_STACK.md) · [`deploy/MOBILE_BUILD.md`](deploy/MOBILE_BUILD.md).
+
+### Repository map
+
+```
+core/                 ajna-core — scanning engine, quality gates, session FSM, C FFI, UiConfig
+crates/
+  ajna-crypto         Ed25519 + ML-DSA-65 signer registry (shared foundation)
+  ajna-idv            IDV pillar: headless scanner + OCR document parsers (Verhoeff/ICAO/AAMVA)
+  ajna-intel          Device posture / integrity → risk-scored, signed reports
+  ajna-vision         Liveness FSM + face-embedding match → signed results
+  ajna-mcp-server      MCP tools for AI agents (posture, face, document, audit)
+backend/              ajna-verify-backend — Axum: verify, country rules, SOC2 audit chain, NQM attestation
+dashboard/            React/Vite integration portal (Palantir-style HUD)
+platform/{ios,android,wasm}   Thin camera/ML adapters (Swift / Kotlin / C++) — no business logic
+samples/{ios,android,web}     Reference apps wiring the SDK to real cameras + on-device ML
+include/ajna_ffi.h    Canonical C FFI header consumed by every platform bridge
+scripts/              XCFramework / AAR / WASM packaging
+deploy/               $0 deployment runbooks + IaC (render.yaml, vercel.json, migration/seed scripts)
+docs/                 Whitepaper, API reference, security model, ADRs, this handover
+```
+
+### Documentation index
+
+| Document | Audience |
+|---|---|
+| [`docs/PRINCIPAL_ENGINEER_HANDOVER.md`](docs/PRINCIPAL_ENGINEER_HANDOVER.md) | New senior owner — design spine, invariants, gotchas, runbook, roadmap |
+| [`docs/WHITEPAPER.md`](docs/WHITEPAPER.md) | Architects, investors |
+| [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) | SDK integrators |
+| [`docs/INTEGRATION_GUIDE.md`](docs/INTEGRATION_GUIDE.md) | Mobile & web engineers |
+| [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md) | Security & compliance |
+| The rest of this README | Engineers wanting the deep architecture |
+
+---
+
 ## Scanning Engine
 
 Cross-platform native document scanning with post-quantum cryptographic result integrity.
@@ -674,7 +750,7 @@ cargo run --release -p ajna-mcp-server
     "ajna": {
       "command": "cargo",
       "args": ["run", "--release", "-p", "ajna-mcp-server"],
-      "cwd": "/path/to/beam-sdk"
+      "cwd": "/path/to/ajna"
     }
   }
 }

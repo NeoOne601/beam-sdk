@@ -131,12 +131,21 @@ fn fail(&mut self, reason: Option<&str>)
 | `document_type` | `String` | ICAO type string (`"passport"`, `"id_card"`, …). |
 | `issuing_country` | `String` | ISO 3166-1 alpha-3 country code. |
 | `confidence` | `f32` | Overall scan confidence. |
-| `pqc_signature` | `Vec<u8>` | ML-DSA Level-3 signature over `canonical_bytes()`. |
+| `pqc_signature` | `Vec<u8>` | Signature over `canonical_bytes()` (algorithm per `algo`). |
 | `pqc_public_key` | `Vec<u8>` | Matching ML-DSA public key (1952 bytes). |
+| `nonce` / `session_id` / `timestamp_iso` | `Option<String>` | VR-1 session binding — embedded into `canonical_bytes()` when present. |
+| `algo` | `String` | Signing algorithm label (`"ed25519"`, `"ml-dsa-65"`). |
+| `ajna_version` | `String` | SDK version stamped into the result. |
+| `public_key` | `Option<String>` | Base64 Ed25519 public key (when `algo = ed25519`). |
+| `jws_token` | `Option<String>` | Optional JWS envelope of the result. |
+
+> Source of truth: `core/src/result.rs` — check it for field-level docs.
 
 ```rust
 /// Deterministic byte encoding for signing. Sorts fields by key.
 /// Identical results (any field order) produce identical bytes.
+/// VR-1: reserved __nonce/__session_id/__timestamp entries are included
+/// when the session-binding fields are set.
 pub fn canonical_bytes(&self) -> Vec<u8>
 ```
 

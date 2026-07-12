@@ -780,7 +780,7 @@ brand differentiator).
 | Surface | Purpose |
 |---|---|
 | **Login gate** | Demo-tenant authentication (`demo@ajna.io` / `ajna-demo`) — session JWT in `sessionStorage`, route guard on every page (ADR-007: production portal auth is a Phase 2 backend feature) |
-| **Operations Overview** | Live telemetry (2 s polling): verification volume time-series, pass/fail donut, geographic distribution, live event feed. Probes the real backend `/health`; honestly labeled `SIMULATED FEED` when the link is down |
+| **Operations Overview** | Telemetry console (2 s polling): verification volume time-series, pass/fail donut, geographic distribution, live event feed. The verification stream is a deterministic demo simulator; only the link-status pill reflects a real probe of backend `/health` (real event streaming is a Phase 2 item) |
 | **Architecture** | Interactive subsystem coupling map, code communities, critical execution flows (static snapshot) |
 | **60-Minute Setup** | Onboarding wizard — progress bar, animated steps, copy-to-clipboard snippets with toast confirmation |
 | **UI Customizer** | Visual editor for `UiConfig` with native color pickers, sliders, animated live preview, Copy-JSON export validated against the SDK schema |

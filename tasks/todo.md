@@ -1,5 +1,16 @@
 # tasks/todo.md — Current Cycle Scorecard
 
+## Cycle 2 (2026-07-12) — §12 evidence sweep
+
+- [x] Criterion 8: `SQLX_OFFLINE=true cargo test --release -j 2` → exit 0,
+      146 passed / 0 failed across 15 test binaries
+- [x] Criterion 7: `docs/openapi.yaml` (OpenAPI 3.1 — 7 paths, 18 schemas, YAML-validated)
+- [x] Criterion 4: `docs/AI_FRAUD_STRATEGY.md` (layered defenses, T2 gap, D-1..D-4)
+- [x] Criterion 5: `docs/PQC_MIGRATION_STRATEGY.md` (FIPS-final path, hybrid, agility drill)
+- [x] Criterion 6: `docs/IDENTITY_MODEL.md` (trust model, lifecycle, mermaid-validated flows)
+- [ ] Criterion 9: docs freshness sweep (stale-reference audit) — next cycle
+- [ ] Criterion 3 re-check: SECURITY_MODEL.md vs current code — next cycle
+
 ## Cycle 1 (2026-07-12) — Bootstrap + Dashboard Enterprise Overhaul (§15)
 
 - [x] Bootstrap state files: PRODUCT, ARCHITECTURE, RESEARCH, DECISIONS, ROADMAP, lessons

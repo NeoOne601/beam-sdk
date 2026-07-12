@@ -43,6 +43,6 @@
 
 ## Success Criterion Mapping (§12)
 
-- Criterion 4 (AI fraud strategy): threat table above + ROADMAP items. Status: **partial — needs the injection-resistance design doc**.
-- Criterion 5 (PQC migration strategy): ADR-001 + FIPS rows above + hybrid plan on roadmap. Status: **partial — hybrid design doc pending**.
+- Criterion 4 (AI fraud strategy): `docs/AI_FRAUD_STRATEGY.md` (layered defenses w/ file refs, T2 gap analysis, D-1..D-4 designs). Status: **YES (v1, cycle 2)**.
+- Criterion 5 (PQC migration strategy): `docs/PQC_MIGRATION_STRATEGY.md` (FIPS-final path, hybrid plan, agility drill, NQM mapping). Status: **YES (v1, cycle 2)**.
 - Criterion 12 (regulatory analysis): table above. Status: **YES (v1; deepen with [VERIFY] items)**.

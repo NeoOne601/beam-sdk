@@ -1,0 +1,471 @@
+openapi: 3.1.0
+info:
+  title: Ajna Verify Backend API
+  version: 0.1.0
+  description: |
+    Hosted verification service for the Ajna platform: nonce-protected
+    post-quantum signature verification (Ed25519 / ML-DSA-65), country-specific
+    rules, SOC2 hash-chained audit trail, NQM server attestation, and webhook
+    registration.
+
+    **Authentication** — every endpoint except `GET /health` requires either
+    an `X-Api-Key` header or an `Authorization: Bearer <JWT>` (HS256). Both
+    resolve to a tenant context; all data is tenant-scoped (VR-3).
+
+    **Rate limiting** — Redis token-bucket per tenant; expect `429` when
+    exhausted. Request bodies are limited to 1 MiB.
+  contact:
+    name: Ajna
+servers:
+  - url: http://localhost:8080
+    description: Local development
+  - url: https://api.your-ajna.example
+    description: Reference deployment (Render)
+
+security:
+  - ApiKey: []
+  - BearerJwt: []
+
+paths:
+  /health:
+    get:
+      operationId: healthCheck
+      summary: Liveness / dependency health probe
+      security: []
+      tags: [system]
+      responses:
+        "200":
+          description: Service status (degraded states still return 200)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthResponse" }
+
+  /v1/session/init:
+    post:
+      operationId: sessionInit
+      summary: Negotiate a mutually supported signature algorithm (ADR-001)
+      tags: [session]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SessionInitRequest" }
+      responses:
+        "200":
+          description: Negotiated algorithm and new session id
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionInitResponse" }
+        "400":
+          description: No common algorithm
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string, const: no_common_algorithm }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/nonce:
+    post:
+      operationId: createNonce
+      summary: Issue a single-use, tenant-scoped replay-prevention nonce
+      description: |
+        The nonce is stored in Redis (TTL-bound, namespaced by tenant and
+        session) and must be embedded into the signed canonical bytes (VR-1)
+        before calling `/v1/verify`.
+      tags: [verification]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NonceRequest" }
+      responses:
+        "200":
+          description: Nonce issued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NonceResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /v1/verify:
+    post:
+      operationId: verifyResult
+      summary: Verify a signed scan result (Ed25519 or ML-DSA-65)
+      description: |
+        Validates nonce binding (VR-1), looks up the pre-registered trusted
+        public key via the active `KEY_PROVIDER_STRATEGY` (VR-2), reconstructs
+        the canonical bytes, verifies the signature, evaluates country rules,
+        wraps the outcome in an NQM compliance envelope, counter-signs it with
+        the server's ML-DSA-65 attestation key, and appends a hash-chained
+        audit entry. The nonce is consumed on success.
+      tags: [verification]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VerifyRequest" }
+      responses:
+        "200":
+          description: Signature valid; verification recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VerifyResponse" }
+        "400":
+          description: Malformed request, nonce mismatch, stale timestamp, or unsupported algorithm
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Signature verification failed, or missing/invalid credentials
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "410":
+          description: Nonce not found or expired
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /v1/audit:
+    get:
+      operationId: listAuditLogs
+      summary: Paginated tenant-scoped audit log retrieval
+      tags: [audit]
+      parameters:
+        - name: session_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: from
+          in: query
+          required: false
+          schema: { type: string }
+          description: Reserved for time-range filtering (currently logged, not applied)
+        - name: to
+          in: query
+          required: false
+          schema: { type: string }
+          description: Reserved for time-range filtering (currently logged, not applied)
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, default: 100, maximum: 1000 }
+      responses:
+        "200":
+          description: Newest-first audit entries for the authenticated tenant
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuditResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /v1/audit/verify-chain:
+    get:
+      operationId: verifyAuditChain
+      summary: Recompute the tenant's SOC2 audit hash chain (evidence endpoint)
+      description: |
+        Recomputes every SHA-256 chain link from genesis and reports whether
+        any entry was altered or removed. Rows written before the chain
+        migration are counted as `legacy_entries_skipped`.
+      tags: [audit]
+      responses:
+        "200":
+          description: Chain integrity report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChainReport" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /v1/webhooks:
+    post:
+      operationId: registerWebhook
+      summary: Register a webhook endpoint (SSRF-guarded, VR-5)
+      description: |
+        The URL must be `https://`, resolve to a public address (RFC-1918,
+        loopback, link-local, and cloud metadata hosts are rejected), and is
+        fetched with a 10 s timeout and a 3-redirect limit.
+      tags: [webhooks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WebhookRequest" }
+      responses:
+        "200":
+          description: Webhook registered for the authenticated tenant
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WebhookResponse" }
+        "400":
+          description: URL failed SSRF validation or unsupported event type
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+components:
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+    BearerJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid credentials
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    RateLimited:
+      description: Tenant token bucket exhausted
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    ServerError:
+      description: Internal error (details are logged server-side, never leaked)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error, status]
+      properties:
+        error: { type: string }
+        status: { type: integer }
+
+    HealthResponse:
+      type: object
+      required: [status, db, redis, version]
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        db: { type: string, enum: [ok, degraded] }
+        redis: { type: string, enum: [ok, degraded] }
+        version: { type: string }
+
+    SessionInitRequest:
+      type: object
+      required: [client_supported, client_preferred]
+      properties:
+        client_supported:
+          type: array
+          items: { type: string }
+          description: Algorithms the client can sign with, in preference order
+        client_preferred: { type: string }
+
+    SessionInitResponse:
+      type: object
+      required: [session_id, negotiated_algo, server_supported]
+      properties:
+        session_id: { type: string, format: uuid }
+        negotiated_algo:
+          type: string
+          enum: [hybrid-ed25519-ml-dsa-65, ed25519, ml-dsa-65]
+        server_supported:
+          type: array
+          items: { type: string }
+
+    NonceRequest:
+      type: object
+      required: [session_id]
+      properties:
+        session_id: { type: string, format: uuid }
+
+    NonceResponse:
+      type: object
+      required: [nonce, expires_at, session_id, tenant_id]
+      properties:
+        nonce:
+          type: string
+          description: 64-char hex encoding of 32 random bytes
+        expires_at: { type: string, format: date-time }
+        session_id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+
+    FieldPayload:
+      type: object
+      required: [key, value, confidence]
+      properties:
+        key: { type: string }
+        value: { type: string }
+        confidence: { type: number, format: float }
+
+    ScanResultPayload:
+      type: object
+      required:
+        [fields, document_type, issuing_country, confidence, pqc_signature,
+         key_id, signed_nonce, signed_session_id, signed_timestamp, algo]
+      properties:
+        fields:
+          type: array
+          items: { $ref: "#/components/schemas/FieldPayload" }
+        document_type: { type: string }
+        issuing_country:
+          type: string
+          description: ISO 3166-1 alpha-3 (aliases accepted by the rules engine)
+        confidence: { type: number, format: float }
+        pqc_signature:
+          type: string
+          description: Base64-encoded detached signature over the canonical bytes
+        key_id:
+          type: string
+          description: Selects the pre-registered trusted key (meaning depends on KEY_PROVIDER_STRATEGY) — VR-2
+        signed_nonce:
+          type: string
+          description: Nonce as embedded in the signed canonical bytes (VR-1)
+        signed_session_id:
+          type: string
+          description: Session id as embedded in the signed canonical bytes (VR-1)
+        signed_timestamp:
+          type: string
+          description: Unix-seconds string embedded in the signed bytes; checked against the freshness window (VR-1)
+        algo:
+          type: string
+          enum: [ed25519, ml-dsa-65]
+        public_key:
+          type: string
+          description: Base64 Ed25519 public key (32 bytes) — required when algo=ed25519
+        pqc_public_key:
+          type: array
+          items: { type: integer, minimum: 0, maximum: 255 }
+          description: Raw ML-DSA-65 public key bytes — required when algo=ml-dsa-65
+
+    VerifyRequest:
+      type: object
+      required: [session_id, nonce, scan_result]
+      properties:
+        session_id: { type: string, format: uuid }
+        nonce: { type: string }
+        scan_result: { $ref: "#/components/schemas/ScanResultPayload" }
+
+    RuleOutcome:
+      type: object
+      required: [rule_pack, passed, violations]
+      properties:
+        rule_pack:
+          type: string
+          description: Applied rulepack (alpha-3 code or "DEFAULT")
+        passed: { type: boolean }
+        violations:
+          type: array
+          items: { type: string }
+
+    NqmCompliance:
+      type: object
+      required: [profile, algorithm, pqc, standards]
+      properties:
+        profile: { type: string }
+        algorithm: { type: string }
+        pqc: { type: boolean }
+        standards:
+          type: array
+          items: { type: string }
+
+    ServerAttestation:
+      type: object
+      required: [payload, algorithm, signature_b64, public_key_b64]
+      properties:
+        payload:
+          type: string
+          description: Exactly what was signed — "verification_id|verified|timestamp"
+        algorithm: { type: string, const: ml-dsa-65 }
+        signature_b64: { type: string }
+        public_key_b64:
+          type: string
+          description: Ephemeral process-lifetime attestation public key
+
+    VerifyResponse:
+      type: object
+      required:
+        [verified, session_id, verification_id, document_type, issuing_country,
+         confidence, fraud_signals, timestamp, key_id, country_rules,
+         nqm_compliance, server_attestation]
+      properties:
+        verified: { type: boolean }
+        session_id: { type: string, format: uuid }
+        verification_id: { type: string, format: uuid }
+        document_type: { type: string }
+        issuing_country: { type: string }
+        confidence: { type: number, format: float }
+        fraud_signals: { type: object }
+        timestamp: { type: string, format: date-time }
+        key_id: { type: string }
+        country_rules: { $ref: "#/components/schemas/RuleOutcome" }
+        nqm_compliance: { $ref: "#/components/schemas/NqmCompliance" }
+        server_attestation: { $ref: "#/components/schemas/ServerAttestation" }
+
+    AuditEntry:
+      type: object
+      required: [id, event_type, outcome, detail, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        session_id:
+          type: [string, "null"]
+          format: uuid
+        event_type: { type: string }
+        outcome: { type: string }
+        detail: { type: object }
+        created_at: { type: string }
+
+    AuditResponse:
+      type: object
+      required: [entries, total]
+      properties:
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/AuditEntry" }
+        total: { type: integer, format: int64 }
+
+    ChainReport:
+      type: object
+      required: [valid, entries_checked, legacy_entries_skipped]
+      properties:
+        valid: { type: boolean }
+        entries_checked: { type: integer, format: int64 }
+        legacy_entries_skipped: { type: integer, format: int64 }
+        first_broken_seq:
+          type: [integer, "null"]
+          description: seq of the first entry whose hash or linkage fails
+
+    WebhookRequest:
+      type: object
+      required: [url, events]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Must be https:// and pass SSRF validation (VR-5)
+        events:
+          type: array
+          items: { type: string }
+        secret:
+          type: [string, "null"]
+          description: Optional HMAC secret for delivery signing
+
+    WebhookResponse:
+      type: object
+      required: [webhook_id, url, events, created_at, tenant_id]
+      properties:
+        webhook_id: { type: string, format: uuid }
+        url: { type: string, format: uri }
+        events:
+          type: array
+          items: { type: string }
+        created_at: { type: string, format: date-time }
+        tenant_id: { type: string, format: uuid }

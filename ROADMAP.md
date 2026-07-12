@@ -11,10 +11,10 @@ deployment + mobile SDK packaging. ~146 tests green.
 |---|---|---|
 | Dashboard enterprise overhaul (D1–D14) | §12.13/14 | **Done cycle 1** — verifier PASS (visual: PREMIUM); LOW items carried in tasks/todo.md |
 | State docs bootstrapped (PRODUCT/ARCHITECTURE/RESEARCH/DECISIONS/ROADMAP) | §12.1,2,10,11,12 | Cycle 1 — done |
-| OpenAPI spec for backend endpoints | §12.7 | Queued |
-| AI-fraud (anti-injection) strategy doc | §12.4 | Queued (RESEARCH.md queue) |
-| PQC hybrid + FIPS-final migration design | §12.5 | Queued |
-| Identity model consolidation w/ sequence diagrams | §12.6 | Queued |
+| OpenAPI spec for backend endpoints | §12.7 | **Done cycle 2** — `docs/openapi.yaml` |
+| AI-fraud (anti-injection) strategy doc | §12.4 | **Done cycle 2** — `docs/AI_FRAUD_STRATEGY.md` |
+| PQC hybrid + FIPS-final migration design | §12.5 | **Done cycle 2** — `docs/PQC_MIGRATION_STRATEGY.md` |
+| Identity model consolidation w/ sequence diagrams | §12.6 | **Done cycle 2** — `docs/IDENTITY_MODEL.md` |
 | Docs freshness sweep (no stale references) | §12.9 | Queued |
 | On-device field testing (blocked: NDK/SDK installs — Human Gate §13) | — | Blocked on owner |
 

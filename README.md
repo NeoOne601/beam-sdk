@@ -1139,6 +1139,7 @@ The active strategy is selected by environment variable (`KEY_PROVIDER_STRATEGY=
 | Document | Audience | Contents |
 |---|---|---|
 | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) | SDK integrators | Complete public API: all types and functions in Rust, Swift, Kotlin, and C FFI |
+| [docs/openapi.yaml](docs/openapi.yaml) | Backend integrators | OpenAPI 3.1 spec for all hosted verification endpoints (auth, schemas, error envelopes) |
 | [docs/INTEGRATION_GUIDE.md](docs/INTEGRATION_GUIDE.md) | Mobile and web engineers | Platform-specific setup, session lifecycle, cleanup |
 | [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md) | Security engineers, compliance | Full threat inventory, key storage per platform, hybrid PQC transition recommendation |
 | [docs/WHITEPAPER.md](docs/WHITEPAPER.md) | Architects, investors | Language boundary rationale, performance budget, PQC parameter reference, entity graph design |

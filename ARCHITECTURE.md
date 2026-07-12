@@ -67,5 +67,5 @@ Camera frame (NV12, zero-copy)
 ## Success Criterion Mapping (§12)
 
 - Criterion 2 (production-ready architecture doc): this file + README. Status: **YES (v1)**.
-- Criterion 6 (identity model + sequence diagrams): README §Architecture/§PQC + `docs/SECURITY_MODEL.md`. Status: **YES (consolidate here in a docs cycle)**.
-- Criterion 7 (API docs): `docs/API_REFERENCE.md`. OpenAPI spec: **NO — roadmap item**.
+- Criterion 6 (identity model + sequence diagrams): `docs/IDENTITY_MODEL.md` (trust model, credential lifecycle, mermaid flows). Status: **YES (cycle 2)**.
+- Criterion 7 (API docs): `docs/API_REFERENCE.md` + `docs/openapi.yaml` (OpenAPI 3.1, all 7 backend endpoints). Status: **YES (cycle 2)**.

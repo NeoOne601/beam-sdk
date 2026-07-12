@@ -55,7 +55,7 @@ export function SystemOverview() {
           <h1 className="page-title">SYSTEMS & ARCHITECTURE</h1>
           <p className="page-subtitle">Tactical overview of community boundaries, coupling, and execution flows</p>
         </div>
-        <div className="hud-coord">SYS: AJNA-PLATFORM // COORD: 28.6139° N, 77.2090° E</div>
+        <div className="hud-coord">SYS: AJNA-PLATFORM // STATIC SNAPSHOT · 2026-07</div>
       </div>
 
       {/* Metrics Row */}

@@ -1,4 +1,8 @@
+// 60-minute integration wizard (D11): animated progress bar, per-step slide
+// transitions, copy-to-clipboard on every snippet with toast confirmation.
+
 import { useMemo, useState } from "react";
+import { CopyButton } from "../components";
 
 type Platform = "ios" | "android" | "web";
 
@@ -31,6 +35,11 @@ export function Onboarding() {
   const [platform, setPlatform] = useState<Platform>("ios");
 
   const snippet = useMemo(() => SNIPPETS[platform](apiKey), [platform, apiKey]);
+  const curl = `curl -s https://api.your-ajna.example/health \\
+  -H "X-Api-Key: ${apiKey}"
+
+# Expected: {"status":"ok"}`;
+  const progress = (step / (STEPS.length - 1)) * 100;
 
   return (
     <div>
@@ -41,80 +50,100 @@ export function Onboarding() {
             Five steps from zero to a signed, compliant verification in production.
           </p>
         </div>
-        <span className="hud-coord">OPS//ONBOARD</span>
+        <span className="hud-coord">OPS//ONBOARD · STEP {step + 1}/{STEPS.length}</span>
+      </div>
+
+      <div
+        className="progress-track"
+        role="progressbar"
+        aria-valuenow={Math.round(progress)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Onboarding progress"
+      >
+        <div className="progress-fill" style={{ width: `${progress}%` }} />
       </div>
 
       <div className="steps">
         {STEPS.map((label, i) => (
-          <div
+          <button
+            type="button"
             key={label}
             className={`step ${i === step ? "active" : ""} ${i < step ? "done" : ""}`}
+            onClick={() => setStep(i)}
           >
             {i < step ? "✓ " : `${i + 1}. `}
             {label}
-          </div>
+          </button>
         ))}
       </div>
 
-      {step === 0 && (
-        <div className="card">
-          <div className="card-title">Your publishable API key</div>
-          <label htmlFor="key">API Key</label>
-          <input id="key" type="text" value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
-          <p className="page-subtitle">
-            Sent as <code>X-Api-Key</code> to the Ajna backend. Keep the secret key server-side.
-          </p>
-        </div>
-      )}
+      {/* key={step} re-triggers the entrance animation on every transition */}
+      <div key={step} className="step-pane enter">
+        {step === 0 && (
+          <div className="card">
+            <div className="card-title">Your publishable API key</div>
+            <label htmlFor="key">API Key</label>
+            <input id="key" type="text" value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
+            <p className="page-subtitle">
+              Sent as <code>X-Api-Key</code> to the Ajna backend. Keep the secret key server-side.
+            </p>
+          </div>
+        )}
 
-      {step === 1 && (
-        <div className="card">
-          <div className="card-title">Target platform</div>
-          <label htmlFor="platform">Platform</label>
-          <select
-            id="platform"
-            value={platform}
-            onChange={(e) => setPlatform(e.target.value as Platform)}
-          >
-            <option value="ios">iOS (Swift)</option>
-            <option value="android">Android (Kotlin)</option>
-            <option value="web">Web (TypeScript / WASM)</option>
-          </select>
-        </div>
-      )}
+        {step === 1 && (
+          <div className="card">
+            <div className="card-title">Target platform</div>
+            <label htmlFor="platform">Platform</label>
+            <select
+              id="platform"
+              value={platform}
+              onChange={(e) => setPlatform(e.target.value as Platform)}
+            >
+              <option value="ios">iOS (Swift)</option>
+              <option value="android">Android (Kotlin)</option>
+              <option value="web">Web (TypeScript / WASM)</option>
+            </select>
+          </div>
+        )}
 
-      {step === 2 && (
-        <div className="card">
-          <div className="card-title">Drop-in integration snippet</div>
-          <pre className="code">{snippet}</pre>
-        </div>
-      )}
+        {step === 2 && (
+          <div className="card">
+            <div className="card-title-row">
+              <div className="card-title">Drop-in integration snippet</div>
+              <CopyButton text={snippet} />
+            </div>
+            <pre className="code">{snippet}</pre>
+          </div>
+        )}
 
-      {step === 3 && (
-        <div className="card">
-          <div className="card-title">Verify the connection</div>
-          <p className="page-subtitle">Run this against your backend to confirm auth works:</p>
-          <pre className="code">{`curl -s https://api.your-ajna.example/health \\
-  -H "X-Api-Key: ${apiKey}"
+        {step === 3 && (
+          <div className="card">
+            <div className="card-title-row">
+              <div className="card-title">Verify the connection</div>
+              <CopyButton text={curl} />
+            </div>
+            <p className="page-subtitle">Run this against your backend to confirm auth works:</p>
+            <pre className="code">{curl}</pre>
+          </div>
+        )}
 
-# Expected: {"status":"ok"}`}</pre>
-        </div>
-      )}
-
-      {step === 4 && (
-        <div className="card">
-          <div className="card-title">You're live 🎉</div>
-          <p className="page-subtitle">
-            IDV, Intel (device posture), and Vision (liveness) share one PQC-signed result
-            envelope. Country rules and NQM compliance are enforced server-side automatically.
-          </p>
-          <span className="pill ok">SOC2 audit logging active</span>{" "}
-          <span className="pill ok">NQM PQC signing active</span>
-        </div>
-      )}
+        {step === 4 && (
+          <div className="card">
+            <div className="card-title">You're live 🎉</div>
+            <p className="page-subtitle">
+              IDV, Intel (device posture), and Vision (liveness) share one PQC-signed result
+              envelope. Country rules and NQM compliance are enforced server-side automatically.
+            </p>
+            <span className="pill ok">SOC2 audit logging active</span>{" "}
+            <span className="pill ok">NQM PQC signing active</span>
+          </div>
+        )}
+      </div>
 
       <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
         <button
+          type="button"
           className="btn secondary"
           disabled={step === 0}
           onClick={() => setStep((s) => Math.max(0, s - 1))}
@@ -122,6 +151,7 @@ export function Onboarding() {
           Back
         </button>
         <button
+          type="button"
           className="btn"
           disabled={step === STEPS.length - 1}
           onClick={() => setStep((s) => Math.min(STEPS.length - 1, s + 1))}

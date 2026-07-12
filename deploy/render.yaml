@@ -36,6 +36,9 @@ services:
       - key: DATABASE_URL
         sync: false            # Supabase Session-pooler URI (you paste this)
       - key: JWT_SECRET
-        sync: false            # only needed for JWT bearer auth; see chat
+        sync: false            # only needed for JWT bearer auth; unset = bearer tokens rejected (fail-closed)
+      - key: ALLOW_UNREGISTERED_ED25519_KEYS
+        value: "true"          # DEMO REFERENCE STACK ONLY (VR-2): lets sign_demo's
+                               # ephemeral ed25519 key verify. Remove in production.
       - key: CORS_ALLOWED_ORIGINS
         value: https://ajna-platform.vercel.app

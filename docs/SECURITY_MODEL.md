@@ -47,10 +47,22 @@ This preserves backward compatibility with classical verifiers while establishin
 
 ## Transport Security
 
-- **Session key**: ML-KEM-1024 (Kyber-1024) encapsulation before transmission. Ciphertext: 1568 bytes. Shared secret: 32 bytes (AES-256-GCM key material).
-- **Transport**: TLS 1.3 minimum. TLS 1.2 is not permitted by the Ajna server.
-- **Certificate pinning**: Integrators MUST pin the Ajna API certificate. Use `NSURLSession` trust evaluation on iOS and `OkHttp CertificatePinner` on Android.
-- **Result encryption**: `ScanResult` payload is encrypted with AES-256-GCM using the ML-KEM shared secret before TLS transmission.
+**Implemented today:**
+- **Transport**: HTTPS terminated by the hosting layer (Render/enterprise proxy).
+  The backend binary itself serves plain HTTP behind that termination.
+- **Payload integrity**: results are signed (Ed25519 / ML-DSA-65) with nonce,
+  session, and timestamp bound into the signed bytes (VR-1) — integrity and
+  replay protection hold even if the transport channel is compromised.
+- **ML-KEM-1024 primitive**: `MlKemSession` (encapsulation/decapsulation,
+  1568-byte ciphertext, 32-byte shared secret) is implemented and tested in
+  `core/src/crypto.rs`, but is **not yet wired into the request path**.
+
+**Roadmap (not yet implemented — do not claim in sales/compliance contexts):**
+- AES-256-GCM payload encryption keyed from the ML-KEM shared secret.
+- TLS 1.3-minimum enforcement at the application layer.
+- Certificate pinning guidance for integrators (`NSURLSession` trust
+  evaluation on iOS, `OkHttp CertificatePinner` on Android) — recommended
+  practice today, required once payload encryption ships.
 
 ---
 
@@ -61,8 +73,16 @@ This preserves backward compatibility with classical verifiers while establishin
 - **Mitigation**: Quality gates reject frames below confidence threshold. PQC signature is over the extracted fields, not the raw image — a low-confidence result is flagged explicitly via `ScanResult.confidence`.
 
 ### 2. Camera feed injection
-- **Threat**: Malicious app overlays a pre-recorded document frame onto the camera stream.
-- **Mitigation**: Motion gate (`motion_score > 0.12` rejects static/replayed frames). Liveness detection is a higher-level concern outside Ajna's scope; implement at the application layer.
+- **Threat**: Malicious app or virtual camera feeds pre-recorded or synthetic frames into the capture stream.
+- **Mitigation (partial — honestly scoped)**: The motion gate rejects frames with
+  *excess* motion (`motion_score > 0.12`, camera shake / smearing); it does **not**
+  detect static replays. Replay/injection resistance comes from: (a) the
+  challenge-response liveness FSM in `crates/ajna-vision` (randomized prompts a
+  pre-recorded feed cannot follow), and (b) device-posture signals in
+  `crates/ajna-intel` (hooking frameworks, emulators). OS-level virtual-camera
+  injection on a clean device remains the known structural gap — see
+  `docs/AI_FRAUD_STRATEGY.md` (threat T2) for the committed capture-path
+  attestation design.
 
 ### 3. Gralloc buffer pool starvation (Android)
 - **Threat**: Rapid acquisition of `ImageReader` buffers without releasing them causes pipeline stall.
@@ -77,8 +97,15 @@ This preserves backward compatibility with classical verifiers while establishin
 - **Mitigation**: `PqcSigner::generate()` calls `libc::mlock()` on the private key Vec on non-WASM targets. The key is zeroed (volatile write) and `munlock()`-ed in `Drop`. On WASM, this protection is unavailable — see Platform Key Storage above.
 
 ### 6. Signature replay
-- **Threat**: Attacker re-submits a previously signed `ScanResult` for a different user.
-- **Mitigation**: `canonical_bytes()` encodes document fields deterministically. The server must enforce nonce-or-timestamp freshness on received results. Ajna does not include a nonce in the signature payload by design — this is a server responsibility.
+- **Threat**: Attacker re-submits a previously signed `ScanResult` for a different user or session.
+- **Mitigation (VR-1)**: the session nonce, session id, and UTC timestamp are
+  bound into the signed canonical bytes as reserved `__nonce` / `__session_id` /
+  `__timestamp` entries (`core/src/result.rs`). The backend validates all three
+  against the issued nonce and a freshness window before verifying the
+  signature, and consumes the nonce only on success
+  (`backend/src/routes/verify.rs`). When the SDK is used standalone (no
+  backend), these fields are omitted and replay protection is the integrator's
+  responsibility.
 
 ---
 
@@ -95,8 +122,10 @@ and are documented here to prevent misrepresentation in sales or compliance cont
    NIST-standardised algorithm but has not undergone NIST Cryptographic Module
    Validation Program testing. CMVP validation is on the Phase 3 roadmap.
 
-3. **Biometric liveness detection** — Face match and liveness are provided by FaceGuard,
-   a separate Ajna AI product not included in Ajna Verify.
+3. **Certified liveness (PAD)** — Challenge-response liveness and face-embedding
+   match ship in this repo (`crates/ajna-vision`), but have not been evaluated
+   against ISO/IEC 30107-3 presentation-attack-detection levels. Do not claim
+   PAD certification. See `docs/AI_FRAUD_STRATEGY.md`.
 
 4. **NFC chip reading** — ICAO 9303 NFC-based chip authentication is on the Phase 2 roadmap.
 

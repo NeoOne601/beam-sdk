@@ -30,7 +30,7 @@
 ## ADR-006 — Dashboard enterprise stack (accepted, 2026-07-12, cycle 1)
 - **Context:** §15 — dashboard is school-project grade; must become an enterprise
   console without losing the tactical HUD brand.
-- **Decision:** `react-router-dom` v6 (D1), `recharts` (D4), `lucide-react` (D6);
+- **Decision:** `react-router-dom` (v7 as installed) (D1), `recharts` (D4), `lucide-react` (D6);
   in-house toasts, command palette, auth context, telemetry polling hook; extend
   `theme.css` — no Tailwind, no component library.
 - **Alternatives:** Tailwind/MUI/Ant (rejected — §15 explicitly forbids; the custom
@@ -63,6 +63,24 @@
 - **Status:** proposed — validate via research cycles (RESEARCH.md queue) before
   committing engineering resources. No conventional-IDV work is discarded.
 
+## ADR-009 — VR-2 enforcement + fail-closed JWT (accepted, 2026-07-12, cycle 3)
+- **Context:** independent audit (§9 verifier) found VR-2 was documented but not
+  enforced — both verification paths trusted client-supplied public keys; the
+  registered-key lookup was only an existence check. Separately, unset
+  `JWT_SECRET` silently accepted **unsigned** bearer tokens.
+- **Decision:** (1) `/v1/verify` now verifies exclusively against the registered
+  key; client-supplied key material must match byte-for-byte or the request is
+  401-rejected. Demo escape hatch `ALLOW_UNREGISTERED_ED25519_KEYS=true`
+  (default false) permits ed25519 fallback, warned in logs and recorded as
+  `key_trust: "client-supplied-demo"` in the audit chain. (2) Bearer tokens are
+  rejected outright when `JWT_SECRET` is unset (API-key auth unaffected).
+  (3) `verification_results.pqc_public_key_hex` now stores the hex of the key
+  actually used (was: hex of the base64 signature string — wrong content).
+- **Alternatives:** strict-only with no demo flag (breaks the reference demo,
+  whose signer uses ephemeral keys); trust-on-first-use (silently converts an
+  attacker's first key into "the" key — rejected).
+- **Outcome:** backend tests green (37/37), clippy clean; deploy docs updated.
+
 ## Risk register (criterion 10)
 
 | Risk | Status |
@@ -71,3 +89,7 @@
 | Liveness vs virtual-camera injection | Open; ADR-008 direction (1); design doc queued |
 | Portal auth is demo-grade | Accepted for demo (ADR-007); Phase 2 roadmap item |
 | Free-tier backend cold start (~50 s) skews demos | Mitigated: dashboard telemetry falls back to simulator |
+| Tenant API keys stored/compared in plaintext (`tenants.api_key`) | Open — hash-at-rest migration queued Phase 2 (needs key-issuance flow changes) |
+| `/v1/webhooks` validates but does not persist; delivery unwired | Disclosed in openapi.yaml; wire-up or removal queued Phase 2 |
+| SSRF check is string-level (no DNS resolution) | Low exposure while delivery is unwired; resolve-time check queued with webhook wire-up |
+| Signed JWTs skip `exp` validation (`validate_exp=false`) | Open — enable once issued tokens carry `exp`; documented in auth.rs |

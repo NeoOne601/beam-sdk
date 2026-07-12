@@ -164,26 +164,79 @@ pub async fn verify_result(
     .map_err(|e| AppError::BadRequest(format!("Invalid base64 signature: {}", e)))?;
 
     // ── Step 9: Dispatch verification by algorithm ───────────────────────────────
-    // The `algo` field in ScanResultPayload selects the verification path.
-    // ed25519 uses the base64-decoded public_key from the payload (client-side key
-    // transport); ml-dsa-65 uses the server-side trusted_key.public_key_bytes (VR-2).
+    // VR-2: verification uses ONLY the pre-registered trusted key. Client-supplied
+    // key material is either ignored or must match the registered key byte-for-byte.
+    // The single documented exception is ALLOW_UNREGISTERED_ED25519_KEYS=true
+    // (demo deployments): ed25519 may fall back to the client-supplied key, and
+    // every such verification is warned in logs and marked in the audit trail.
+    let mut key_trust = "registered";
+    let mut used_key_hex = hex::encode(&trusted_key.public_key_bytes);
     let verified = match req.scan_result.algo.as_str() {
         "ed25519" => {
-            let pub_key_bytes = base64::engine::general_purpose::STANDARD
+            let client_key_bytes = base64::engine::general_purpose::STANDARD
                 .decode(&req.scan_result.public_key)
                 .map_err(|e| AppError::BadRequest(format!("Invalid public_key base64: {e}")))?;
+
+            let key_bytes: &[u8] = if trusted_key.algorithm.eq_ignore_ascii_case("ed25519") {
+                if !client_key_bytes.is_empty()
+                    && client_key_bytes != trusted_key.public_key_bytes
+                {
+                    return Err(AppError::Unauthorized(
+                        "Supplied public_key does not match the registered ed25519 key (VR-2)"
+                            .into(),
+                    ));
+                }
+                &trusted_key.public_key_bytes
+            } else if state.config.allow_unregistered_ed25519 {
+                tracing::warn!(
+                    tenant_id = %tenant.tenant_id,
+                    "VR-2 demo mode: verifying against CLIENT-SUPPLIED ed25519 key \
+                     (ALLOW_UNREGISTERED_ED25519_KEYS=true). Do not run production this way."
+                );
+                key_trust = "client-supplied-demo";
+                used_key_hex = hex::encode(&client_key_bytes);
+                &client_key_bytes
+            } else {
+                return Err(AppError::Unauthorized(
+                    "No registered ed25519 key for this tenant; client-supplied keys are \
+                     not trusted (VR-2). Register the key, or set \
+                     ALLOW_UNREGISTERED_ED25519_KEYS=true for demo deployments only."
+                        .into(),
+                ));
+            };
+
             crate::crypto::ed25519_verifier::verify_ed25519(
                 &canonical_bytes,
                 &sig_bytes,
-                &pub_key_bytes,
+                key_bytes,
             )
             .map_err(|e| AppError::Internal(anyhow::anyhow!(e.to_string())))?
         }
-        "ml-dsa-65" => crate::crypto::ml_dsa_verifier::verify_dilithium3(
-            &req.scan_result.pqc_public_key,
-            &canonical_bytes,
-            &sig_bytes,
-        ),
+        "ml-dsa-65" => {
+            if !trusted_key
+                .algorithm
+                .to_ascii_lowercase()
+                .starts_with("ml-dsa")
+            {
+                return Err(AppError::Unauthorized(format!(
+                    "Registered key algorithm is '{}', not ML-DSA; cannot verify an \
+                     ml-dsa-65 result against it (VR-2)",
+                    trusted_key.algorithm
+                )));
+            }
+            if !req.scan_result.pqc_public_key.is_empty()
+                && req.scan_result.pqc_public_key != trusted_key.public_key_bytes
+            {
+                return Err(AppError::Unauthorized(
+                    "Supplied pqc_public_key does not match the registered key (VR-2)".into(),
+                ));
+            }
+            crate::crypto::ml_dsa_verifier::verify_dilithium3(
+                &trusted_key.public_key_bytes,
+                &canonical_bytes,
+                &sig_bytes,
+            )
+        }
         "ecdsa-p256" => {
             return Err(AppError::BadRequest(
                 "ECDSA-P256 verification not yet implemented. \
@@ -262,7 +315,7 @@ pub async fn verify_result(
         req.scan_result.issuing_country,
         req.scan_result.confidence as f64,
         verified,
-        hex::encode(&req.scan_result.pqc_signature),
+        used_key_hex,
         serde_json::to_value(&fraud_signals).ok(),
         trusted_key.key_id
     )
@@ -284,6 +337,7 @@ pub async fn verify_result(
             "issuing_country": req.scan_result.issuing_country,
             "confidence": req.scan_result.confidence,
             "key_id": trusted_key.key_id,
+            "key_trust": key_trust,
             "verification_id": verification_id.to_string(),
             "country_rules": serde_json::to_value(&country_rules).unwrap_or_default(),
             "nqm_profile": nqm_compliance.profile,

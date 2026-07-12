@@ -10,10 +10,12 @@ info:
 
     **Authentication** — every endpoint except `GET /health` requires either
     an `X-Api-Key` header or an `Authorization: Bearer <JWT>` (HS256). Both
-    resolve to a tenant context; all data is tenant-scoped (VR-3).
+    resolve to a tenant context; all data is tenant-scoped (VR-3). JWT auth is
+    available only when the deployment sets `JWT_SECRET`; without it, bearer
+    tokens are rejected (fail-closed) and `X-Api-Key` must be used.
 
-    **Rate limiting** — Redis token-bucket per tenant; expect `429` when
-    exhausted. Request bodies are limited to 1 MiB.
+    **Rate limiting** — Redis fixed-window counter per tenant; expect `429`
+    when exhausted. Request bodies are limited to 1 MiB.
   contact:
     name: Ajna
 servers:
@@ -142,6 +144,7 @@ paths:
           in: query
           required: false
           schema: { type: string, format: uuid }
+          description: Reserved for session filtering (currently logged, not applied)
         - name: from
           in: query
           required: false
@@ -190,9 +193,14 @@ paths:
       operationId: registerWebhook
       summary: Register a webhook endpoint (SSRF-guarded, VR-5)
       description: |
-        The URL must be `https://`, resolve to a public address (RFC-1918,
-        loopback, link-local, and cloud metadata hosts are rejected), and is
-        fetched with a 10 s timeout and a 3-redirect limit.
+        The URL must be `https://` and pass string-level SSRF validation
+        (RFC-1918, loopback, link-local, and cloud-metadata host literals are
+        rejected; hostnames are NOT DNS-resolved at validation time). Delivery
+        uses a hardened client (10 s timeout, 3-redirect limit).
+
+        **Current limitation:** registrations are validated and acknowledged
+        but not yet persisted — webhook delivery is not wired up. Treat this
+        endpoint as reserved API surface.
       tags: [webhooks]
       requestBody:
         required: true

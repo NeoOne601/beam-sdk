@@ -21,7 +21,13 @@ createdb ajna_verify 2>/dev/null; psql -d postgres -c "CREATE ROLE ajna LOGIN PA
 export DATABASE_URL="postgres://ajna:ajna@localhost:5432/ajna_verify?sslmode=disable"
 ./deploy/provision-db.sh
 # seed a demo tenant + trusted key (see backend/examples/sign_demo.rs header)
+# ALLOW_UNREGISTERED_ED25519_KEYS=true is DEMO-ONLY (VR-2): sign_demo signs with
+# a fresh ephemeral ed25519 key, which is not in trusted_public_keys. Production
+# deployments must omit this flag — verification then fails closed against
+# unregistered keys, and such demo verifications are marked
+# "key_trust":"client-supplied-demo" in the audit chain.
 DB_REQUIRE_TLS=false REDIS_URL=redis://127.0.0.1:6379 \
+  ALLOW_UNREGISTERED_ED25519_KEYS=true \
   CORS_ALLOWED_ORIGINS=http://localhost:5173 ./target/release/ajna-verify-backend &
 curl -s localhost:8080/health
 # drive a signed verification:

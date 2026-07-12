@@ -69,8 +69,8 @@ Gate::Accepted → C++ inference → ajna_session_push_result()
 | Quality gates (total) | < 4 ms | CPU-only, Laplacian + histogram + SAD + Sobel (4× subsampled) |
 | TFLite GPU (Mali-G57) | < 45 ms | GPU delegate, AHardwareBuffer zero-copy |
 | TFLite CPU XNNPACK | < 200 ms | Fallback path, 2 threads |
-| Total pipeline heap | < 48 MB | Includes model weights (not in repo) |
-| Frame budget at 25fps | 40 ms | 4ms gates + 30ms inference + 6ms margin |
+| Total pipeline heap | < 48 MB | Excluding model weights (matches README performance budget) |
+| Frame budget at 25fps | 40 ms | 4ms gates + 35ms inference + 1ms margin (matches README) |
 
 ## Post-Quantum Cryptography
 
@@ -83,7 +83,7 @@ Ajna uses Dilithium-3 (ML-DSA Level 3) for result signing. Parameters:
 | Security level | 128-bit post-quantum |
 | Public key | 1952 bytes |
 | Secret key | 4000 bytes |
-| Signature | 3293 bytes |
+| Signature | 3309 bytes as shipped (PQClean Round-3; FIPS 204 nominal is 3293 — see README ADR log) |
 | NIST standard | FIPS 204 (August 2024) |
 
 The signing target is `ScanResult::canonical_bytes()` — a deterministic, sorted, length-prefixed encoding of all document fields plus document type and issuing country.
@@ -120,4 +120,8 @@ Transport key encapsulation uses Kyber-1024:
 
 ## Entity Graph
 
-Ajna delivers a PQC-signed `ScanResult` to the host application. The entity graph linking IDV results to FaceGuard face embeddings and Guardian device fingerprints is assembled **server-side by Ajna**. Ajna does not implement cross-product linking.
+Ajna delivers a PQC-signed `ScanResult` to the host application. Face liveness
+(`crates/ajna-vision`) and device posture (`crates/ajna-intel`) ship in this
+workspace as first-class pillars, each emitting its own signed result.
+Cross-pillar entity linking (one identity graph spanning IDV, face, and device
+signals) is server-side roadmap scope — the on-device SDK does not link them.

@@ -28,6 +28,13 @@ pub struct AppConfig {
     /// Results with __timestamp older than this are rejected (VR-1).
     /// Default: 300 seconds (5 minutes) — matches nonce TTL.
     pub result_freshness_window_secs: u64,
+
+    /// VR-2 escape hatch for demos ONLY. When true, ed25519 results may be
+    /// verified against the client-supplied public key when the tenant has no
+    /// registered ed25519 key. Every such verification is warned in logs and
+    /// marked "client-supplied-demo" in the audit trail. Default: false —
+    /// verification fails closed against unregistered keys.
+    pub allow_unregistered_ed25519: bool,
 }
 
 impl AppConfig {
@@ -60,6 +67,9 @@ impl AppConfig {
                 .unwrap_or_else(|_| "300".into())
                 .parse()
                 .unwrap_or(300),
+            allow_unregistered_ed25519: std::env::var("ALLOW_UNREGISTERED_ED25519_KEYS")
+                .map(|v| v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false),
         })
     }
 }

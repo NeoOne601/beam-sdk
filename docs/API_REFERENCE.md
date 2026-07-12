@@ -149,7 +149,7 @@ pub fn canonical_bytes(&self) -> Vec<u8>
 | Variant | Classical Security | PQ Security | Signature Length | Public Key |
 |---------|-------------------|-------------|-----------------|------------|
 | `Level2` | 128-bit | 64-bit | 2420 B | 1312 B |
-| `Level3` | 192-bit | 96-bit | 3293 B | 1952 B |
+| `Level3` | 192-bit | 96-bit | 3293 B nominal (shipped PQClean Round-3 emits **3309 B** — size buffers for 3309) | 1952 B |
 | `Level5` | 256-bit | 128-bit | 4595 B | 2592 B |
 
 #### `struct PqcSigner`
@@ -208,23 +208,32 @@ pub fn push_result(&mut self, result: ScanResult)
 
 All functions are `#[no_mangle] extern "C"` and safe to call from C/C++/ObjC.
 
+> **Canonical signatures live in [`include/ajna_ffi.h`](../include/ajna_ffi.h)** —
+> that header is what every platform bridge compiles against, and it wins on any
+> difference. Post-VR-4, fallible functions return `int32_t` status codes
+> (`0 = OK`, negative = error). `ajna_session_get_result_json` and
+> `ajna_ui_config_validate` are also exported (see header).
+
 ```c
 // Session lifecycle
 AjnaSessionHandle ajna_session_create(AjnaSessionConfig config);
-void              ajna_session_destroy(AjnaSessionHandle handle);  // null-safe
-void              ajna_session_start(AjnaSessionHandle, uint64_t timestamp_us);
+int32_t           ajna_session_destroy(AjnaSessionHandle handle);  // null-safe
+int32_t           ajna_session_start(AjnaSessionHandle, uint64_t timestamp_us);
 uint32_t          ajna_session_get_state(AjnaSessionHandle);       // returns SessionState
 
 // Quality gate
 AjnaGateHandle ajna_gate_create(void);
 uint32_t       ajna_gate_evaluate(AjnaGateHandle, const AjnaRawFrame*); // returns Gate discriminant
-void           ajna_gate_destroy(AjnaGateHandle);  // null-safe
+int32_t        ajna_gate_destroy(AjnaGateHandle);  // null-safe
 
-// Result ingestion (called by C++ inference layer)
-void ajna_session_push_result(
+// Result ingestion (called by C++ inference layer).
+// VR-1: nonce + session id are passed in and bound into the signed bytes.
+int32_t ajna_session_push_result(
     AjnaSessionHandle, const CField*, size_t field_count,
     const uint8_t* doc_type, size_t doc_type_len,
     const uint8_t* country,  size_t country_len,
+    const uint8_t* nonce_ptr, size_t nonce_len,
+    const uint8_t* session_id_ptr, size_t session_id_len,
     float overall_conf, bool include_pqc_sig
 );
 ```

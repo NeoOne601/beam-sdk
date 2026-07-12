@@ -1,5 +1,20 @@
 # tasks/todo.md — Current Cycle Scorecard
 
+## Cycle 3 (2026-07-12) — docs-freshness + security-consistency audit (§12.3/§12.9)
+
+- [x] §9 auditor agent: docs freshness + VR-1..6 code consistency
+- [x] **security(VR-2): enforce registered-key verification** — client keys must
+      match or are rejected; `ALLOW_UNREGISTERED_ED25519_KEYS` demo flag (ADR-009)
+- [x] **security(auth): fail closed on unset JWT_SECRET** (was: unsigned tokens accepted)
+- [x] fix `pqc_public_key_hex` column content (was hex of base64 signature)
+- [x] SECURITY_MODEL.md rewritten where it contradicted code (nonce binding,
+      transport claims, motion gate, liveness scope)
+- [x] README/API_REFERENCE/WHITEPAPER/openapi/PRODUCT stale references corrected
+- [x] Backend tests 37/37 green + clippy clean after fixes
+- [ ] Re-run full workspace suite before next Rust-touching commit
+- [ ] Phase 2 carry-overs: API-key hashing, webhook wire-up or removal,
+      resolve-time SSRF check, JWT exp validation
+
 ## Cycle 2 (2026-07-12) — §12 evidence sweep
 
 - [x] Criterion 8: `SQLX_OFFLINE=true cargo test --release -j 2` → exit 0,

@@ -54,7 +54,7 @@ Camera frame (NV12, zero-copy)
 
 ## Dashboard architecture (post-§15 overhaul, cycle 1)
 
-- **Routing:** `react-router-dom` v6 — `/login`, `/` (Operations overview), `/architecture`,
+- **Routing:** `react-router-dom` v7 — `/login`, `/` (Operations overview), `/architecture`,
   `/onboarding`, `/customizer`, `/audit`, `/keys`. Auth-gated via `RequireAuth`.
 - **State:** React Context + `useReducer` for auth session (demo JWT in `sessionStorage`);
   component-local state elsewhere. No global store.

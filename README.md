@@ -735,8 +735,8 @@ The `ajna-mcp-server` crate is a hand-rolled stdio JSON-RPC 2.0 server implement
 |---|---|---|
 | `ajna_evaluate_device_posture` | `DeviceIndicators` JSON | Signed `PostureReport` with verdict + risk score |
 | `ajna_verify_face` | Session config + liveness observations | Liveness FSM outcome (passed/failed + challenge progress) |
-| `ajna_verify_document` | OCR text lines + confidence | Parsed `ScanResult` with check-digit validation |
-| `ajna_query_audit_log` | Tenant ID + date range + API key | Filtered audit entries + chain integrity status |
+| `ajna_verify_document` | Signed scan-result payload (session, nonce, fields, signature) | Backend `/v1/verify` outcome — proxied via `AJNA_BACKEND_URL` + `AJNA_API_KEY` |
+| `ajna_query_audit_log` | `{limit}` | Recent audit entries for the configured tenant (via backend `/v1/audit`) |
 
 ### Integration
 
@@ -983,7 +983,7 @@ The `ci/android_build_matrix.yml` extends the Android job to all three ABIs (arm
 ### Rust Test Suite
 
 ```bash
-cd core && cargo test --release
+SQLX_OFFLINE=true cargo test --release -j 2   # workspace-wide; -j 2 is mandatory on 8 GB machines
 ```
 
 | Test File | What Is Tested |
@@ -1013,7 +1013,7 @@ If any of these fail, the GPU layer is receiving frames that the quality filters
 # After building libajna_core.a for host:
 clang++ -O2 tests/ffi_integration_tests.cpp \
     -I include/ \
-    -L core/target/release \
+    -L target/release \
     -lajna_core -lpthread -ldl \
     -o ffi_tests
 ./ffi_tests
@@ -1042,7 +1042,7 @@ Full documentation: [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md)
 | Threat | Mitigation |
 |---|---|
 | Adversarial or synthetic documents | Quality gates reject low-confidence frames. `ScanResult.confidence` is explicit and signed. |
-| Camera feed injection and replay attacks | MotionCheck: SAD normalized above 0.12 rejects static or replayed frames. |
+| Camera feed injection and replay attacks | Challenge-response liveness FSM (randomized prompts) + device-posture hook/emulator detection. MotionCheck rejects shaken/smeared frames only — OS-level virtual-camera injection is a known gap; see `docs/AI_FRAUD_STRATEGY.md` (T2). |
 | Gralloc buffer pool starvation (Android) | `ImageReader.newInstance(..., maxImages=4)`. `image.close()` is unconditional in the callback. |
 | JNI NULL pointer dereference | All `#[no_mangle]` functions null-guard handle parameters. |
 | Private key swap exposure | `libc::mlock()` on secret key allocation. Volatile write zeroing in `Drop`. `munlock()` on deallocation. |
@@ -1090,6 +1090,15 @@ This section documents every architectural decision made during the security rem
 - `ModelKeyProvider` — looks up a key by `model_id` + `model_version` pair
 
 The active strategy is selected by environment variable (`KEY_PROVIDER_STRATEGY=tenant|device|model`). This allows Phase 1 to ship with the tenant strategy and enables enterprises to migrate to device-level keys without code changes.
+
+**Enforcement note (2026-07-12 hardening):** verification now uses **only** the
+registered key bytes. Client-supplied key material must match the registered key
+byte-for-byte or the request is rejected with `401`. The single exception is
+`ALLOW_UNREGISTERED_ED25519_KEYS=true` (default `false`), a demo-deployment flag
+that permits ed25519 verification against a client-supplied key when the tenant
+has no registered ed25519 key — every such verification is warned in server logs
+and recorded as `"key_trust": "client-supplied-demo"` in the audit chain. Never
+set this flag in production.
 
 ### VR-3 — Backend Authentication and Tenant Isolation (High)
 
@@ -1176,7 +1185,7 @@ The active strategy is selected by environment variable (`KEY_PROVIDER_STRATEGY=
 | `include/ajna_ffi.h` | Canonical C header for the FFI boundary, consumed by all three platform bridges |
 | `build/CMakeLists.txt` | Cross-platform build: Android, iOS, WASM targets, Rust static lib linkage |
 | `docker-compose.yml` | Full-stack local dev: backend + dashboard + postgres + redis (256 MB caps) |
-| `deploy/DEPLOYMENT.md` | $0 deployment runbook: Neon + Fly.io + Vercel free tiers |
+| `deploy/DEPLOYMENT.md` | $0 deployment runbook (Render + Supabase + Vercel reference stack; Neon/Fly.io variants included) |
 | `platform/android/tflite_bridge.cpp` | TFLite GPU delegate, NNAPI, AHardwareBuffer zero-copy, JNI exports |
 | `platform/ios/coreml_bridge.mm` | CoreML inference, CVPixelBuffer zero-copy, ANE dispatch |
 | `platform/wasm/onnx_bridge.cpp` | ONNX Runtime WebGPU EP, WASM mandatory copy path |

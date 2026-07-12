@@ -106,27 +106,19 @@ async fn resolve_jwt(state: &Arc<AppState>, token: &str) -> Result<TenantContext
     let secret = std::env::var("JWT_SECRET").unwrap_or_default();
 
     let tenant_id_str: String = if secret.is_empty() {
-        // Dev mode: no signature verification. Log a warning on every call.
+        // Fail closed: without JWT_SECRET there is no way to verify a token's
+        // signature, so bearer tokens are rejected outright. API-key auth
+        // (X-Api-Key) remains available. Accepting unsigned tokens here would
+        // let anyone authenticate as any tenant by minting a payload.
         tracing::warn!(
-            "JWT_SECRET is not set. JWT signature verification is DISABLED. \
-             Set JWT_SECRET=<secret> in production to enforce signature validation."
+            "Bearer token rejected: JWT_SECRET is not set, so JWT signatures cannot \
+             be verified. Set JWT_SECRET to enable JWT auth, or use X-Api-Key."
         );
-        // Fallback: decode payload from base64 without verifying signature.
-        // This path is identical to the previous stub behaviour.
-        let parts: Vec<&str> = token.splitn(3, '.').collect();
-        if parts.len() < 2 {
-            return Err(AppError::Unauthorized("Malformed JWT".into()));
-        }
-        let payload_bytes =
-            base64::Engine::decode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, parts[1])
-                .map_err(|_| AppError::Unauthorized("JWT payload decode failed".into()))?;
-        let payload: serde_json::Value = serde_json::from_slice(&payload_bytes)
-            .map_err(|_| AppError::Unauthorized("JWT payload not JSON".into()))?;
-        payload
-            .get("tenant_id")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| AppError::Unauthorized("JWT missing tenant_id claim".into()))?
-            .to_owned()
+        return Err(AppError::Unauthorized(
+            "JWT auth is disabled on this deployment (no JWT_SECRET configured). \
+             Authenticate with X-Api-Key instead."
+                .into(),
+        ));
     } else {
         // Production mode: full HS256 signature verification.
         let mut validation = Validation::new(Algorithm::HS256);

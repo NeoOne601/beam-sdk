@@ -57,7 +57,8 @@ Secondary ICP: AI-application platforms needing verification tools inside agent 
 2. **Compliance-led:** SOC2/NQM/DPDP evidence packs generated from the audit chain —
    sell to the auditor's checklist, not just the developer.
 3. **Agent-led (differentiator):** listed in MCP registries; agents can call
-   `verify_document` / `check_liveness` / `device_posture` / `query_audit` as tools.
+   `ajna_verify_document` / `ajna_verify_face` / `ajna_evaluate_device_posture` /
+   `ajna_query_audit_log` as tools.
 
 ## Pricing Model (draft — Human Gate before publishing)
 

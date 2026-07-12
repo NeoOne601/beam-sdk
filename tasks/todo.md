@@ -1,40 +1,32 @@
-# Ajna Mobile Compile & Wire — Plan
+# tasks/todo.md — Current Cycle Scorecard
 
-## Toolchain reality (recon done)
-| Need | Status | Blocker |
-|---|---|---|
-| Rust apple + android targets | ✅ installed | — |
-| Xcode 26.6 | ✅ | — |
-| Android NDK | ❌ missing | ~1GB install (needs permission) |
-| Android SDK + Gradle | ❌ missing | multi-GB (needs permission; 8GB RAM risk) |
-| emscripten (WASM) | ❌ missing | ~1GB install (needs permission) |
-| ngrok | ❌ missing | install + authtoken signup |
-| local Postgres/Redis | ✅ installed | — |
-| Supabase (migrated+seeded) | ✅ done prior goal | verify only |
+## Cycle 1 (2026-07-12) — Bootstrap + Dashboard Enterprise Overhaul (§15)
 
-## Do now (NO new installs)
-- [ ] 1. Download MediaPipe `face_landmarker.task` → `samples/android/app/src/main/assets/` (criterion 1a).
-- [ ] 2. iOS: build Rust core for aarch64-apple-ios + aarch64-apple-ios-sim (`-j 2`),
-      package `dist/AjnaSDK.xcframework` via scripts/package_ios_xcframework.sh (criterion 2b). VERIFY it builds.
-- [ ] 3. iOS: wire liveness to Vision (VNDetectFaceLandmarksRequest), OCR to Vision
-      (VNRecognizeTextRequest), AVFoundation frames; replace simulated ScanView.swift flow
-      with real AjnaSDK.swift / AjnaCameraAdapter.swift calls (criterion 1b, 4).
-- [ ] 4. Android SOURCE wiring (compiles once NDK/SDK present): ML Kit Text Recognition
-      dep, MediaPipe landmarker, real JNI calls in ScanActivity.kt → AjnaNativeBridge (criterion 3).
-      (APK build itself gated on SDK install.)
-- [ ] 5. Supabase: verify migrations + `ajna_live_sk_demo_0000` seed (criterion 5a).
-- [ ] 6. Local backend on :8080 (criterion 5b, partial — WASM gated on emscripten).
-- [ ] 7. iOS compile verification: swiftc typecheck of sample against the xcframework headers
-      (full Xcode build needs an .xcodeproj + signing — state steps, pause) (criterion 6b).
+- [x] Bootstrap state files: PRODUCT, ARCHITECTURE, RESEARCH, DECISIONS, ROADMAP, lessons
+- [x] Install §15 deps: react-router-dom, recharts, lucide-react (pre-approved by §15)
+- [x] Dashboard overhaul D1–D14 (auth, routing, telemetry, charts, palette, toasts,
+      skeletons, responsive, a11y, onboarding polish, audit drill-down, customizer,
+      key management)
+- [x] `npm run build` green (tsc + vite)
+- [x] Browser verification pass (desktop/tablet/mobile, console clean)
+- [x] §9 verifier agent: PASS — all D1–D14 YES, visual audit PREMIUM; MEDIUM
+      scrim-resize defect + metric rounding fixed and re-verified
+- [x] Update memory.md, commit (conventional commits)
 
-## Needs your permission (install) — will ask, then resume
-- Android NDK (r26) — for android Rust targets + AAR (criterion 2a).
-- Android SDK cmdline-tools + platform + build-tools + Gradle — for APK (criterion 6a).
-- emscripten — for WASM/JS adapter (criterion 5b WASM).
-- ngrok — to expose backend+web to your phone (criterion 5c); also needs your authtoken.
+### Carried from verifier (LOW, next dashboard cycle)
+- [ ] Focus trap + focus-restore in ConfirmDialog / CommandPalette
+- [ ] `Hash` chip keyboard operability (tabIndex + Enter)
+- [ ] useCountUp freezes in background tabs (rAF) — acceptable; revisit if reported
+- [ ] Code-split recharts chunk (640 kB bundle) if load time matters
 
-## Needs your manual setup (state + pause)
-- Xcode signing / provisioning profile for physical iPhone deploy (criterion 6).
-- Android Studio open + USB device for APK install (criterion 6).
+## Backlog (carried)
 
-## -j 2 on every cargo build (M1 RAM rule).
+### Mobile compile & wire (blocked on §13 Human Gates — owner installs)
+- Android NDK r26 + SDK + Gradle → AAR/APK; emscripten → WASM; ngrok.
+- iOS: Vision wiring + xcframework typecheck; Xcode signing for device deploy.
+- MediaPipe `face_landmarker.task` → samples/android assets.
+- Supabase seed verify (`ajna_live_sk_demo_0000`); local backend :8080.
+
+### Phase 1 queue (see ROADMAP.md)
+- OpenAPI spec (§12.7) · anti-injection strategy doc (§12.4) · PQC hybrid design
+  (§12.5) · identity model consolidation (§12.6) · docs freshness sweep (§12.9).

@@ -762,27 +762,39 @@ Local tools (`evaluate_device_posture`, `verify_face`, `verify_document`) call i
 
 ## Dashboard & Integration Portal
 
-The `dashboard/` directory contains a React 18 + Vite + TypeScript portal designed with a **Palantir-style tactical defense aesthetic**.
+The `dashboard/` directory contains a React 18 + Vite + TypeScript enterprise
+console designed with a **Palantir-style tactical defense aesthetic**.
+Dependencies are deliberately minimal: `react-router-dom`, `recharts`,
+`lucide-react` — no Tailwind, no component library (the custom CSS is the
+brand differentiator).
 
 ### Design System
 
-- **Theme:** Deep charcoal/slate backgrounds (`#0a0d14`), high-contrast state indicators (military greens for trust, amber for warnings, cyber red for threats), monospaced telemetry fonts (JetBrains Mono / SF Mono) for cryptographic hashes.
-- **Layout:** F-pattern reading flow — status signals and navigation on top/left, critical telemetry center, actions right.
-- **Progressive Disclosure:** Hash chips and raw JSON payloads are hidden behind collapsible `<details>` drawers to keep the interface clean.
+- **Theme:** Deep charcoal/slate backgrounds (`#070b10`), high-contrast state indicators (military greens for trust, amber for warnings, cyber red for threats), monospaced telemetry fonts (JetBrains Mono / SF Mono) for cryptographic hashes.
+- **Layout:** F-pattern reading flow — collapsible icon sidebar left, top command bar (breadcrumbs / org / UTC clock / avatar), telemetry center. Responsive: icon rail at ≤1024px, overlay drawer at ≤768px.
+- **Progressive Disclosure:** Hash chips and raw JSON payloads are hidden behind collapsible `<details>` drawers; verification rows drill down into a glassmorphism detail panel.
+- **Motion:** staggered card entrances, count-up metrics, animated step transitions, `prefers-reduced-motion` respected.
 
-### Pages
+### Console surfaces
 
-| Page | Purpose |
+| Surface | Purpose |
 |---|---|
-| **60-Minute Setup** | Step-by-step onboarding wizard guiding new integrators through SDK installation, backend connection, and first verification |
-| **UI Customizer** | Visual editor for `UiConfig` with a live mobile preview mockup — sliders, color pickers, shape selectors, instant JSON export |
-| **Audit Log** | SOC2 audit chain viewer with hash-chain integrity verification button and transaction detail drawers |
-| **API Keys** | Tenant API key management (demo-local; production key issuance is a backend concern) |
+| **Login gate** | Demo-tenant authentication (`demo@ajna.io` / `ajna-demo`) — session JWT in `sessionStorage`, route guard on every page (ADR-007: production portal auth is a Phase 2 backend feature) |
+| **Operations Overview** | Live telemetry (2 s polling): verification volume time-series, pass/fail donut, geographic distribution, live event feed. Probes the real backend `/health`; honestly labeled `SIMULATED FEED` when the link is down |
+| **Architecture** | Interactive subsystem coupling map, code communities, critical execution flows (static snapshot) |
+| **60-Minute Setup** | Onboarding wizard — progress bar, animated steps, copy-to-clipboard snippets with toast confirmation |
+| **UI Customizer** | Visual editor for `UiConfig` with native color pickers, sliders, animated live preview, Copy-JSON export validated against the SDK schema |
+| **Audit Log** | SOC2 audit chain viewer — hash-chain integrity check, row drill-down panel (payload, ML-DSA-65 signature, chain position, timeline), demo-data mode |
+| **API Keys** | Scoped keys (read/write/admin), rotation & revocation behind confirmation dialogs, per-key usage stats (demo-local; production key issuance is a backend concern) |
+
+Global: `⌘K` command palette, toast notifications, skeleton loading states,
+error boundaries with retry, keyboard accessibility (focus rings, Escape
+closes overlays).
 
 ### Build
 
 ```bash
-cd dashboard && npm run build   # TypeScript strict, zero errors
+cd dashboard && npm run build   # tsc strict + vite, zero errors
 ```
 
 ---
